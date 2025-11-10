@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, LogIn } from 'lucide-react';
+import api from "../lib/api";
 
 // =========================
 // Composant principal Login
@@ -25,16 +26,27 @@ const Login = () => {
 
     // Requête vers le backend sur port 3001
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          motDePasse: password,
-        }),
-      });
+      const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+      
+        try {
+          const response = await api.post("/api/auth/login", {
+            email,
+            motDePasse: password,
+          });
+      
+          console.log("✅ Connexion réussie :", response.data);
+          // Exemple : stocker le token JWT
+          localStorage.setItem("token", response.data.token);
+          navigate("/dashboard");
+        } catch (error: any) {
+          console.error("❌ Erreur de connexion :", error);
+          alert("Erreur de connexion au serveur. Vérifiez vos identifiants ou le backend.");
+        } finally {
+          setLoading(false);
+        }
+      };
 
       const data = await response.json();
 
