@@ -1,3 +1,4 @@
+// src/components/login.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, LogIn } from "lucide-react";
@@ -18,14 +19,14 @@ const Login = () => {
     try {
       const res = await api.post("/api/auth/login", {
         email,
-        motDePasse,
+        motDePasse, // <- le backend attend 'motDePasse'
       });
 
-      // Stocke le token si renvoyé
-      if (res.data?.token) localStorage.setItem("token", res.data.token);
+      if (res.data?.token) {
+        localStorage.setItem("token", res.data.token);
+      }
       navigate("/dashboard");
     } catch (err: any) {
-      // Affiche les vraies erreurs (CORS, 401, 500, etc.)
       const msg =
         err?.response?.data?.message ||
         err?.message ||
@@ -46,15 +47,22 @@ const Login = () => {
           <p className="mt-2 text-sm text-gray-600">Connexion pour Gestionnaire des Sites</p>
         </div>
 
-        <form className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-lg border border-gray-200" onSubmit={handleSubmit}>
+        <form
+          className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-lg border border-gray-200"
+          onSubmit={handleSubmit}
+        >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Adresse Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Adresse Email
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Mail className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -65,30 +73,44 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de Passe</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Mot de Passe
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 required
                 value={motDePasse}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => setMotDePasse(e.target.value)}  {/* <-- CORRECTION ICI */}
                 className="pl-10 w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 placeholder="••••••••"
               />
             </div>
           </div>
 
-          {error && <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">{error}</div>}
+          {error && (
+            <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={isLoading}
             className="group relative w-full flex justify-center py-3 px-4 rounded-lg text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50"
           >
-            {isLoading ? "Connexion en cours..." : (<><LogIn className="h-5 w-5 mr-2" /> Se Connecter</>)}
+            {isLoading ? (
+              "Connexion en cours..."
+            ) : (
+              <>
+                <LogIn className="h-5 w-5 mr-2" /> Se Connecter
+              </>
+            )}
           </button>
 
           <div className="text-center">
