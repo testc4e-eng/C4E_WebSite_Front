@@ -1,63 +1,41 @@
-// 📂 Chemin : Frontend\src\components\login.tsx
-// 🎯 Rôle : Composant Login avec intégration backend sur port 3001 pour PostgreSQL.
-
-// =========================
-// Importation des dépendances
-// =========================
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn } from 'lucide-react';
+// src/components/login.tsx
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Mail, Lock, LogIn } from "lucide-react";
 import api from "../lib/api";
 
-// =========================
-// Composant principal Login
-// =========================
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
-    // Requête vers le backend sur port 3001
     try {
-      const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-      
-        try {
-          const response = await api.post("/api/auth/login", {
-            email,
-            motDePasse: password,
-          });
-      
-          console.log("✅ Connexion réussie :", response.data);
-          // Exemple : stocker le token JWT
-          localStorage.setItem("token", response.data.token);
-          navigate("/dashboard");
-        } catch (error: any) {
-          console.error("❌ Erreur de connexion :", error);
-          alert("Erreur de connexion au serveur. Vérifiez vos identifiants ou le backend.");
-        } finally {
-          setLoading(false);
-        }
-      };
+      // Appel direct via l’instance Axios (api)
+      const res = await api.post("/api/auth/login", {
+        email,
+        motDePasse: password, // <- correspond au backend
+      });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem('token', data.token);
-        navigate('/dashboard'); // Ajustez si votre route dashboard est différente
-      } else {
-        setError(data.message || 'Erreur lors de la connexion.');
+      // Stocker le token et rediriger
+      if (res.data?.token) {
+        localStorage.setItem("token", res.data.token);
       }
-    } catch (err) {
-      setError('Erreur de connexion au serveur. Vérifiez que le backend est lancé sur le port 3001.');
+      navigate("/dashboard"); // adapte si ta route diffère
+    } catch (err: any) {
+      // Message backend si présent, sinon défaut
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Erreur de connexion au serveur.";
+      setError(msg);
+      console.error("[LOGIN] error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +44,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo de l'entreprise */}
+        {/* Logo */}
         <div className="text-center">
           <img
             src="/logo.png"
@@ -79,9 +57,12 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Formulaire de connexion */}
-        <form className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-lg border border-gray-200" onSubmit={handleSubmit}>
-          {/* Champ Email */}
+        {/* Form */}
+        <form
+          className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-lg border border-gray-200"
+          onSubmit={handleSubmit}
+        >
+          {/* Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Adresse Email
@@ -103,7 +84,7 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Champ Mot de passe */}
+          {/* Password */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Mot de Passe
@@ -125,14 +106,14 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Message d'erreur */}
+          {/* Error */}
           {error && (
             <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
               {error}
             </div>
           )}
 
-          {/* Bouton de soumission */}
+          {/* Submit */}
           <div>
             <button
               type="submit"
@@ -147,11 +128,10 @@ const Login = () => {
               ) : (
                 <LogIn className="h-5 w-5 mr-2" />
               )}
-              {isLoading ? 'Connexion en cours...' : 'Se Connecter'}
+              {isLoading ? "Connexion en cours..." : "Se Connecter"}
             </button>
           </div>
 
-          {/* Lien mot de passe oublié (optionnel) */}
           <div className="text-center">
             <a href="#" className="text-sm text-indigo-600 hover:text-indigo-500 transition-colors duration-200">
               Mot de passe oublié ?
