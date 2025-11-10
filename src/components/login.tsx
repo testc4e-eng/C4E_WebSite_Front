@@ -17,14 +17,8 @@ const Login = () => {
     setError("");
 
     try {
-      const res = await api.post("/api/auth/login", {
-        email,
-        motDePasse, // <- le backend attend 'motDePasse'
-      });
-
-      if (res.data?.token) {
-        localStorage.setItem("token", res.data.token);
-      }
+      const res = await api.post("/api/auth/login", { email, motDePasse });
+      if (res.data?.token) localStorage.setItem("token", res.data.token);
       navigate("/dashboard");
     } catch (err: any) {
       const msg =
@@ -52,9 +46,7 @@ const Login = () => {
           onSubmit={handleSubmit}
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Adresse Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Adresse Email</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Mail className="h-5 w-5 text-gray-400" />
@@ -73,9 +65,7 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Mot de Passe
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de Passe</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-gray-400" />
@@ -86,7 +76,7 @@ const Login = () => {
                 autoComplete="current-password"
                 required
                 value={motDePasse}
-                onChange={(e) => setMotDePasse(e.target.value)}  {/* <-- CORRECTION ICI */}
+                onChange={(e) => setMotDePasse(e.target.value)}
                 className="pl-10 w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 placeholder="••••••••"
               />
@@ -104,13 +94,7 @@ const Login = () => {
             disabled={isLoading}
             className="group relative w-full flex justify-center py-3 px-4 rounded-lg text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50"
           >
-            {isLoading ? (
-              "Connexion en cours..."
-            ) : (
-              <>
-                <LogIn className="h-5 w-5 mr-2" /> Se Connecter
-              </>
-            )}
+            {isLoading ? "Connexion en cours..." : (<><LogIn className="h-5 w-5 mr-2" /> Se Connecter</>)}
           </button>
 
           <div className="text-center">
