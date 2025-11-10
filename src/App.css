@@ -1,0 +1,52 @@
+/* 📌 Conteneur principal */
+#root {
+  max-width: 1280px;       /* largeur max de la page */
+  margin: 0 auto;          /* centrer horizontalement */
+  padding: 2rem;           /* espace intérieur */
+  text-align: center;      /* centrer le texte */
+}
+
+/* 📌 Logos */
+.logo {
+  height: 6em;             /* hauteur fixe */
+  padding: 1.5em;          /* espacement autour */
+  will-change: filter;     /* optimisation pour les transitions */
+  transition: filter 300ms; /* transition pour l'effet hover */
+}
+
+/* 💡 Effet hover sur les logos */
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa); /* ombre colorée */
+}
+
+/* 💡 Effet hover spécifique pour logo React */
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+/* 📌 Animation de rotation du logo */
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 💡 Animation conditionnelle selon les préférences de l'utilisateur */
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+/* 📌 Cartes */
+.card {
+  padding: 2em;           /* espacement intérieur pour les cartes */
+}
+
+/* 📌 Lien "Lire la documentation" */
+.read-the-docs {
+  color: #888;             /* couleur gris clair */
+}
