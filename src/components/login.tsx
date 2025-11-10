@@ -5,7 +5,7 @@ import api from "../lib/api";
 
 const Login = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [motDePasse, setMotDePasse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const Login = () => {
     try {
       const res = await api.post("/api/auth/login", {
         email,
-        password,
+        motDePasse,
       });
 
       // Stocke le token si renvoyé
@@ -73,7 +73,7 @@ const Login = () => {
               <input
                 type="password"
                 required
-                value={password}
+                value={motDePasse}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 placeholder="••••••••"
