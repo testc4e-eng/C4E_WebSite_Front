@@ -18,7 +18,7 @@ const Login = () => {
     try {
       const res = await api.post("/api/auth/login", {
         email,
-        motDePasse: password,
+        password,
       });
 
       // Stocke le token si renvoyé
