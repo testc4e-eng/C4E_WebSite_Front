@@ -80,7 +80,7 @@ const Services = () => {
     title: "Étude d’élaboration d'un système d'aide à la décision (SAD) destiné à la gestion de la qualité des eaux de surface",
     category: "Eau",
     country: "Maroc",
-    image: "../public/Projets/pg1.png",
+    image: "/Projets/pg1.png",
     description: "Conception et développement d’un système d’aide à la décision (SAD) pour le suivi, l’évaluation et l’amélioration de la qualité des eaux de surface au Maroc, intégrant des indicateurs de performance environnementale et des outils de modélisation.",
     annee: "2025"
   },
@@ -88,7 +88,7 @@ const Services = () => {
     title: "Élaboration de l’atlas des zones inondables (Province de Zagora)",
     category: "Eau",
     country: "Maroc",
-    image: "../public/Projets/projet2.png",
+    image: "/Projets/projet2.png",
     description: "Réalisation d’un inventaire et d’une modélisation des zones inondables de la province de Zagora, avec analyse hydrologique et hydraulique, afin de produire un atlas opérationnel pour la prévention des risques et la gestion durable du territoire.",
     annee: "2022-2024"
   },
@@ -96,7 +96,7 @@ const Services = () => {
     title: "Élaboration d’une plateforme d’alerte précoce aux crues et d’amélioration de la gestion du domaine public hydraulique par télédétection dans le bassin du Haut Ziz",
     category: "Eau",
     country: "Maroc",
-    image: "../public/Projets/projet19.png",
+    image: "/Projets/projet19.png",
     description: "Développement d’une plateforme numérique intégrant la télédétection, les données hydrométéorologiques et des modèles hydrologiques pour anticiper les crues, suivre le domaine public hydraulique et renforcer la gestion durable des ressources en eau dans le bassin du Haut Ziz.",
     annee: "2021"
   }
