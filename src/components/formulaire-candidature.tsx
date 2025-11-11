@@ -120,13 +120,18 @@ const calculerScore = (competences: CompetencesType) => {
       formToSend.append('cv', formData.cv);
       formToSend.append('lettre_motivation', formData.lettre_motivation);
 
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
       const score = calculerScore(formData.competences);
       console.log('Score calculé:', score);
 
-      let url = '';
-      if (type === 'emploi') url = 'http://localhost:3001/api/candidature-emploi';
-      else if (type === 'stage') url = 'http://localhost:3001/api/candidature-stage';
-      else url = 'http://localhost:3001/api/candidature-spontanee';
+      let url = "";
+      if (type === "emploi") {
+        url = `${API_BASE_URL}/api/candidature-emploi`;
+      } else if (type === "stage") {
+        url = `${API_BASE_URL}/api/candidature-stage`;
+      } else {
+        url = `${API_BASE_URL}/api/candidature-spontanee`;
+      }
 
       const response = await fetch(url, {
         method: 'POST',
