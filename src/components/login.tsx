@@ -17,7 +17,7 @@ const Login = () => {
     setError("");
 
     try {
-      const res = await api.post("/api/auth/login", { email, password: motDePasse });
+      const res = await api.post("/api/auth/login", { email, motDePasse });
       if (res.data?.token) localStorage.setItem("token", res.data.token);
       navigate("/dashboard");
     } catch (err: any) {
