@@ -221,8 +221,14 @@ const Dashboard = () => {
         const res = await api.get("/api/offres", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
+        console.log("Status:", res.status); // Ajoute ça
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("Erreur réponse:", errorText);
+          throw new Error("Erreur lors du chargement des offres.");
+        }
         const data: ApiOffre[] = await res.json();
+        console.log("Données reçues:", data);
         setOffres(
           data.map((o) => ({
             id: o.id,
@@ -237,6 +243,7 @@ const Dashboard = () => {
           }))
         );
       } catch (err: unknown) {
+        console.error("Catch error:", err);
         const message =
           err instanceof Error ? err.message : "Erreur connexion backend.";
         setErrorOffres(message);
