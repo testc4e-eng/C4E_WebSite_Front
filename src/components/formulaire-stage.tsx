@@ -99,9 +99,11 @@ const FormulaireStage = () => {
       // Ajouter les fichiers
       form.append('cv', formData.cv);
       form.append('lettre_motivation', formData.lettre_motivation);
-
-      const response = await axios.post('http://localhost:3001/api/candidature-stage', form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
+      
+      const response = await axios.post(`${API_BASE_URL}/api/candidature-stage`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       setSubmitMessage('✅ Candidature envoyée avec succès !');
