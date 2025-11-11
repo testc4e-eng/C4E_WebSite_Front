@@ -84,10 +84,17 @@ const diplomeOrder: Record<string, number> = {
 };
 
 // Fonction utilitaire pour les URLs de fichiers
-const getFileUrl = (filePath: string | undefined) => {
+const getFileUrl = (filePath?: string) => {
   if (!filePath) return null;
-  if (filePath.startsWith('http')) return filePath;
-  return `http://localhost:3001${filePath.startsWith('/') ? filePath : '/' + filePath}`;
+
+  // Si déjà une URL complète (cas Render ou lien absolu)
+  if (filePath.startsWith("http")) return filePath;
+
+  // Base dynamique : Render ou local
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
+
+  // Construction correcte de l’URL finale
+  return `${API_BASE_URL}${filePath.startsWith("/") ? filePath : "/" + filePath}`;
 };
 
 // Fonction de tri des candidatures
