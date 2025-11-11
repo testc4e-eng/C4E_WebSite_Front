@@ -18,7 +18,10 @@ const Login = () => {
 
     try {
       console.log("Payload envoyé:", { email, motDePasse });
-      const res = await api.post("/api/auth/login", { email, motDePasse });
+      const res = await api.post("/api/auth/login", null, {
+        email,
+        motDePasse,
+      });
       if (res.data?.token) localStorage.setItem("token", res.data.token);
       navigate("/dashboard");
     } catch (err: any) {
@@ -37,9 +40,15 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <img src="/logo.png" alt="C4E Africa Logo" className="mx-auto h-24 w-24" />
+          <img
+            src="/logo.png"
+            alt="C4E Africa Logo"
+            className="mx-auto h-24 w-24"
+          />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">C4E AFRICA</h2>
-          <p className="mt-2 text-sm text-gray-600">Connexion pour Gestionnaire des Sites</p>
+          <p className="mt-2 text-sm text-gray-600">
+            Connexion pour Gestionnaire des Sites
+          </p>
         </div>
 
         <form
@@ -47,7 +56,9 @@ const Login = () => {
           onSubmit={handleSubmit}
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Adresse Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Adresse Email
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Mail className="h-5 w-5 text-gray-400" />
@@ -66,7 +77,9 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de Passe</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Mot de Passe
+            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-gray-400" />
@@ -95,7 +108,13 @@ const Login = () => {
             disabled={isLoading}
             className="group relative w-full flex justify-center py-3 px-4 rounded-lg text-white bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50"
           >
-            {isLoading ? "Connexion en cours..." : (<><LogIn className="h-5 w-5 mr-2" /> Se Connecter</>)}
+            {isLoading ? (
+              "Connexion en cours..."
+            ) : (
+              <>
+                <LogIn className="h-5 w-5 mr-2" /> Se Connecter
+              </>
+            )}
           </button>
 
           <div className="text-center">
