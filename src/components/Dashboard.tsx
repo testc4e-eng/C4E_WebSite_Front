@@ -266,7 +266,7 @@ const Dashboard = () => {
         if (activeTab === "candidatures") {
           // 🔹 Charger UNIQUEMENT les candidatures spontanées
           const res = await api.get("/api/candidatures/spontanees/toutes", {
-            headers: { Authorization: `Bearer ${token}` },
+            // headers: { Authorization: `Bearer ${token}` },
           });
           console.log(
             "Requête pour candidatures spontanées envoyée à :",
