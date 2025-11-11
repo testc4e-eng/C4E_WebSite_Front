@@ -18,6 +18,7 @@ import {
   Filter, ArrowLeft, UserCheck, FileText, Archive, Download, 
   CheckCircle, XCircle, Clock, BarChart3, Home, Search
 } from 'lucide-react';
+import api from "../lib/api";
 
 interface OffreEmploi {
   id: number;
@@ -179,7 +180,7 @@ const Dashboard = () => {
       try {
         setLoadingOffres(true);
         setErrorOffres('');
-        const res = await fetch('http://localhost:3001/api/offres', {
+        const res = await api.get("/api/offres", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des offres.');
