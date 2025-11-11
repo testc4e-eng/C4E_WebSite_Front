@@ -497,7 +497,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         typeAPI = 'stage'; // Table candidatures_stage
       }
 
-      const res = await fetch(`http://localhost:3001/api/candidatures/statut/${typeAPI}/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/candidatures/statut/${typeAPI}/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -521,7 +521,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
       
       const fetchCandidatures = async () => {
         try {
-          const res = await fetch('http://localhost:3001/api/candidatures', {
+          const res = await fetch(`${API_BASE_URL}/api/candidatures', {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
