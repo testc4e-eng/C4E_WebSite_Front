@@ -218,17 +218,11 @@ const Dashboard = () => {
       try {
         setLoadingOffres(true);
         setErrorOffres("");
-        const res = await api.get("/api/offres", {
+        const { res, data } = await api.get("/api/offres", {
+          // Extrait res et data
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log("Status:", res.status); // Ajoute ça
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error("Erreur réponse:", errorText);
-          throw new Error("Erreur lors du chargement des offres.");
-        }
-        const data: ApiOffre[] = await res.json();
-        console.log("Données reçues:", data);
+        if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
         setOffres(
           data.map((o) => ({
             id: o.id,
