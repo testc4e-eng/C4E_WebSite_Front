@@ -274,12 +274,13 @@ const Dashboard = () => {
           );
           console.log("Status reçu :", res.status);
           console.log("OK ? :", res.ok);
-          if (!res.ok) const errorText = await res.text(); // Pour voir le message d'erreur du serveur
-          console.error("Erreur détaillée :", errorText);
-
-          throw new Error(
-            "Erreur lors du chargement des candidatures spontanées."
-          );
+          if (!res.ok) {
+            const errorText = await res.text(); // Pour voir le message d'erreur du serveur
+            console.error("Erreur détaillée :", errorText);
+            throw new Error(
+              "Erreur lors du chargement des candidatures spontanées."
+            );
+          }
           const data: Candidature[] = await res.json();
 
           console.log("🔍 DEBUG - Candidatures spontanées récupérées:");
