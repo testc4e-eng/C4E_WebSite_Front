@@ -87,6 +87,8 @@ export async function httpGet<T = unknown>(
       ...rest,
     });
     console.log("Type de res :", typeof res, res instanceof Response);
+    console.log("httpGet appelé pour :", path);
+    console.log("Response type :", typeof res);
     assertOk(res, `GET ${path}`);
     const data = await safeJson<T>(res);
     return { res, data };
