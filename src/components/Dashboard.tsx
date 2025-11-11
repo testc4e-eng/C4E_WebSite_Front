@@ -452,7 +452,8 @@ const supprimerCandidature = async (candidature: Candidature) => {
     const { id, type } = candidature;
     
     // CORRECTION : Utiliser la route principale avec paramètres
-    const url = `http://localhost:3001/api/candidatures/${type}/${id}`;
+    
+    const url = `${API_BASE_URL}/api/candidatures/${type}/${id}`;
     console.log('🔗 URL de suppression:', url);
 
     const res = await fetch(url, {
