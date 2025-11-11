@@ -42,11 +42,12 @@ const FormulaireEmploi = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [selectedOffre, setSelectedOffre] = useState<Offre | null>(null);
-
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
+  
   useEffect(() => {
     const fetchOffres = async () => {
       try {
-        const response = await axios.get<Offre[]>('http://localhost:3001/api/offres');
+        const response = await axios.get<Offre[]>(`${API_BASE_URL}/api/offres`);
         setOffres(response.data);
 
         if (location.state?.offreId) {
@@ -150,9 +151,7 @@ const FormulaireEmploi = () => {
       form.append('poste', selectedOffre?.titre || '');
       form.append('competences', JSON.stringify(formData.competences));
 
-      await axios.post('http://localhost:3001/api/candidature-emploi', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await axios.post(`${API_BASE_URL}/api/candidature-emploi`, form);
 
       setSubmitMessage('Candidature envoyée avec succès !');
       setFormData({
