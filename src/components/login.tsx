@@ -17,6 +17,7 @@ const Login = () => {
     setError("");
 
     try {
+      console.log("Payload envoyé:", { email, motDePasse });
       const res = await api.post("/api/auth/login", { email, motDePasse });
       if (res.data?.token) localStorage.setItem("token", res.data.token);
       navigate("/dashboard");
