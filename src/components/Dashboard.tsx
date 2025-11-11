@@ -259,82 +259,32 @@ const Dashboard = () => {
 
         if (activeTab === "candidatures") {
           // 🔹 Charger UNIQUEMENT les candidatures spontanées
-          const res = await api.get("/api/candidatures/spontanees/toutes", {
-            // headers: { Authorization: `Bearer ${token}` },
-          });
-          console.log(
-            "Requête pour candidatures spontanées envoyée à :",
-            res.url
+          const { res, data } = await api.get(
+            "/api/candidatures/spontanees/toutes",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
           );
-          console.log("Token :", token);
-          console.log("URL :", res.url);
-          console.log("Status :", res.status, "OK :", res.ok);
-          if (!res.ok) {
-            const errorText = await res.text(); // Pour voir le message d'erreur du serveur
-            console.error("Erreur détaillée :", errorText);
+          if (!res.ok)
             throw new Error(
               "Erreur lors du chargement des candidatures spontanées."
             );
-          }
-          const data: Candidature[] = await res.json();
-
-          console.log("🔍 DEBUG - Candidatures spontanées récupérées:");
-          console.log(`📊 Total: ${data.length}`);
-
-          // Debug détaillé
-          const stageSpontaneCount = data.filter(
-            (c) => c.type === "stage_spontane"
-          ).length;
-          const spontaneeCount = data.filter(
-            (c) => c.type === "spontanee"
-          ).length;
-          console.log(`   - Stage spontané: ${stageSpontaneCount}`);
-          console.log(`   - Spontané général: ${spontaneeCount}`);
-
-          data.forEach((c, i) => {
-            console.log(
-              `   ${i + 1}. id=${c.id}, type=${c.type}, nom=${c.nom}, poste=${
-                c.poste
-              }`
-            );
-          });
+          // Pas besoin de res.json(), data est prêt
+          console.log("Données spontanées :", data);
 
           setCandidatures(data);
         } else if (activeTab === "candidatures-postes") {
           // 🔹 CORRECTION : Utiliser la route principale et filtrer pour avoir UNIQUEMENT les candidatures sur offres
-          const res = await api.get("/api/candidatures", {
+          const { res, data } = await api.get("/api/candidatures", {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!res.ok)
             throw new Error(
               "Erreur lors du chargement des candidatures par offres."
             );
-          const data: Candidature[] = await res.json();
-
-          // 🔹 FILTRAGE CRITIQUE : Garder seulement les candidatures sur offres (emploi, stage, pfe)
           const candidaturesSurOffres = data.filter(
             (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
           );
-
-          console.log("🔍 DEBUG - Candidatures sur offres récupérées:");
-          console.log(`📊 Total API: ${data.length}`);
-          console.log(
-            `📊 Après filtrage (emploi/stage/pfe): ${candidaturesSurOffres.length}`
-          );
-
-          // Debug détaillé du filtrage
-          const emploiCount = candidaturesSurOffres.filter(
-            (c) => c.type === "emploi"
-          ).length;
-          const stageCount = candidaturesSurOffres.filter(
-            (c) => c.type === "stage"
-          ).length;
-          const pfeCount = candidaturesSurOffres.filter(
-            (c) => c.type === "pfe"
-          ).length;
-          console.log(`   - Emploi: ${emploiCount}`);
-          console.log(`   - Stage: ${stageCount}`);
-          console.log(`   - PFE: ${pfeCount}`);
 
           candidaturesSurOffres.forEach((c, i) => {
             console.log(
@@ -347,16 +297,11 @@ const Dashboard = () => {
           setCandidatures(candidaturesSurOffres);
         } else if (activeTab === "archives") {
           // Pour les archives, charger toutes les candidatures
-          const res = await api.get("/api/candidatures", {
+          const { res, data } = await api.get("/api/candidatures", {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!res.ok)
             throw new Error("Erreur lors du chargement des archives.");
-          const data: Candidature[] = await res.json();
-
-          console.log("🔍 DEBUG - Archives récupérées:");
-          console.log(`📊 Total: ${data.length}`);
-
           setCandidatures(data);
         }
       } catch (err: unknown) {
