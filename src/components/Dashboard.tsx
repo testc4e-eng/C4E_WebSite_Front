@@ -216,7 +216,7 @@ useEffect(() => {
       
       if (activeTab === 'candidatures') {
         // 🔹 Charger UNIQUEMENT les candidatures spontanées
-        const res = await fetch('http://localhost:3001/api/candidatures/spontanees/toutes', {
+        const res = await api.get("/api/candidatures/spontanees/toutes", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des candidatures spontanées.');
@@ -239,7 +239,7 @@ useEffect(() => {
         
       } else if (activeTab === 'candidatures-postes') {
         // 🔹 CORRECTION : Utiliser la route principale et filtrer pour avoir UNIQUEMENT les candidatures sur offres
-        const res = await fetch('http://localhost:3001/api/candidatures', {
+        const res = await api.get("/api/candidatures", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des candidatures par offres.');
@@ -270,7 +270,7 @@ useEffect(() => {
         
       } else if (activeTab === 'archives') {
         // Pour les archives, charger toutes les candidatures
-        const res = await fetch('http://localhost:3001/api/candidatures', {
+        const res = await api.get("/api/candidatures", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des archives.');
@@ -343,7 +343,7 @@ useEffect(() => {
     }
     try {
       const exigencesArray = exigencesFields.filter(req => req.trim() !== '');
-      const res = await fetch('http://localhost:3001/api/offres', {
+      const res = await api.get("/api/offres", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -395,7 +395,7 @@ useEffect(() => {
     }
     try {
       const exigencesArray = editingExigences.filter(req => req.trim() !== '');
-      const res = await fetch(`http://localhost:3001/api/offres/${offre.id}`, {
+      const res = await api.get("/api/offres/${offre.id}", {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -432,7 +432,7 @@ useEffect(() => {
   const supprimerOffre = async (id: number) => {
     if (!window.confirm('Confirmer la suppression ?')) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/offres/${id}`, {
+      const res = await api.get("/api/offres/${id}", {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
