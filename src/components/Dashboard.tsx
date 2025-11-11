@@ -272,8 +272,9 @@ const Dashboard = () => {
             "Requête pour candidatures spontanées envoyée à :",
             res.url
           );
-          console.log("Status reçu :", res.status);
-          console.log("OK ? :", res.ok);
+          console.log("Token :", token);
+          console.log("URL :", res.url);
+          console.log("Status :", res.status, "OK :", res.ok);
           if (!res.ok) {
             const errorText = await res.text(); // Pour voir le message d'erreur du serveur
             console.error("Erreur détaillée :", errorText);

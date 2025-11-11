@@ -9,7 +9,8 @@
  * ⚠️ Ne pas mettre de slash final dans VITE_API_URL.
  */
 export const API_BASE_URL: string =
-  (import.meta as any).env?.VITE_API_URL || "https://c4e-website-back.onrender.com";
+  (import.meta as any).env?.VITE_API_URL ||
+  "https://c4e-website-back.onrender.com";
 
 /**
  * Concaténation sûre d’URL via URL()
@@ -26,9 +27,13 @@ function withTimeout(signal?: AbortSignal, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const abortMerge = new AbortController();
   if (signal) {
-    signal.addEventListener("abort", () => abortMerge.abort(signal.reason), { once: true });
+    signal.addEventListener("abort", () => abortMerge.abort(signal.reason), {
+      once: true,
+    });
   }
-  controller.signal.addEventListener("abort", () => abortMerge.abort(), { once: true });
+  controller.signal.addEventListener("abort", () => abortMerge.abort(), {
+    once: true,
+  });
   return {
     signal: abortMerge.signal,
     cleanup: () => clearTimeout(timer),
@@ -81,6 +86,7 @@ export async function httpGet<T = unknown>(
       signal,
       ...rest,
     });
+    console.log("Type de res :", typeof res, res instanceof Response);
     assertOk(res, `GET ${path}`);
     const data = await safeJson<T>(res);
     return { res, data };
