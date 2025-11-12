@@ -8,9 +8,12 @@
  * Base URL de l'API : priorise VITE (build-time), sinon fallback Render.
  * ⚠️ Ne pas mettre de slash final dans VITE_API_URL.
  */
-export const API_BASE_URL: string =
-  (import.meta as any).env?.VITE_API_URL ||
-  "https://c4e-website-back.onrender.com";
+// export const API_BASE_URL: string =
+//   (import.meta as any).env?.VITE_API_URL ||
+//   "https://c4e-website-back.onrender.com";
+
+// === Test local temporaire ===
+export const API_BASE_URL: string = "http://localhost:10000";
 
 /**
  * Concaténation sûre d’URL via URL()

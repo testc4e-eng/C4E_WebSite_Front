@@ -24,14 +24,14 @@ const About = () => {
     { name: "ABHS", image: "/partenaires/img7.jpg" },
     { name: "CDG INVEST", image: "/partenaires/img8.jpg" },
     { name: "ABHOER", image: "/partenaires/img9.jpg" },
-    { name: "Conseil provincial de Sidi Ifni", image: "/partenaires/img10.jpg" },
     { name: "ABHT", image: "/partenaires/img11.jpg" },
     { name: "CM", image: "/partenaires/img12.jpg" },
     { name: "CBM", image: "/partenaires/img13.jpg" },
     { name: "Hydrauleader", image: "/partenaires/img14.jpg" },
-    { name: "ABHM", image: "/partenaires/img15.jpg" },
     { name: "WWF", image: "/partenaires/img16.jpg" },
-    { name: "Cid", image: "/partenaires/img17.jpg" }
+    { name: "Cid", image: "/partenaires/img17.jpg" },
+    { name: "ABHBC", image: "/partenaires/img15.jpg" },
+    { name: "Invest international", image: "/partenaires/img10.jpg" }
   ];
 
   // Diviser les partenaires en deux groupes

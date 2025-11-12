@@ -111,8 +111,8 @@ const Footer = () => {
               <div className="flex items-start space-x-3">
                 <Mail className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-white/80">contact@c4eafrica.com</p>
-                  <p className="text-white/80">info@c4eafrica.com</p>
+                  <p className="text-white/80">c4e.africa@gmail.com</p>
+                  <p className="text-white/80">RHC4EAFRICA@gmail.com</p>
                 </div>
               </div>
             </div>
