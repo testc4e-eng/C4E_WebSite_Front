@@ -41,19 +41,19 @@ const Login = () => {
 
     try {
       console.log("Payload envoyé:", { email, motDePasse, type: userType });
-      
-      // Envoi correct vers le backend
-const res = await api.post<LoginResponse>("/api/auth/login", {
-  email,
-  motDePasse,
-  type: userType
-});
 
-      if (res.data.token) {
-        localStorage.setItem("token", res.data.token);
+      // ✅ Envoi correct vers le backend
+const { data } = await api.post<LoginResponse>(
+  "/api/auth/login",
+  null, // pas de token
+  { email, motDePasse, type: userType } // corps de la requête
+);
+      // ✅ Utilisation correcte de 'data' (et non 'res')
+      if (data.token) {
+        localStorage.setItem("token", data.token);
         localStorage.setItem("userType", userType);
 
-        // Redirection selon le type d'utilisateur
+        // ✅ Redirection selon le type d'utilisateur
         if (userType === "administrateur") {
           navigate("/admin-dashboard");
         } else {
@@ -140,11 +140,13 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
         >
           {/* Indicateur du type d'utilisateur sélectionné */}
           <div className="text-center mb-4">
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              userType === "gestionnaire" 
-                ? "bg-blue-100 text-blue-800" 
-                : "bg-purple-100 text-purple-800"
-            }`}>
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                userType === "gestionnaire"
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-purple-100 text-purple-800"
+              }`}
+            >
               {userType === "gestionnaire" ? (
                 <>
                   <Building className="h-4 w-4 mr-1" />
@@ -159,6 +161,7 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
             </span>
           </div>
 
+          {/* Champs Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Adresse Email
@@ -169,8 +172,6 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
               </div>
               <input
                 type="email"
-                name="email"
-                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -180,6 +181,7 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
             </div>
           </div>
 
+          {/* Champs Mot de passe */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Mot de Passe
@@ -190,8 +192,6 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
               </div>
               <input
                 type="password"
-                name="password"
-                autoComplete="current-password"
                 required
                 value={motDePasse}
                 onChange={(e) => setMotDePasse(e.target.value)}
@@ -201,8 +201,9 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
             </div>
           </div>
 
+          {/* Affichage des erreurs */}
           {error && (
-            <motion.div 
+            <motion.div
               className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg border border-red-200"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -211,6 +212,7 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
             </motion.div>
           )}
 
+          {/* Bouton de connexion */}
           <motion.button
             type="submit"
             disabled={isLoading}
@@ -232,8 +234,8 @@ const res = await api.post<LoginResponse>("/api/auth/login", {
           </motion.button>
 
           <div className="text-center pt-4 border-t border-gray-200">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-300"
             >
               ← Retour à la page d'accueil
