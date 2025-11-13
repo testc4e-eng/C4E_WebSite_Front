@@ -11,7 +11,8 @@ interface LoginResponse {
   user: {
     id: string;
     email: string;
-    userType: "gestionnaire" | "administrateur";
+    role: string;
+    type: "gestionnaire" | "administrateur";
   };
 }
 
@@ -39,29 +40,27 @@ const Login = () => {
     setError("");
 
     try {
-      console.log("Payload envoyé:", { email, motDePasse, userType });
+      console.log("Payload envoyé:", { email, motDePasse, type: userType });
       
-      // Correction : passer les données dans le body
-      const res = await api.post<LoginResponse>("/api/auth/login", null,{
-        email,
-        motDePasse,
-        userType
-      });
-      
-      // Maintenant TypeScript connaît la structure de res.data
+      // Envoi correct vers le backend
+const res = await api.post<LoginResponse>("/api/auth/login", {
+  email,
+  motDePasse,
+  type: userType
+});
+
       if (res.data.token) {
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("userType", userType);
-        
+
         // Redirection selon le type d'utilisateur
-if (userType === "administrateur") {
-  navigate("/admin-dashboard"); // reste pareil
-} else {
-  navigate("/dashboard"); // utiliser la route existante pour gestionnaire
-}
+        if (userType === "administrateur") {
+          navigate("/admin-dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (err: unknown) {
-      // Gestion d'erreur typée
       const error = err as ApiError;
       const msg =
         error?.response?.data?.message ||
@@ -77,7 +76,6 @@ if (userType === "administrateur") {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Logo avec lien vers l'accueil */}
         <motion.div 
           className="text-center"
           initial={{ opacity: 0, y: -20 }}
@@ -242,7 +240,6 @@ if (userType === "administrateur") {
             </Link>
           </div>
         </motion.form>
-
       </div>
     </div>
   );
