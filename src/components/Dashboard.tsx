@@ -13,6 +13,7 @@
 // ============================================================
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   LogOut,
   Plus,
@@ -1243,27 +1244,42 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <img
-              src="/logo.png"
-              alt="Logo C4E Africa"
-              className="h-10 w-10 rounded-full shadow-md"
-            />
-            <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Dashboard Gestionnaire
-            </h1>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
-          >
-            <LogOut className="h-5 w-5" />
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </header>
+<header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200 sticky top-0 z-40">
+  <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+    <div className="flex items-center space-x-4">
+      {/* Logo cliquable */}
+      <Link to="/">
+        <img
+          src="/logo.png"
+          alt="Logo C4E Africa"
+          className="h-10 w-10 rounded-full shadow-md cursor-pointer"
+        />
+      </Link>
+      <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        Dashboard Gestionnaire
+      </h1>
+    </div>
+
+    <div className="flex items-center space-x-4">
+      {/* Bouton Accueil */}
+      <Link
+        to="/"
+        className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
+      >
+        Accueil
+      </Link>
+
+      {/* Bouton Déconnexion */}
+      <button
+        onClick={handleLogout}
+        className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
+      >
+        <LogOut className="h-5 w-5" />
+        <span>Déconnexion</span>
+      </button>
+    </div>
+  </div>
+</header>
 
       <div className="container mx-auto px-6 py-8">
         {/* Navigation principale */}

@@ -19,8 +19,8 @@ import Dashboard from './components/Dashboard'; // Nouveau import
 import AdminDashboard from './components/AdminDashboard';
 function App() {
   const location = useLocation();
-  const isProtectedPage = location.pathname === '/dashboard' || location.pathname === '/login';
-
+  const isProtectedPage = location.pathname === '/dashboard' || location.pathname === '/login' ||
+  location.pathname === '/admin-dashboard';
   return (
     <div className="App">
       {/* --- Header global (exclu sur pages protégées) --- */}
