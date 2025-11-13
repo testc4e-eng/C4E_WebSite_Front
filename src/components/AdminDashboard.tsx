@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { LogOut, UserCog, Shield, Users, Plus, Edit, Trash2, Search, Filter, Download, Mail, Home } from "lucide-react";
+import { LogOut, UserCog, Shield, Users, Plus, Edit, Trash2, Search, Mail, Home } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../lib/api";
 import { useNavigate } from "react-router-dom";
@@ -17,9 +17,14 @@ interface ApiResponse {
   data: Utilisateur[];
 }
 
-interface CreateUserData {
-  email: string;
-  mot_de_passe: string; // Vérifie le champ attendu par ton backend
+interface ApiError {
+  response?: {
+    data?: {
+      message: string;
+    };
+    status: number;
+  };
+  message: string;
 }
 
 const AdminDashboard = () => {
@@ -36,6 +41,7 @@ const AdminDashboard = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log(`🔄 Chargement des ${activeTab}...`);
       const res = await api.get<ApiResponse>(`/api/admin/${activeTab}`);
       const usersData: Utilisateur[] = res.data.data || [];
       setUtilisateurs(usersData);
@@ -44,15 +50,33 @@ const AdminDashboard = () => {
       const total = usersData.length;
       const actifs = usersData.filter((u) => u.statut === "actif").length;
       setStats({ total, actifs, inactifs: total - actifs });
-    } catch (err) {
-      console.error("Erreur lors du chargement :", err);
+      
+      console.log(`✅ ${usersData.length} ${activeTab} chargés`);
+    } catch (err: unknown) {
+      console.error("❌ Erreur lors du chargement :", err);
+      const error = err as ApiError;
+      console.error("Détails erreur:", error.response?.data);
       setUtilisateurs([]);
       setFilteredUsers([]);
       setStats({ total: 0, actifs: 0, inactifs: 0 });
+      
+      // Si erreur 403, rediriger vers login
+      if (error.response?.status === 403) {
+        document.dispatchEvent(
+          new CustomEvent("showToast", {
+            detail: { 
+              message: "Session expirée ou accès refusé", 
+              type: "error" 
+            }
+          })
+        );
+        localStorage.removeItem('token');
+        navigate('/login');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, navigate]);
 
   useEffect(() => {
     fetchUsers();
@@ -65,54 +89,64 @@ const AdminDashboard = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, utilisateurs]);
 
-const handleAdd = async () => {
-  if (!newEmail || !newPassword) {
-    alert("Veuillez remplir tous les champs");
-    return;
-  }
-
-  try {
-    const userData = {
-      email: newEmail,
-      mot_de_passe: newPassword // CORRECTION: correspond au backend
-    };
-
-    // CORRECTION: envoi correct des données
-    await api.post(`/api/admin/${activeTab}`, userData);
-    
-    setNewEmail("");
-    setNewPassword("");
-    fetchUsers();
-
-    document.dispatchEvent(
-      new CustomEvent("showToast", {
-        detail: {
-          message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
-          type: "success"
-        }
-      })
-    );
-  } catch (err: any) {
-    console.error("Erreur ajout :", err);
-    
-    let errorMessage = "Erreur lors de l'ajout";
-    if (err.response?.data?.message) {
-      errorMessage = err.response.data.message;
+  const handleAdd = async () => {
+    if (!newEmail || !newPassword) {
+      alert("Veuillez remplir tous les champs");
+      return;
     }
-    
-    document.dispatchEvent(
-      new CustomEvent("showToast", {
-        detail: { 
-          message: errorMessage, 
-          type: "error" 
-        }
-      })
-    );
-  }
-};
+
+    // Validation email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      alert("Veuillez entrer une adresse email valide");
+      return;
+    }
+
+    try {
+      const userData = {
+        email: newEmail,
+        motDePasse: newPassword
+      };
+
+      console.log("📤 Envoi création utilisateur:", userData);
+      
+      await api.post(`/api/admin/${activeTab}`, userData);
+      
+      setNewEmail("");
+      setNewPassword("");
+      fetchUsers();
+
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: {
+            message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
+            type: "success"
+          }
+        })
+      );
+    } catch (err: unknown) {
+      console.error("❌ Erreur ajout :", err);
+      const error = err as ApiError;
+      
+      let errorMessage = "Erreur lors de l'ajout";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { 
+            message: errorMessage, 
+            type: "error" 
+          }
+        })
+      );
+    }
+  };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
+    
     try {
       await api.delete(`/api/admin/${activeTab}/${id}`);
       fetchUsers();
@@ -122,11 +156,18 @@ const handleAdd = async () => {
           detail: { message: "Utilisateur supprimé avec succès", type: "success" }
         })
       );
-    } catch (err) {
-      console.error("Erreur suppression :", err);
+    } catch (err: unknown) {
+      console.error("❌ Erreur suppression :", err);
+      const error = err as ApiError;
+      
+      let errorMessage = "Erreur lors de la suppression";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       document.dispatchEvent(
         new CustomEvent("showToast", {
-          detail: { message: "Erreur lors de la suppression", type: "error" }
+          detail: { message: errorMessage, type: "error" }
         })
       );
     }
@@ -140,29 +181,70 @@ const handleAdd = async () => {
   const handleLogoClick = () => navigate("/");
   const handleHomeClick = () => navigate("/");
 
-  const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
-  const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.5 } } };
+  const containerVariants = { 
+    hidden: { opacity: 0 }, 
+    visible: { 
+      opacity: 1, 
+      transition: { staggerChildren: 0.1 } 
+    } 
+  };
+  
+  const itemVariants = { 
+    hidden: { y: 20, opacity: 0 }, 
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      transition: { duration: 0.5 } 
+    } 
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <motion.header className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-white/20 sticky top-0 z-50" initial={{ y: -100 }} animate={{ y: 0 }} transition={{ duration: 0.6, type: "spring" }}>
+      <motion.header 
+        className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-white/20 sticky top-0 z-50" 
+        initial={{ y: -100 }} 
+        animate={{ y: 0 }} 
+        transition={{ duration: 0.6, type: "spring" }}
+      >
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <motion.button onClick={handleLogoClick} whileHover={{ scale: 1.05, rotate: 5 }} whileTap={{ scale: 0.95 }} className="flex items-center space-x-3 group">
-              <img src="/logo.png" alt="Logo C4E Africa" className="h-12 w-12 rounded-2xl shadow-lg border-2 border-white/50 group-hover:shadow-xl transition-all duration-300" />
+            <motion.button 
+              onClick={handleLogoClick} 
+              whileHover={{ scale: 1.05, rotate: 5 }} 
+              whileTap={{ scale: 0.95 }} 
+              className="flex items-center space-x-3 group"
+            >
+              <img 
+                src="/logo.png" 
+                alt="Logo C4E Africa" 
+                className="h-12 w-12 rounded-2xl shadow-lg border-2 border-white/50 group-hover:shadow-xl transition-all duration-300" 
+              />
               <div className="text-left">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Dashboard Administrateur</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Dashboard Administrateur
+                </h1>
                 <p className="text-gray-600 text-sm">Gestion des utilisateurs et permissions</p>
               </div>
             </motion.button>
           </div>
           <div className="flex items-center space-x-4">
-            <motion.button onClick={handleHomeClick} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group" title="Retour à l'accueil">
+            <motion.button 
+              onClick={handleHomeClick} 
+              whileHover={{ scale: 1.05 }} 
+              whileTap={{ scale: 0.95 }} 
+              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group" 
+              title="Retour à l'accueil"
+            >
               <Home className="h-5 w-5 group-hover:scale-110 transition-transform" />
               <span className="hidden sm:block">Accueil</span>
             </motion.button>
-            <motion.button onClick={handleLogout} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group">
+            <motion.button 
+              onClick={handleLogout} 
+              whileHover={{ scale: 1.05 }} 
+              whileTap={{ scale: 0.95 }} 
+              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group"
+            >
               <LogOut className="h-5 w-5 group-hover:rotate-12 transition-transform" />
               <span>Déconnexion</span>
             </motion.button>
@@ -173,7 +255,12 @@ const handleAdd = async () => {
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         {/* Statistics Cards */}
-        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" variants={containerVariants} initial="hidden" animate="visible">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" 
+          variants={containerVariants} 
+          initial="hidden" 
+          animate="visible"
+        >
           <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
             <div className="flex items-center justify-between">
               <div>
@@ -210,14 +297,33 @@ const handleAdd = async () => {
         </motion.div>
 
         {/* Tabs */}
-        <motion.div className="flex justify-center mb-8" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
+        <motion.div 
+          className="flex justify-center mb-8" 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           <div className="bg-white/50 backdrop-blur-md rounded-2xl p-2 shadow-lg border border-white/20">
             <div className="flex space-x-1">
-              <button onClick={() => setActiveTab("gestionnaires")} className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${activeTab === "gestionnaires" ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg" : "text-gray-600 hover:text-gray-800 hover:bg-white/70"}`}>
+              <button 
+                onClick={() => setActiveTab("gestionnaires")} 
+                className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
+                  activeTab === "gestionnaires" 
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg" 
+                    : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
+                }`}
+              >
                 <Users className="h-5 w-5" />
                 <span>Gestionnaires</span>
               </button>
-              <button onClick={() => setActiveTab("administrateurs")} className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${activeTab === "administrateurs" ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" : "text-gray-600 hover:text-gray-800 hover:bg-white/70"}`}>
+              <button 
+                onClick={() => setActiveTab("administrateurs")} 
+                className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
+                  activeTab === "administrateurs" 
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" 
+                    : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
+                }`}
+              >
                 <Shield className="h-5 w-5" />
                 <span>Administrateurs</span>
               </button>
@@ -226,22 +332,63 @@ const handleAdd = async () => {
         </motion.div>
 
         {/* Main Card */}
-        <motion.div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.3 }}>
+        <motion.div 
+          className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20" 
+          initial={{ opacity: 0, scale: 0.95 }} 
+          animate={{ opacity: 1, scale: 1 }} 
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
           {/* Formulaire d'ajout */}
-          <motion.div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.5 }}>
+          <motion.div 
+            className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100" 
+            initial={{ opacity: 0, height: 0 }} 
+            animate={{ opacity: 1, height: "auto" }} 
+            transition={{ duration: 0.5 }}
+          >
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Plus className="h-5 w-5 mr-2 text-green-600" />
               Ajouter un nouveau {activeTab.slice(0, -1)}
             </h3>
             <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
-              <input type="email" placeholder="Adresse email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
-              <input type="password" placeholder="Mot de passe temporaire" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
-              <motion.button onClick={handleAdd} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-lg font-semibold">
+              <input 
+                type="email" 
+                placeholder="Adresse email" 
+                value={newEmail} 
+                onChange={(e) => setNewEmail(e.target.value)} 
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+              />
+              <input 
+                type="password" 
+                placeholder="Mot de passe temporaire" 
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)} 
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+              />
+              <motion.button 
+                onClick={handleAdd} 
+                whileHover={{ scale: 1.02 }} 
+                whileTap={{ scale: 0.98 }} 
+                className="flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-lg font-semibold"
+              >
                 <Plus className="h-5 w-5" />
                 <span>Créer le compte</span>
               </motion.button>
             </div>
           </motion.div>
+
+          {/* Barre de recherche */}
+          <div className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <input
+                type="text"
+                placeholder="Rechercher par email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+          </div>
 
           {/* Tableau des utilisateurs */}
           <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
@@ -276,7 +423,14 @@ const handleAdd = async () => {
                     </tr>
                   ) : (
                     filteredUsers.map((user, index) => (
-                      <motion.tr key={user.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors group">
+                      <motion.tr 
+                        key={user.id} 
+                        initial={{ opacity: 0, y: 20 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        exit={{ opacity: 0, y: -20 }} 
+                        transition={{ duration: 0.3, delay: index * 0.05 }} 
+                        className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors group"
+                      >
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
@@ -292,26 +446,52 @@ const handleAdd = async () => {
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">{user.role}</span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">
+                            {user.role}
+                          </span>
                         </td>
                         <td className="p-4">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${user.statut === "actif" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                            <div className={`w-2 h-2 rounded-full mr-2 ${user.statut === "actif" ? "bg-green-500" : "bg-red-500"}`}></div>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            user.statut === "actif" 
+                              ? "bg-green-100 text-green-800" 
+                              : "bg-red-100 text-red-800"
+                          }`}>
+                            <div className={`w-2 h-2 rounded-full mr-2 ${
+                              user.statut === "actif" ? "bg-green-500" : "bg-red-500"
+                            }`}></div>
                             {user.statut}
                           </span>
                         </td>
                         <td className="p-4">
-                          <div className="text-gray-600">{new Date(user.date_creation).toLocaleDateString("fr-FR")}</div>
+                          <div className="text-gray-600">
+                            {new Date(user.date_creation).toLocaleDateString("fr-FR")}
+                          </div>
                         </td>
                         <td className="p-4">
-                          <div className="text-gray-600">{user.dernier_connexion ? new Date(user.dernier_connexion).toLocaleDateString("fr-FR") : "Jamais"}</div>
+                          <div className="text-gray-600">
+                            {user.dernier_connexion 
+                              ? new Date(user.dernier_connexion).toLocaleDateString("fr-FR") 
+                              : "Jamais"
+                            }
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
+                            <motion.button 
+                              whileHover={{ scale: 1.1 }} 
+                              whileTap={{ scale: 0.9 }} 
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                              title="Modifier"
+                            >
                               <Edit className="h-4 w-4" />
                             </motion.button>
-                            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(user.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
+                            <motion.button 
+                              whileHover={{ scale: 1.1 }} 
+                              whileTap={{ scale: 0.9 }} 
+                              onClick={() => handleDelete(user.id)} 
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                              title="Supprimer"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </motion.button>
                           </div>
