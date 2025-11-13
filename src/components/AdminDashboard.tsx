@@ -75,35 +75,34 @@ const AdminDashboard = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, utilisateurs]);
 
-  const handleAdd = async () => {
-    if (!newEmail || !newPassword) {
-      alert("Veuillez remplir tous les champs");
-      return;
-    }
+const handleAdd = async () => {
+  if (!newEmail || !newPassword) {
+    alert("Veuillez remplir tous les champs");
+    return;
+  }
+  
+  try {
+    const userData: CreateUserData = { 
+      email: newEmail, 
+      motDePasse: newPassword 
+    };
     
-    try {
-      // CORRECTION : Typage explicite des données pour l'appel POST
-      const userData: CreateUserData = { 
-        email: newEmail, 
-        motDePasse: newPassword 
-      };
-      
-      await api.post(`/api/admin/${activeTab}`, undefined, userData);
-      setNewEmail("");
-      setNewPassword("");
-      fetchUsers();
-      
-      // Animation de succès
-      document.dispatchEvent(new CustomEvent('showToast', {
-        detail: { message: `${activeTab === 'gestionnaires' ? 'Gestionnaire' : 'Administrateur'} ajouté avec succès`, type: 'success' }
-      }));
-    } catch (err) {
-      console.error("Erreur ajout :", err);
-      document.dispatchEvent(new CustomEvent('showToast', {
-        detail: { message: "Erreur lors de l'ajout", type: 'error' }
-      }));
-    }
-  };
+    await api.post(`/api/admin/${activeTab}`, undefined, userData); // création seulement
+
+    setNewEmail("");
+    setNewPassword("");
+    fetchUsers();
+    
+    document.dispatchEvent(new CustomEvent('showToast', {
+      detail: { message: `${activeTab === 'gestionnaires' ? 'Gestionnaire' : 'Administrateur'} ajouté avec succès`, type: 'success' }
+    }));
+  } catch (err) {
+    console.error("Erreur ajout :", err);
+    document.dispatchEvent(new CustomEvent('showToast', {
+      detail: { message: "Erreur lors de l'ajout", type: 'error' }
+    }));
+  }
+};
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;

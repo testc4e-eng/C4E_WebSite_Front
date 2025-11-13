@@ -97,8 +97,10 @@ export async function httpGet<T = unknown>(
   try {
     const res = await fetch(apiUrl(path), {
       method: "GET",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      signal,
+headers: {
+  Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
+  ...(rest?.headers || {}),
+},
       ...rest,
     });
 
@@ -124,11 +126,11 @@ export async function httpJson<T = unknown>(
   const { signal, cleanup } = withTimeout(rest?.signal, timeoutMs);
 
   try {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(rest?.headers || {}),
-    };
+const headers: HeadersInit = {
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
+  ...(rest?.headers || {}),
+}
 
     const res = await fetch(apiUrl(path), {
       method,
