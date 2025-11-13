@@ -88,7 +88,7 @@ const AdminDashboard = () => {
         motDePasse: newPassword 
       };
       
-      await api.post(`/api/admin/${activeTab}`, userData);
+      await api.post(`/api/admin/${activeTab}`, undefined, userData);
       setNewEmail("");
       setNewPassword("");
       fetchUsers();

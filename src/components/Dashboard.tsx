@@ -214,114 +214,89 @@ const Dashboard = () => {
   }, [token, navigate]);
 
   useEffect(() => {
-    const fetchOffres = async () => {
-      try {
-        setLoadingOffres(true);
-        setErrorOffres("");
-        const { res, data } = await api.get("/api/offres", {
-          // Extrait res et data
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
-        setOffres(
-          data.map((o) => ({
-            id: o.id,
-            titre: o.titre,
-            description: o.description,
-            salaire: o.salaire,
-            dateExpiration: o.date_expiration,
-            statut: o.statut,
-            type: o.type,
-            localisation: o.localisation,
-            exigences: o.exigences || [],
-          }))
-        );
-      } catch (err: unknown) {
-        console.error("Catch error:", err);
-        const message =
-          err instanceof Error ? err.message : "Erreur connexion backend.";
-        setErrorOffres(message);
-      } finally {
-        setLoadingOffres(false);
-      }
-    };
+ const fetchOffres = async () => {
+  try {
+    setLoadingOffres(true);
+    setErrorOffres("");
+
+    const { res, data } = await api.get<Offre[]>("/api/offres", token);
+
+    if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
+
+    setOffres(
+      data.map((o) => ({
+        id: o.id,
+        titre: o.titre,
+        description: o.description,
+        salaire: o.salaire,
+        dateExpiration: o.date_expiration,
+        statut: o.statut,
+        type: o.type,
+        localisation: o.localisation,
+        exigences: o.exigences || [],
+      }))
+    );
+  } catch (err: unknown) {
+    console.error("Catch error:", err);
+    const message =
+      err instanceof Error ? err.message : "Erreur connexion backend.";
+    setErrorOffres(message);
+  } finally {
+    setLoadingOffres(false);
+  }
+};
     if (activeTab === "offres" || activeTab === "candidatures-postes")
       fetchOffres();
   }, [activeTab, token]);
 
   // REMPLACEZ le useEffect existant par celui-ci :
   // REMPLACEZ le useEffect existant par celui-ci :
-  useEffect(() => {
-    const fetchCandidatures = async () => {
-      try {
-        setLoadingCandidatures(true);
-        setErrorCandidatures("");
+useEffect(() => {
+  const fetchCandidatures = async () => {
+    try {
+      setLoadingCandidatures(true);
+      setErrorCandidatures("");
 
-        if (activeTab === "candidatures") {
-          // 🔹 Charger UNIQUEMENT les candidatures spontanées
-          const { res, data } = await api.get(
-            "/api/candidatures/spontanees/toutes",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          if (!res.ok)
-            throw new Error(
-              "Erreur lors du chargement des candidatures spontanées."
-            );
-          // Pas besoin de res.json(), data est prêt
-          console.log("Données spontanées :", data);
+      if (activeTab === "candidatures") {
+        const { res, data } = await api.get<Candidature[]>("/api/candidatures/spontanees/toutes", token);
 
-          setCandidatures(data);
-        } else if (activeTab === "candidatures-postes") {
-          // 🔹 CORRECTION : Utiliser la route principale et filtrer pour avoir UNIQUEMENT les candidatures sur offres
-          const { res, data } = await api.get("/api/candidatures", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok)
-            throw new Error(
-              "Erreur lors du chargement des candidatures par offres."
-            );
-          const candidaturesSurOffres = data.filter(
-            (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
-          );
+        if (!res.ok)
+          throw new Error("Erreur lors du chargement des candidatures spontanées.");
 
-          candidaturesSurOffres.forEach((c, i) => {
-            console.log(
-              `   ${i + 1}. id=${c.id}, type=${c.type}, offre_type="${
-                c.offre_type
-              }", nom=${c.nom}, poste=${c.poste}, offre_id=${c.offre_id}`
-            );
-          });
+        console.log("Données spontanées :", data);
+        setCandidatures(data);
+      } else if (activeTab === "candidatures-postes") {
+        const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
 
-          setCandidatures(candidaturesSurOffres);
-        } else if (activeTab === "archives") {
-          // Pour les archives, charger toutes les candidatures
-          const { res, data } = await api.get("/api/candidatures", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok)
-            throw new Error("Erreur lors du chargement des archives.");
-          setCandidatures(data);
-        }
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : "Erreur connexion backend.";
-        console.error("Erreur fetch:", err);
-        setErrorCandidatures(message);
-      } finally {
-        setLoadingCandidatures(false);
+        if (!res.ok)
+          throw new Error("Erreur lors du chargement des candidatures par offres.");
+
+        const candidaturesSurOffres = data.filter(
+          (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+        );
+
+        setCandidatures(candidaturesSurOffres);
+      } else if (activeTab === "archives") {
+        const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
+
+        if (!res.ok)
+          throw new Error("Erreur lors du chargement des archives.");
+
+        setCandidatures(data);
       }
-    };
-
-    if (
-      activeTab === "candidatures" ||
-      activeTab === "candidatures-postes" ||
-      activeTab === "archives"
-    ) {
-      fetchCandidatures();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+      console.error("Erreur fetch:", err);
+      setErrorCandidatures(message);
+    } finally {
+      setLoadingCandidatures(false);
     }
-  }, [activeTab, token]);
+  };
+
+  if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
+    fetchCandidatures();
+  }
+}, [activeTab, token]);
 
   // Fonctions pour gérer les exigences dynamiques
   const ajouterChampExigence = () => {

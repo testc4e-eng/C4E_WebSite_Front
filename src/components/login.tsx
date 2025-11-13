@@ -54,11 +54,11 @@ const Login = () => {
         localStorage.setItem("userType", userType);
         
         // Redirection selon le type d'utilisateur
-        if (userType === "administrateur") {
-          navigate("/admin-dashboard");
-        } else {
-          navigate("/gestionnaire-dashboard");
-        }
+if (userType === "administrateur") {
+  navigate("/admin-dashboard"); // reste pareil
+} else {
+  navigate("/dashboard"); // utiliser la route existante pour gestionnaire
+}
       }
     } catch (err: unknown) {
       // Gestion d'erreur typée
