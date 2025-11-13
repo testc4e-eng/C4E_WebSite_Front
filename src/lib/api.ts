@@ -4,16 +4,21 @@
 // Compatible avec tous les appels du Dashboard
 // ==============================================
 
+// ⚠️ Typage correct pour Vite
+interface ImportMetaEnv {
+  readonly VITE_API_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 /**
  * Base URL de l'API : priorise VITE (build-time), sinon fallback Render.
  * ⚠️ Ne pas mettre de slash final dans VITE_API_URL.
  */
-// export const API_BASE_URL: string =
-//   (import.meta as any).env?.VITE_API_URL ||
-//   "https://c4e-website-back.onrender.com";
-
-// === Test local temporaire ===
-export const API_BASE_URL: string = "http://localhost:10000";
+export const API_BASE_URL: string =
+  import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
 
 /**
  * Concaténation sûre d’URL via URL()
@@ -29,14 +34,19 @@ function withTimeout(signal?: AbortSignal, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const abortMerge = new AbortController();
+
   if (signal) {
-    signal.addEventListener("abort", () => abortMerge.abort(signal.reason), {
-      once: true,
-    });
+    signal.addEventListener(
+      "abort",
+      () => abortMerge.abort(signal.reason),
+      { once: true }
+    );
   }
+
   controller.signal.addEventListener("abort", () => abortMerge.abort(), {
     once: true,
   });
+
   return {
     signal: abortMerge.signal,
     cleanup: () => clearTimeout(timer),
@@ -52,6 +62,7 @@ async function safeJson<T>(res: Response): Promise<T> {
   }
   const text = await res.text();
   if (!text) return undefined as unknown as T;
+
   try {
     return JSON.parse(text) as T;
   } catch {
@@ -82,6 +93,7 @@ export async function httpGet<T = unknown>(
 ): Promise<{ res: Response; data: T }> {
   const { timeoutMs, ...rest } = init || {};
   const { signal, cleanup } = withTimeout(rest?.signal, timeoutMs);
+
   try {
     const res = await fetch(apiUrl(path), {
       method: "GET",
@@ -89,9 +101,7 @@ export async function httpGet<T = unknown>(
       signal,
       ...rest,
     });
-    console.log("Type de res :", typeof res, res instanceof Response);
-    console.log("httpGet appelé pour :", path);
-    console.log("Response type :", typeof res);
+
     assertOk(res, `GET ${path}`);
     const data = await safeJson<T>(res);
     return { res, data };
@@ -112,12 +122,14 @@ export async function httpJson<T = unknown>(
 ): Promise<{ res: Response; data: T }> {
   const { timeoutMs, ...rest } = init || {};
   const { signal, cleanup } = withTimeout(rest?.signal, timeoutMs);
+
   try {
     const headers: HeadersInit = {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(rest?.headers || {}),
     };
+
     const res = await fetch(apiUrl(path), {
       method,
       headers,
@@ -125,6 +137,7 @@ export async function httpJson<T = unknown>(
       signal,
       ...rest,
     });
+
     assertOk(res, `${method} ${path}`);
     const data = await safeJson<T>(res);
     return { res, data };
@@ -179,4 +192,5 @@ const api = {
   delete: delJson,
   fileUrl,
 };
+
 export default api;

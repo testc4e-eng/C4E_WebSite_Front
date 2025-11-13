@@ -16,7 +16,7 @@ import Emploi from './components/Emploi';
 import FormulaireEmploi from './components/formulaire-emploi';
 import Login from './components/login';
 import Dashboard from './components/Dashboard'; // Nouveau import
-
+import AdminDashboard from './components/AdminDashboard';
 function App() {
   const location = useLocation();
   const isProtectedPage = location.pathname === '/dashboard' || location.pathname === '/login';
@@ -39,6 +39,7 @@ function App() {
         <Route path="/formulaire-emploi" element={<FormulaireEmploi />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} /> {/* Route Dashboard sans Header/Footer */}
+        <Route path="/AdminDashboard" element={<AdminDashboard />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
 
