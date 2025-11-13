@@ -39,8 +39,7 @@ function App() {
         <Route path="/formulaire-emploi" element={<FormulaireEmploi />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} /> {/* Route Dashboard sans Header/Footer */}
-        <Route path="/AdminDashboard" element={<AdminDashboard />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />        <Route path="*" element={<NotFound />} />
       </Routes>
 
       {/* --- Footer global (exclu sur pages protégées) --- */}
