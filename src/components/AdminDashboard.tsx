@@ -65,40 +65,51 @@ const AdminDashboard = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, utilisateurs]);
 
-  const handleAdd = async () => {
-    if (!newEmail || !newPassword) {
-      alert("Veuillez remplir tous les champs");
-      return;
+const handleAdd = async () => {
+  if (!newEmail || !newPassword) {
+    alert("Veuillez remplir tous les champs");
+    return;
+  }
+
+  try {
+    const userData = {
+      email: newEmail,
+      mot_de_passe: newPassword // CORRECTION: correspond au backend
+    };
+
+    // CORRECTION: envoi correct des données
+    await api.post(`/api/admin/${activeTab}`, userData);
+    
+    setNewEmail("");
+    setNewPassword("");
+    fetchUsers();
+
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: {
+          message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
+          type: "success"
+        }
+      })
+    );
+  } catch (err: any) {
+    console.error("Erreur ajout :", err);
+    
+    let errorMessage = "Erreur lors de l'ajout";
+    if (err.response?.data?.message) {
+      errorMessage = err.response.data.message;
     }
-
-    try {
-      const userData: CreateUserData = {
-        email: newEmail,
-        mot_de_passe: newPassword
-      };
-
-   await api.post(`/api/admin/${activeTab}`, null, userData);
-      setNewEmail("");
-      setNewPassword("");
-      fetchUsers();
-
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: {
-            message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
-            type: "success"
-          }
-        })
-      );
-    } catch (err) {
-      console.error("Erreur ajout :", err);
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: { message: "Erreur lors de l'ajout", type: "error" }
-        })
-      );
-    }
-  };
+    
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: { 
+          message: errorMessage, 
+          type: "error" 
+        }
+      })
+    );
+  }
+};
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
