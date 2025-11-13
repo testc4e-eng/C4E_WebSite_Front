@@ -19,7 +19,7 @@ interface ApiResponse {
 
 interface CreateUserData {
   email: string;
-  motDePasse: string;
+  mot_de_passe: string; // Vérifie le champ attendu par ton backend
 }
 
 const AdminDashboard = () => {
@@ -30,32 +30,22 @@ const AdminDashboard = () => {
   const [newPassword, setNewPassword] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({
-    total: 0,
-    actifs: 0,
-    inactifs: 0
-  });
+  const [stats, setStats] = useState({ total: 0, actifs: 0, inactifs: 0 });
   const navigate = useNavigate();
 
-  // Utilisation de useCallback pour éviter les dépendances circulaires
   const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await api.get<ApiResponse>(`/api/admin/${activeTab}`);
       const usersData: Utilisateur[] = res.data.data || [];
-      
       setUtilisateurs(usersData);
       setFilteredUsers(usersData);
-      
-      // Calcul des statistiques
+
       const total = usersData.length;
-      const actifs = usersData.filter((u: Utilisateur) => u.statut === "actif").length;
-      const inactifs = total - actifs;
-      
-      setStats({ total, actifs, inactifs });
+      const actifs = usersData.filter((u) => u.statut === "actif").length;
+      setStats({ total, actifs, inactifs: total - actifs });
     } catch (err) {
       console.error("Erreur lors du chargement :", err);
-      // Initialiser avec des tableaux vides en cas d'erreur
       setUtilisateurs([]);
       setFilteredUsers([]);
       setStats({ total: 0, actifs: 0, inactifs: 0 });
@@ -69,56 +59,65 @@ const AdminDashboard = () => {
   }, [fetchUsers]);
 
   useEffect(() => {
-    const filtered = utilisateurs.filter(user =>
+    const filtered = utilisateurs.filter((user) =>
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredUsers(filtered);
   }, [searchTerm, utilisateurs]);
 
-const handleAdd = async () => {
-  if (!newEmail || !newPassword) {
-    alert("Veuillez remplir tous les champs");
-    return;
-  }
-  
-  try {
-    const userData: CreateUserData = { 
-      email: newEmail, 
-      motDePasse: newPassword 
-    };
-    
-    await api.post(`/api/admin/${activeTab}`, undefined, userData); // création seulement
+  const handleAdd = async () => {
+    if (!newEmail || !newPassword) {
+      alert("Veuillez remplir tous les champs");
+      return;
+    }
 
-    setNewEmail("");
-    setNewPassword("");
-    fetchUsers();
-    
-    document.dispatchEvent(new CustomEvent('showToast', {
-      detail: { message: `${activeTab === 'gestionnaires' ? 'Gestionnaire' : 'Administrateur'} ajouté avec succès`, type: 'success' }
-    }));
-  } catch (err) {
-    console.error("Erreur ajout :", err);
-    document.dispatchEvent(new CustomEvent('showToast', {
-      detail: { message: "Erreur lors de l'ajout", type: 'error' }
-    }));
-  }
-};
+    try {
+      const userData: CreateUserData = {
+        email: newEmail,
+        mot_de_passe: newPassword
+      };
+
+   await api.post(`/api/admin/${activeTab}`, null, userData);
+      setNewEmail("");
+      setNewPassword("");
+      fetchUsers();
+
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: {
+            message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
+            type: "success"
+          }
+        })
+      );
+    } catch (err) {
+      console.error("Erreur ajout :", err);
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { message: "Erreur lors de l'ajout", type: "error" }
+        })
+      );
+    }
+  };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
-    
     try {
       await api.delete(`/api/admin/${activeTab}/${id}`);
       fetchUsers();
-      
-      document.dispatchEvent(new CustomEvent('showToast', {
-        detail: { message: "Utilisateur supprimé avec succès", type: 'success' }
-      }));
+
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { message: "Utilisateur supprimé avec succès", type: "success" }
+        })
+      );
     } catch (err) {
       console.error("Erreur suppression :", err);
-      document.dispatchEvent(new CustomEvent('showToast', {
-        detail: { message: "Erreur lors de la suppression", type: 'error' }
-      }));
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { message: "Erreur lors de la suppression", type: "error" }
+        })
+      );
     }
   };
 
@@ -127,84 +126,32 @@ const handleAdd = async () => {
     navigate("/login");
   };
 
-  const handleLogoClick = () => {
-    navigate("/");
-  };
+  const handleLogoClick = () => navigate("/");
+  const handleHomeClick = () => navigate("/");
 
-  const handleHomeClick = () => {
-    navigate("/");
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        duration: 0.5
-      }
-    }
-  };
+  const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.5 } } };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <motion.header 
-        className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-white/20 sticky top-0 z-50"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, type: "spring" }}
-      >
+      <motion.header className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-white/20 sticky top-0 z-50" initial={{ y: -100 }} animate={{ y: 0 }} transition={{ duration: 0.6, type: "spring" }}>
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <motion.button
-              onClick={handleLogoClick}
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center space-x-3 group"
-            >
-              <img 
-                src="/logo.png" 
-                alt="Logo C4E Africa" 
-                className="h-12 w-12 rounded-2xl shadow-lg border-2 border-white/50 group-hover:shadow-xl transition-all duration-300" 
-              />
+            <motion.button onClick={handleLogoClick} whileHover={{ scale: 1.05, rotate: 5 }} whileTap={{ scale: 0.95 }} className="flex items-center space-x-3 group">
+              <img src="/logo.png" alt="Logo C4E Africa" className="h-12 w-12 rounded-2xl shadow-lg border-2 border-white/50 group-hover:shadow-xl transition-all duration-300" />
               <div className="text-left">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Dashboard Administrateur
-                </h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Dashboard Administrateur</h1>
                 <p className="text-gray-600 text-sm">Gestion des utilisateurs et permissions</p>
               </div>
             </motion.button>
           </div>
-          
           <div className="flex items-center space-x-4">
-            <motion.button
-              onClick={handleHomeClick}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group"
-              title="Retour à l'accueil"
-            >
+            <motion.button onClick={handleHomeClick} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group" title="Retour à l'accueil">
               <Home className="h-5 w-5 group-hover:scale-110 transition-transform" />
               <span className="hidden sm:block">Accueil</span>
             </motion.button>
-            
-            <motion.button
-              onClick={handleLogout}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group"
-            >
+            <motion.button onClick={handleLogout} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group">
               <LogOut className="h-5 w-5 group-hover:rotate-12 transition-transform" />
               <span>Déconnexion</span>
             </motion.button>
@@ -215,16 +162,8 @@ const handleAdd = async () => {
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         {/* Statistics Cards */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          <motion.div
-            variants={itemVariants}
-            className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20"
-          >
+        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8" variants={containerVariants} initial="hidden" animate="visible">
+          <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Total {activeTab}</p>
@@ -235,11 +174,7 @@ const handleAdd = async () => {
               </div>
             </div>
           </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20"
-          >
+          <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Utilisateurs Actifs</p>
@@ -250,11 +185,7 @@ const handleAdd = async () => {
               </div>
             </div>
           </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20"
-          >
+          <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">Utilisateurs Inactifs</p>
@@ -268,33 +199,14 @@ const handleAdd = async () => {
         </motion.div>
 
         {/* Tabs */}
-        <motion.div 
-          className="flex justify-center mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
+        <motion.div className="flex justify-center mb-8" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
           <div className="bg-white/50 backdrop-blur-md rounded-2xl p-2 shadow-lg border border-white/20">
             <div className="flex space-x-1">
-              <button
-                onClick={() => setActiveTab("gestionnaires")}
-                className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
-                  activeTab === "gestionnaires"
-                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                    : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-                }`}
-              >
+              <button onClick={() => setActiveTab("gestionnaires")} className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${activeTab === "gestionnaires" ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg" : "text-gray-600 hover:text-gray-800 hover:bg-white/70"}`}>
                 <Users className="h-5 w-5" />
                 <span>Gestionnaires</span>
               </button>
-              <button
-                onClick={() => setActiveTab("administrateurs")}
-                className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
-                  activeTab === "administrateurs"
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
-                    : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-                }`}
-              >
+              <button onClick={() => setActiveTab("administrateurs")} className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${activeTab === "administrateurs" ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" : "text-gray-600 hover:text-gray-800 hover:bg-white/70"}`}>
                 <Shield className="h-5 w-5" />
                 <span>Administrateurs</span>
               </button>
@@ -303,79 +215,17 @@ const handleAdd = async () => {
         </motion.div>
 
         {/* Main Card */}
-        <motion.div
-          className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          {/* Header avec titre et recherche */}
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 space-y-4 lg:space-y-0">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                {activeTab === "gestionnaires" ? (
-                  <UserCog className="h-6 w-6 mr-3 text-blue-600" />
-                ) : (
-                  <Shield className="h-6 w-6 mr-3 text-purple-600" />
-                )}
-                Gestion des {activeTab}
-              </h2>
-              <p className="text-gray-600 mt-2">
-                {activeTab === "gestionnaires" 
-                  ? "Gérez les comptes des gestionnaires de votre plateforme" 
-                  : "Administrez les comptes administrateurs avec privilèges étendus"}
-              </p>
-            </div>
-            
-            <div className="flex space-x-3 w-full lg:w-auto">
-              <div className="relative flex-1 lg:flex-none">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher par email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-xl w-full lg:w-80 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-              <button className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
-                <Filter className="h-4 w-4 text-gray-600" />
-              </button>
-            </div>
-          </div>
-
+        <motion.div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.3 }}>
           {/* Formulaire d'ajout */}
-          <motion.div 
-            className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            transition={{ duration: 0.5 }}
-          >
+          <motion.div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.5 }}>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Plus className="h-5 w-5 mr-2 text-green-600" />
               Ajouter un nouveau {activeTab.slice(0, -1)}
             </h3>
             <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
-              <input
-                type="email"
-                placeholder="Adresse email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
-              <input
-                type="password"
-                placeholder="Mot de passe temporaire"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
-              <motion.button
-                onClick={handleAdd}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-lg font-semibold"
-              >
+              <input type="email" placeholder="Adresse email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+              <input type="password" placeholder="Mot de passe temporaire" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+              <motion.button onClick={handleAdd} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-lg font-semibold">
                 <Plus className="h-5 w-5" />
                 <span>Créer le compte</span>
               </motion.button>
@@ -415,14 +265,7 @@ const handleAdd = async () => {
                     </tr>
                   ) : (
                     filteredUsers.map((user, index) => (
-                      <motion.tr
-                        key={user.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors group"
-                      >
+                      <motion.tr key={user.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors group">
                         <td className="p-4">
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
@@ -438,52 +281,26 @@ const handleAdd = async () => {
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">
-                            {user.role}
-                          </span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">{user.role}</span>
                         </td>
                         <td className="p-4">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            user.statut === "actif" 
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-red-100 text-red-800"
-                          }`}>
-                            <div className={`w-2 h-2 rounded-full mr-2 ${
-                              user.statut === "actif" ? "bg-green-500" : "bg-red-500"
-                            }`}></div>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${user.statut === "actif" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                            <div className={`w-2 h-2 rounded-full mr-2 ${user.statut === "actif" ? "bg-green-500" : "bg-red-500"}`}></div>
                             {user.statut}
                           </span>
                         </td>
                         <td className="p-4">
-                          <div className="text-gray-600">
-                            {new Date(user.date_creation).toLocaleDateString('fr-FR')}
-                          </div>
+                          <div className="text-gray-600">{new Date(user.date_creation).toLocaleDateString("fr-FR")}</div>
                         </td>
                         <td className="p-4">
-                          <div className="text-gray-600">
-                            {user.dernier_connexion 
-                              ? new Date(user.dernier_connexion).toLocaleDateString('fr-FR')
-                              : "Jamais"
-                            }
-                          </div>
+                          <div className="text-gray-600">{user.dernier_connexion ? new Date(user.dernier_connexion).toLocaleDateString("fr-FR") : "Jamais"}</div>
                         </td>
                         <td className="p-4">
                           <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <motion.button 
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Modifier"
-                            >
+                            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
                               <Edit className="h-4 w-4" />
                             </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handleDelete(user.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Supprimer"
-                            >
+                            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDelete(user.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
                               <Trash2 className="h-4 w-4" />
                             </motion.button>
                           </div>
@@ -495,24 +312,6 @@ const handleAdd = async () => {
               </tbody>
             </table>
           </div>
-
-          {/* Footer de la table */}
-          {!isLoading && filteredUsers.length > 0 && (
-            <motion.div 
-              className="flex justify-between items-center mt-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <p className="text-gray-600">
-                Affichage de <span className="font-semibold">{filteredUsers.length}</span> utilisateur(s)
-              </p>
-              <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors text-gray-700">
-                <Download className="h-4 w-4" />
-                <span>Exporter</span>
-              </button>
-            </motion.div>
-          )}
         </motion.div>
       </div>
     </div>
