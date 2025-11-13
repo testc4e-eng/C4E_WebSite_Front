@@ -42,7 +42,7 @@ const Login = () => {
       console.log("Payload envoyé:", { email, motDePasse, userType });
       
       // Correction : passer les données dans le body
-      const res = await api.post<LoginResponse>("/api/auth/login", {
+      const res = await api.post<LoginResponse>("/api/auth/login", null,{
         email,
         motDePasse,
         userType
