@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
-import api from "../lib/api";
+import { postJson } from "../lib/api"; // ← Import modifié
 
 // Interface pour la réponse de l'API
 interface LoginResponse {
@@ -41,10 +41,11 @@ const Login = () => {
     try {
       console.log("Payload envoyé:", { email, motDePasse });
 
-      // ✅ Envoi vers le backend sans spécifier le type
-      const { data } = await api.post<LoginResponse>(
+      // ✅ UTILISEZ postJson au lieu de api.post
+      const { data } = await postJson<LoginResponse>(
         "/api/auth/login",
-        { email, motDePasse } // Corps de la requête sans type
+        null, // token (null pour login)
+        { email, motDePasse } // Corps de la requête
       );
 
       // ✅ Utilisation correcte de 'data'
@@ -62,8 +63,8 @@ const Login = () => {
       }
     } catch (err: unknown) {
       const error = err as ApiError;
+      // Adaptation pour l'erreur fetch
       const msg =
-        error?.response?.data?.message ||
         error?.message ||
         "Erreur réseau. Vérifie la connexion au serveur.";
       setError(msg);
