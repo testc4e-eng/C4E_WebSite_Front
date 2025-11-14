@@ -89,60 +89,61 @@ const AdminDashboard = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, utilisateurs]);
 
-  const handleAdd = async () => {
-    if (!newEmail || !newPassword) {
-      alert("Veuillez remplir tous les champs");
-      return;
+// Dans AdminDashboard.tsx - Correction de handleAdd
+const handleAdd = async () => {
+  if (!newEmail || !newPassword) {
+    alert("Veuillez remplir tous les champs");
+    return;
+  }
+
+  try {
+    const userData = {
+      email: newEmail,
+      motDePasse: newPassword
+    };
+
+    console.log("🔄 Tentative d'ajout...");
+    
+    const response = await api.post(`/api/admin/${activeTab}`, userData);
+    
+    // CORRECTION : Ne pas vérifier response.data.success (peut ne pas exister)
+    setNewEmail("");
+    setNewPassword("");
+    fetchUsers();
+
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: {
+          message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
+          type: "success"
+        }
+      })
+    );
+  } catch (err: any) {
+    console.error("❌ Erreur ajout détaillée:", err);
+    
+    let errorMessage = "Erreur lors de l'ajout";
+    if (err.response?.data?.message) {
+      errorMessage = err.response.data.message;
     }
-
-    // Validation email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
-      alert("Veuillez entrer une adresse email valide");
-      return;
+    
+    // Gestion spécifique des erreurs 401 - Token expiré
+    if (err.response?.status === 401) {
+      errorMessage = "Session expirée, veuillez vous reconnecter";
+      localStorage.removeItem('token');
+      setTimeout(() => navigate('/login'), 2000);
     }
-
-    try {
-      const userData = {
-        email: newEmail,
-        motDePasse: newPassword
-      };
-
-      console.log("📤 Envoi création utilisateur:", userData);
-      
-      await api.post(`/api/admin/${activeTab}`, userData);
-      
-      setNewEmail("");
-      setNewPassword("");
-      fetchUsers();
-
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: {
-            message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
-            type: "success"
-          }
-        })
-      );
-    } catch (err: unknown) {
-      console.error("❌ Erreur ajout :", err);
-      const error = err as ApiError;
-      
-      let errorMessage = "Erreur lors de l'ajout";
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      }
-      
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: { 
-            message: errorMessage, 
-            type: "error" 
-          }
-        })
-      );
-    }
-  };
+    
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: { 
+          message: errorMessage, 
+          type: "error" 
+        }
+      })
+    );
+  }
+};
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
