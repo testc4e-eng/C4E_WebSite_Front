@@ -1,8 +1,8 @@
 // ============================================================
-// Fichier : /src/pages/Emploi.tsx - VERSION COMPLÈTE
+// Fichier : /src/pages/Emploi.tsx - AVEC BOUTON PARTAGER
 // ============================================================
 import { useState, useEffect, useCallback } from 'react';
-import { Briefcase, MapPin, Calendar, Search, Plus, Users, Home } from 'lucide-react';
+import { Briefcase, MapPin, Calendar, Search, Plus, Users, Home, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,9 +29,11 @@ const Emploi = () => {
   const [ongletActif, setOngletActif] = useState<OngletType>('emploi');
   const [showAll, setShowAll] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSharePopup, setShowSharePopup] = useState<number | null>(null);
 
   // REMPLACEZ par votre vraie URL Render
-  const API_BASE_URL = 'https://c4e-website-back.onrender.com'
+  const API_BASE_URL = 'https://c4e-website-back.onrender.com';
+  const FRONTEND_URL = 'https://c4e-africa.com'; // Votre URL frontend
 
   const fetchOffres = useCallback(async () => {
     try {
@@ -105,6 +107,62 @@ const Emploi = () => {
   useEffect(() => {
     fetchOffres();
   }, [fetchOffres]);
+
+  // Fonction pour générer le lien de partage
+  const generateShareLink = (offreId: number, titre: string) => {
+    const baseUrl = `${FRONTEND_URL}/emploi`;
+    const params = new URLSearchParams({
+      offre: offreId.toString(),
+      poste: encodeURIComponent(titre)
+    });
+    return `${baseUrl}?${params.toString()}`;
+  };
+
+  // Fonction pour copier le lien dans le presse-papier
+  const copyToClipboard = async (offreId: number, titre: string) => {
+    const shareLink = generateShareLink(offreId, titre);
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      console.log('✅ Lien copié:', shareLink);
+      
+      // Afficher un message de succès temporaire
+      setShowSharePopup(offreId);
+      setTimeout(() => setShowSharePopup(null), 2000);
+      
+    } catch (err) {
+      console.error('❌ Erreur copie presse-papier:', err);
+      // Fallback pour les navigateurs plus anciens
+      const textArea = document.createElement('textarea');
+      textArea.value = shareLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      setShowSharePopup(offreId);
+      setTimeout(() => setShowSharePopup(null), 2000);
+    }
+  };
+
+  // Fonction pour partager via Web Share API (mobile)
+  const shareViaNative = async (offreId: number, titre: string, description: string) => {
+    const shareLink = generateShareLink(offreId, titre);
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Offre C4E Africa - ${titre}`,
+          text: description.substring(0, 100) + '...',
+          url: shareLink,
+        });
+      } catch (err) {
+        console.log('❌ Partage annulé');
+      }
+    } else {
+      // Fallback : ouvrir le popup de partage personnalisé
+      setShowSharePopup(offreId);
+    }
+  };
 
   // Filtrer les offres selon l'onglet actif
   const offresFiltrees = offres.filter(offre => {
@@ -184,7 +242,6 @@ const Emploi = () => {
 
   return (
     <section className="pt-32 pb-20 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
-
       <div className="container mx-auto px-6">
         {/* En-tête */}
         <motion.div 
@@ -306,8 +363,20 @@ const Emploi = () => {
                     key={offer.id}
                     variants={itemVariants}
                     layout
-                    className="group bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20"
+                    className="group bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20 relative"
                   >
+                    {/* Popup de partage */}
+                    {showSharePopup === offer.id && (
+                      <motion.div 
+                        className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-10"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                      >
+                        Lien copié !
+                      </motion.div>
+                    )}
+
                     {/* En-tête avec localisation et type */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center text-sm text-gray-600">
@@ -342,8 +411,8 @@ const Emploi = () => {
                       </div>
                     )}
 
-                    {/* Pied de carte avec salaire et date */}
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                    {/* Pied de carte avec salaire, date et boutons */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-6 pt-4 border-t border-gray-200 gap-4">
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         {offer.salaire && (
                           <span className="flex items-center gap-1 font-medium text-gray-900">
@@ -357,23 +426,61 @@ const Emploi = () => {
                         </span>
                       </div>
 
-                      <motion.button
-                        onClick={() =>
-                          navigate('/formulaire-emploi', {
-                            state: { 
-                              type: ongletActif, 
-                              offreId: offer.id, 
-                              poste: offer.titre 
-                            },
-                          })
-                        }
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        Postuler
-                      </motion.button>
+                      <div className="flex items-center gap-3">
+                        {/* Bouton Partager */}
+                        <motion.button
+                          onClick={() => shareViaNative(offer.id, offer.titre, offer.description)}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition-all duration-300 text-sm"
+                          title="Partager cette offre"
+                        >
+                          <Share2 className="h-4 w-4" />
+                          <span>Partager</span>
+                        </motion.button>
+
+                        {/* Bouton Postuler */}
+                        <motion.button
+                          onClick={() =>
+                            navigate('/formulaire-emploi', {
+                              state: { 
+                                type: ongletActif, 
+                                offreId: offer.id, 
+                                poste: offer.titre 
+                              },
+                            })
+                          }
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          Postuler
+                        </motion.button>
+                      </div>
                     </div>
+
+                    {/* Popup de partage avancé (affiché au clic sur Partager) */}
+                    {showSharePopup === offer.id && (
+                      <motion.div 
+                        className="absolute bottom-20 right-4 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 z-20 min-w-64"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                      >
+                        <h4 className="font-semibold text-gray-900 mb-3">Partager cette offre</h4>
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => copyToClipboard(offer.id, offer.titre)}
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
+                          >
+                            <Share2 className="h-4 w-4" />
+                            Copier le lien
+                          </button>
+                          <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
+                            {generateShareLink(offer.id, offer.titre)}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
