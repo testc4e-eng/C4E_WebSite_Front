@@ -13,9 +13,9 @@ interface Utilisateur {
   dernier_connexion?: string;
 }
 
-interface ApiResponse {
-  data: Utilisateur[];
-}
+// interface ApiResponse {
+//   data: Utilisateur[];
+// }
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<"gestionnaires" | "administrateurs">("gestionnaires");
@@ -60,8 +60,8 @@ const AdminDashboard = () => {
       const token = localStorage.getItem('token');
       console.log("🔐 Token utilisé:", token ? `${token.substring(0, 20)}...` : "Aucun token");
       
-      const res = await api.get<ApiResponse>(`/api/admin/${activeTab}`);
-      const usersData: Utilisateur[] = res.data.data || [];
+const { data } = await api.get<Utilisateur[]>(`/api/admin/${activeTab}`);
+const usersData: Utilisateur[] = data || [];
       setUtilisateurs(usersData);
       setFilteredUsers(usersData);
 
@@ -154,8 +154,7 @@ const handleAdd = async () => {
     console.log("🔄 Ajout en cours...");
     
     // CORRECTION : Appel direct et simple
-    const response = await api.post(`/api/admin/${activeTab}`, null, userData);
-    
+const { data } = await api.post(`/api/admin/${activeTab}`, null, userData);    
     console.log("✅ Succès:", response.data);
     
     // Réinitialisation
