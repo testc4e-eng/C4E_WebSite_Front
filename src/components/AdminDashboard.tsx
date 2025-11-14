@@ -153,9 +153,10 @@ const handleAdd = async () => {
 
     console.log("🔄 Ajout en cours...");
     
-    // CORRECTION : Appel direct et simple
-const { data } = await api.post(`/api/admin/${activeTab}`, null, userData);    
-    console.log("✅ Succès:", response.data);
+    // ✅ CORRECTION : Utilisez data au lieu de response
+    const { data } = await api.post(`/api/admin/${activeTab}`, null, userData);
+    
+    console.log("✅ Succès:", data);
     
     // Réinitialisation
     setNewEmail("");
