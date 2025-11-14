@@ -115,109 +115,85 @@ const AdminDashboard = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, utilisateurs]);
 
-  // CORRECTION COMPLÈTE de handleAdd
-  const handleAdd = async () => {
-    if (!newEmail || !newPassword) {
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: { 
-            message: "Veuillez remplir tous les champs", 
-            type: "error" 
-          }
-        })
-      );
-      return;
+// REMPLACEZ SEULEMENT la fonction handleAdd par celle-ci :
+const handleAdd = async () => {
+  if (!newEmail || !newPassword) {
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: { 
+          message: "Veuillez remplir tous les champs", 
+          type: "error" 
+        }
+      })
+    );
+    return;
+  }
+
+  // Validation email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(newEmail)) {
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: { 
+          message: "Format d'email invalide", 
+          type: "error" 
+        }
+      })
+    );
+    return;
+  }
+
+  try {
+    setIsAdding(true);
+    
+    const userData = {
+      email: newEmail,
+      motDePasse: newPassword
+    };
+
+    console.log("🔄 Ajout en cours...");
+    
+    // CORRECTION : Appel direct et simple
+    const response = await api.post(`/api/admin/${activeTab}`, null, userData);
+    
+    console.log("✅ Succès:", response.data);
+    
+    // Réinitialisation
+    setNewEmail("");
+    setNewPassword("");
+    
+    // Rechargement
+    await fetchUsers();
+
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: {
+          message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
+          type: "success"
+        }
+      })
+    );
+  } catch (err: any) {
+    console.error("❌ Erreur:", err);
+    
+    let errorMessage = "Erreur lors de l'ajout";
+    
+    if (err.response?.data?.message) {
+      errorMessage = err.response.data.message;
     }
-
-    // Validation email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: { 
-            message: "Format d'email invalide", 
-            type: "error" 
-          }
-        })
-      );
-      return;
-    }
-
-    // Validation mot de passe
-    if (newPassword.length < 6) {
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: { 
-            message: "Le mot de passe doit contenir au moins 6 caractères", 
-            type: "error" 
-          }
-        })
-      );
-      return;
-    }
-
-    try {
-      setIsAdding(true);
-      const userData = {
-        email: newEmail,
-        motDePasse: newPassword
-      };
-
-      console.log("🔄 Tentative d'ajout...", userData);
-      
-      // CORRECTION : Appel API correct
-      const response = await api.post(`/api/admin/${activeTab}`, null, userData);
-      
-      console.log("✅ Réponse ajout:", response);
-      
-      // Réinitialisation
-      setNewEmail("");
-      setNewPassword("");
-      
-      // Rechargement
-      await fetchUsers();
-
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: {
-            message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
-            type: "success"
-          }
-        })
-      );
-    } catch (err: any) {
-      console.error("❌ Erreur ajout détaillée:", err);
-      
-      let errorMessage = "Erreur lors de l'ajout";
-      
-      // Récupération du message d'erreur du backend
-      if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      // Gestion spécifique des erreurs d'authentification
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        errorMessage = "Session expirée, veuillez vous reconnecter";
-        localStorage.removeItem('token');
-        setTimeout(() => navigate('/login'), 2000);
-      }
-      
-      document.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: { 
-            message: errorMessage, 
-            type: "error" 
-          }
-        })
-      );
-    } finally {
-      setIsAdding(false);
-    }
-  };
+    
+    document.dispatchEvent(
+      new CustomEvent("showToast", {
+        detail: { 
+          message: errorMessage, 
+          type: "error" 
+        }
+      })
+    );
+  } finally {
+    setIsAdding(false);
+  }
+};
 
   // CORRECTION de handleDelete
   const handleDelete = async (id: number) => {
