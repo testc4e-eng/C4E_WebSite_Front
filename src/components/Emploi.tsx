@@ -1,5 +1,5 @@
 // ============================================================
-// Fichier : /src/pages/Emploi.tsx - AVEC AFFICHAGE DIRECT DE L'OFFRE
+// Fichier : /src/pages/Emploi.tsx - AVEC TITRE CLIQUABLE
 // ============================================================
 import { useState, useEffect, useCallback } from 'react';
 import { Briefcase, MapPin, Calendar, Search, Plus, Users, Home, Share2, ArrowLeft } from 'lucide-react';
@@ -126,6 +126,16 @@ const Emploi = () => {
       poste: encodeURIComponent(titre)
     });
     return `${baseUrl}?${params.toString()}`;
+  };
+
+  // Fonction pour voir les détails d'une offre
+  const voirDetailsOffre = (offreId: number, titre: string) => {
+    setSearchParams({
+      offre: offreId.toString(),
+      poste: encodeURIComponent(titre)
+    });
+    // Scroll vers le haut pour une meilleure UX
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Fonction pour copier le lien dans le presse-papier
@@ -523,10 +533,16 @@ const Emploi = () => {
                       </span>
                     </div>
 
-                    {/* Titre et description */}
-                    <h2 className="text-2xl font-semibold mb-3 text-gray-900 group-hover:text-blue-600 transition-colors">
-                      {offer.titre}
-                    </h2>
+                    {/* Titre cliquable */}
+                    <motion.button
+                      onClick={() => voirDetailsOffre(offer.id, offer.titre)}
+                      className="w-full text-left"
+                    >
+                      <h2 className="text-2xl font-semibold mb-3 text-gray-900 group-hover:text-blue-600 transition-colors cursor-pointer hover:underline">
+                        {offer.titre}
+                      </h2>
+                    </motion.button>
+
                     <p className="text-gray-600 mb-4 line-clamp-3">
                       {offer.description}
                     </p>
