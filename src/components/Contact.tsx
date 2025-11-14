@@ -161,7 +161,7 @@ const Contact = () => {
             <div className="space-y-6 mb-8">
               <ContactInfo icon={<MapPin className="h-6 w-6 text-white" />} title="Adresse" text="75 Boulevard d'Anfa, Casablanca, Maroc" color="bg-gradient-accent" />
               <ContactInfo icon={<Phone className="h-6 w-6 text-white" />} title="Téléphone" text="+212 522229877" color="bg-gradient-accent" />
-              <ContactInfo icon={<Mail className="h-6 w-6 text-white" />} title="Email" text="c4e.africa@gmail.com  /  RHC4EAFRICA@gmail.com" color="bg-gradient-accent" />
+              <ContactInfo icon={<Mail className="h-6 w-6 text-white" />} title="Email" text="c4e.africa@gmail.com  /  rhc4eafrica@gmail.com" color="bg-gradient-accent" />
               <ContactInfo icon={<Clock className="h-6 w-6 text-white" />} title="Horaires" text="Lun-Ven 8h-18h" color="bg-gradient-accent" />
               <ContactInfo icon={<Facebook className="h-6 w-6 text-white" />} title="Facebook" text="https://www.facebook.com/C4EAFRICA" color="bg-blue-600" link />
               <ContactInfo icon={<Linkedin className="h-6 w-6 text-white" />} title="LinkedIn" text="https://www.linkedin.com/company/c4e-africa" color="bg-blue-500" link />

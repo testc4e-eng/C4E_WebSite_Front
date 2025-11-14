@@ -27,8 +27,8 @@ const Services = () => {
       description: 'Solutions complètes pour la gestion des ressources hydriques',
       features: [
         'Modélisation hydrologique',
-        'Qualité de l\'eau',
-        'Assainissement AED',
+        'Modélisation Qualité de l\'eau',
+        'Assainissement AEP',
         'Optimisation et Gestion intégrée de l\'eau',
         'Barrage et Inondation'
       ],
@@ -372,100 +372,104 @@ const Services = () => {
         <div className="my-16 border-t border-accent/20"></div>
 
         {/* --- Emploi --- */}
-        <div 
-          id="emploi" 
-          className="scroll-mt-20 text-center bg-gradient-to-b from-amber-50 to-orange-100 py-12 rounded-2xl"
-        >
-          <motion.h2 
-            className="text-4xl md:text-5xl font-bold text-foreground mb-6"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
-            Opportunités <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-400">d'Emploi</span>
-          </motion.h2>
-          <motion.p 
-            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            viewport={{ once: true }}
-          >
-            Rejoignez une équipe dynamique et contribuez à des projets impactants en développement durable.
-          </motion.p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-5xl mx-auto">
-            <motion.div 
-              className="bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-amber-300 flex flex-col justify-center items-center"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <Briefcase className="h-8 w-8 text-amber-600 mb-3" />
-              <h3 className="text-xl font-bold text-amber-900 mb-2">Offres d'emploi et stages pré-embauche</h3>
-              <p className="text-sm text-gray-700 leading-relaxed text-center mb-3">
-                Découvrez nos opportunités de carrière et de stages pré-embauche.
-              </p>
-              <motion.button
-                onClick={() => navigate('/Emploi')}
-                className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Voir les Offres
-              </motion.button>
-            </motion.div>
+<div 
+  id="emploi" 
+  className="scroll-mt-20 text-center bg-gradient-to-b from-amber-50 to-orange-100 py-12 rounded-2xl"
+>
+  <motion.h2 
+    className="text-4xl md:text-5xl font-bold text-foreground mb-6"
+    initial={{ opacity: 0, y: 30 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6 }}
+    viewport={{ once: true }}
+  >
+    Opportunités <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-400">d'Emploi</span>
+  </motion.h2>
+  <motion.p 
+    className="text-lg text-muted-foreground max-w-3xl mx-auto mb-12"
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.2 }}
+    viewport={{ once: true }}
+  >
+    Rejoignez une équipe dynamique et contribuez à des projets impactants en développement durable.
+  </motion.p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-5xl mx-auto">
+    {/* Offre d'emploi, Stage et PFE */}
+    <motion.div 
+      className="bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-amber-300 flex flex-col justify-center items-center"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.1 }}
+      viewport={{ once: true }}
+      whileHover={{ scale: 1.02 }}
+    >
+      <Briefcase className="h-8 w-8 text-amber-600 mb-3" />
+      <h3 className="text-xl font-bold text-amber-900 mb-2">Offre d'emploi, Stage et PFE</h3>
+      <p className="text-sm text-gray-700 leading-relaxed text-center mb-3">
+        Découvrez nos opportunités de carrière et de stages pré-embauche.
+      </p>
+      <motion.button
+        onClick={() => navigate('/Emploi')}
+        className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        Voir les Offres
+      </motion.button>
+    </motion.div>
 
-            <motion.div 
-              className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-blue-300 flex flex-col justify-center items-center"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <Users className="h-8 w-8 text-blue-600 mb-3" />
-              <h3 className="text-xl font-bold text-blue-900 mb-2">Stage et PFE</h3>
-              <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
-                Opportunités de stages et Projets de Fin d'Études pour étudiants motivés.
-              </p>
-              <motion.button
-                onClick={() => navigate('/formulaire-stage')}
-                className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Voir les Stages
-              </motion.button>
-            </motion.div>
+    {/* Candidature Spontanée : Stage/PFE */}
+    <motion.div 
+      className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-blue-300 flex flex-col justify-center items-center"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+      viewport={{ once: true }}
+      whileHover={{ scale: 1.02 }}
+    >
+      <Users className="h-8 w-8 text-blue-600 mb-3" />
+      <h3 className="text-xl font-bold text-blue-900 mb-2">Candidature Spontanée : Stage/PFE</h3>
+      <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
+        Envoyez votre candidature pour des stages ou PFE même si aucune offre ne correspond à votre profil.
+      </p>
+      <motion.button
+        onClick={() => navigate('/formulaire-stage')}
+        className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        Postuler
+      </motion.button>
+    </motion.div>
 
-            <motion.div 
-              className="bg-gradient-to-br from-green-100 to-green-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-green-300 flex flex-col justify-center items-center"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <FileText className="h-8 w-8 text-green-600 mb-3" />
-              <h3 className="text-xl font-bold text-green-900 mb-2">Candidature spontanée</h3>
-              <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
-                Envoyez votre candidature même si aucune offre ne correspond à votre profil.
-              </p>
-              <motion.button
-                onClick={() => navigate('/formulaire-candidature')}
-                className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Postuler
-              </motion.button>
-            </motion.div>
-          </div>
-        </div>
+    {/* Candidature Spontanée : Emploi */}
+    <motion.div 
+      className="bg-gradient-to-br from-green-100 to-green-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-green-300 flex flex-col justify-center items-center"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+      viewport={{ once: true }}
+      whileHover={{ scale: 1.02 }}
+    >
+      <FileText className="h-8 w-8 text-green-600 mb-3" />
+      <h3 className="text-xl font-bold text-green-900 mb-2">Candidature Spontanée : Emploi</h3>
+      <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
+        Envoyez votre candidature pour un emploi même si aucune offre ne correspond à votre profil.
+      </p>
+      <motion.button
+        onClick={() => navigate('/formulaire-candidature')}
+        className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        Postuler
+      </motion.button>
+    </motion.div>
+  </div>
+</div>
+
       </div>
     </section>
   );

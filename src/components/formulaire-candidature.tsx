@@ -14,7 +14,7 @@ interface CompetencesType {
   travailEquipe: number;
   leadership: number;
   problemSolving: number;
-  creativite: number;
+  créativité: number;
 }
 
 interface FormDataType {
@@ -53,7 +53,7 @@ const FormulaireCandidature = () => {
       travailEquipe: 0,
       leadership: 0,
       problemSolving: 0,
-      creativite: 0,
+      créativité: 0,
     },
     type_etablissement: '',
     diplome: '',
@@ -150,7 +150,7 @@ const calculerScore = (competences: CompetencesType) => {
           cv: null,
           lettre_motivation: null,
           poste: type === 'emploi' ? posteFromState : '',
-          competences: { communication: 0, travailEquipe: 0, leadership: 0, problemSolving: 0, creativite: 0 },
+          competences: { communication: 0, travailEquipe: 0, leadership: 0, problemSolving: 0, créativité: 0 },
           type_etablissement: '',
           diplome: '',
           experience: '',

@@ -15,7 +15,7 @@ const Footer = () => {
     { name: 'À Propos', href: '/About' },
     { name: 'Services', href: '/#services' },
     { name: 'Projets', href: '/Projects' },
-    { name: 'Equipes', href: '/#Team' },
+    { name: 'Equipe', href: '/#Team' },
     { name: 'Contact', href: '/#contact' },
   ];
 
@@ -112,7 +112,7 @@ const Footer = () => {
                 <Mail className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-white/80">c4e.africa@gmail.com</p>
-                  <p className="text-white/80">RHC4EAFRICA@gmail.com</p>
+                  <p className="text-white/80">rhc4eafrica@gmail.com</p>
                 </div>
               </div>
             </div>
