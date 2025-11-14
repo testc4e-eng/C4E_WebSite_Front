@@ -55,29 +55,14 @@ const Hero = () => {
         <div className="container mx-auto px-6 text-center relative z-10">
           <div className="max-w-4xl mx-auto">
 
-            {/* 🟡 Logo animé - VERSION CIRCLAIRE NETTE ET STYLÉE */}
+            {/* 🟡 Logo animé - VERSION CIRCLAIRE SIMPLE ET NETTE */}
             <div className="flex justify-center mb-8 mt-5">
-              <div className="relative group">
-                {/* Effet de halo animé (réduit pour éviter le flou) */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 opacity-70 group-hover:opacity-90 transition-opacity duration-500"></div>
-                
-                {/* Conteneur principal du logo - CERCLE */}
-                <div className="relative w-28 h-28 md:w-36 md:h-36 rounded-full overflow-hidden shadow-2xl border-4 border-white/90 bg-gradient-to-br from-white to-gray-50 flex items-center justify-center p-3 transform group-hover:scale-110 transition-all duration-500">
-                  
-                  {/* Logo net et bien défini */}
-                  <img
-                    src="/logo1.png"
-                    alt="C4E Africa Logo"
-                    className="w-full h-full object-contain scale-105 filter brightness-105 contrast-105"
-                  />
-                  
-                  {/* Effet de réflexion subtil */}
-                  <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-white/20 to-transparent rounded-full"></div>
-                </div>
-
-                {/* Points décoratifs orbitaux discrets */}
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full opacity-80"></div>
-                <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary rounded-full opacity-80"></div>
+              <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden shadow-2xl border-4 border-white bg-gradient-to-tr from-accent to-primary flex items-center justify-center transform hover:scale-110 transition-transform duration-500">
+                <img
+                  src="/logo1.png"
+                  alt="C4E Africa Logo"
+                  className="w-3/4 h-3/4 object-contain"
+                />
               </div>
             </div>
 
