@@ -93,13 +93,28 @@ const About = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 viewport={{ once: true }}
               >
-                {/* LOGO CORRIGÉ - Taille réduite et mieux contrôlée */}
-                <div className="relative w-64 h-64 rounded-3xl shadow-xl border-4 border-green-200 bg-white/90 backdrop-blur-sm flex items-center justify-center p-6 hover:scale-105 transition-transform duration-500">
-                  <img
-                    src="/logo1.png"
-                    alt="Notre Société"
-                    className="w-full h-full object-contain p-4"
-                  />
+                {/* LOGO CORRIGÉ - NET ET STYLÉ */}
+                <div className="relative group">
+                  {/* Halo de fond (sans blur excessif) */}
+                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-green-100 to-blue-100 opacity-60 group-hover:opacity-80 transition-opacity duration-500"></div>
+                  
+                  {/* Conteneur principal */}
+                  <div className="relative w-72 h-72 rounded-3xl shadow-2xl border-4 border-white bg-white flex items-center justify-center p-8 transform group-hover:scale-105 transition-all duration-500">
+                    
+                    {/* Logo NET et bien défini */}
+                    <img
+                      src="/logo1.png"
+                      alt="Notre Société"
+                      className="w-full h-full object-contain scale-110 filter brightness-105 contrast-105"
+                    />
+                    
+                    {/* Effet de réflexion subtil */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-white/20 to-transparent rounded-3xl"></div>
+                  </div>
+
+                  {/* Points décoratifs discrets */}
+                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-400 rounded-full opacity-70"></div>
+                  <div className="absolute -bottom-2 -left-2 w-3 h-3 bg-blue-400 rounded-full opacity-70"></div>
                 </div>
               </motion.div>
             </div>
@@ -165,7 +180,7 @@ const About = () => {
                   {[...firstHalf, ...firstHalf].map((partner, idx) => (
                     <motion.div
                       key={idx}
-                      className="flex-shrink-0 w-64 h-40 bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
+                      className="flex-shrink-0 w-64 h-40 bg-white/95 rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
                       whileHover={{ 
                         scale: 1.08,
                         y: -8,
@@ -175,7 +190,7 @@ const About = () => {
                       <img
                         src={partner.image}
                         alt={partner.name}
-                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-125"
+                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-110"
                       />
                     </motion.div>
                   ))}
@@ -206,7 +221,7 @@ const About = () => {
                   {[...secondHalf, ...secondHalf].map((partner, idx) => (
                     <motion.div
                       key={idx}
-                      className="flex-shrink-0 w-64 h-40 bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
+                      className="flex-shrink-0 w-64 h-40 bg-white/95 rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
                       whileHover={{ 
                         scale: 1.08,
                         y: -8,
@@ -216,7 +231,7 @@ const About = () => {
                       <img
                         src={partner.image}
                         alt={partner.name}
-                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-125"
+                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-110"
                       />
                     </motion.div>
                   ))}
