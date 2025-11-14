@@ -184,47 +184,6 @@ const Emploi = () => {
 
   return (
     <section className="pt-32 pb-20 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
-      {/* Header */}
-      <motion.header 
-        className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-white/20 fixed top-0 w-full z-50" 
-        initial={{ y: -100 }} 
-        animate={{ y: 0 }} 
-        transition={{ duration: 0.6, type: "spring" }}
-      >
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <motion.button 
-              onClick={handleLogoClick} 
-              whileHover={{ scale: 1.05, rotate: 5 }} 
-              whileTap={{ scale: 0.95 }} 
-              className="flex items-center space-x-3 group"
-            >
-              <img 
-                src="/logo.png" 
-                alt="Logo C4E Africa" 
-                className="h-12 w-12 rounded-2xl shadow-lg border-2 border-white/50 group-hover:shadow-xl transition-all duration-300" 
-              />
-              <div className="text-left">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  C4E Africa
-                </h1>
-                <p className="text-gray-600 text-sm">Carrières & Opportunités</p>
-              </div>
-            </motion.button>
-          </div>
-          <div className="flex items-center space-x-4">
-            <motion.button 
-              onClick={handleHomeClick} 
-              whileHover={{ scale: 1.05 }} 
-              whileTap={{ scale: 0.95 }} 
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group" 
-            >
-              <Home className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:block">Accueil</span>
-            </motion.button>
-          </div>
-        </div>
-      </motion.header>
 
       <div className="container mx-auto px-6">
         {/* En-tête */}
