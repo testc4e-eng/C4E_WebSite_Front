@@ -99,14 +99,26 @@ const Stats = () => {
             </button>
           </div>
 
-          <div className="flex-1 relative flex justify-center lg:justify-end">
-            <div className="absolute -top-8 left-1/2 lg:left-auto lg:-top-10 lg:right-0 bg-accent/20 rounded-full w-32 h-32 z-0"></div>
-            <img
-              src="/logo1.png"
-              alt="C4E Africa Logo"
-              className="relative w-56 md:w-64 h-auto rounded-2xl shadow-xl hover:scale-105 transition-transform z-10"
-            />
-          </div>
+<div className="flex-1 relative flex justify-center lg:justify-end">
+  <div className="absolute -top-8 left-1/2 lg:left-auto lg:-top-10 lg:right-0 bg-accent/20 rounded-full w-32 h-32 z-0"></div>
+  
+  {/* Logo bien encadré et net */}
+  <div className="relative group z-10">
+    {/* Conteneur avec fond blanc et bordure */}
+    <div className="w-56 md:w-64 h-56 md:h-64 rounded-2xl shadow-xl bg-white border-4 border-white overflow-hidden flex items-center justify-center p-6 hover:scale-105 transition-transform duration-300">
+      
+      {/* Logo net avec object-contain */}
+      <img
+        src="/logo1.png"
+        alt="C4E Africa Logo"
+        className="w-full h-full object-contain filter brightness-105 contrast-105"
+      />
+    </div>
+    
+    {/* Effet de halo au survol */}
+    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-accent/10 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
+  </div>
+</div>
         </div>
 
         {/* --- Section Partenaires avec Titre Harmonisé --- */}
