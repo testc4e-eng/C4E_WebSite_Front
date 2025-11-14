@@ -1,24 +1,21 @@
 // ============================================================
-// Fichier : /components/Contact.tsx
-// Description : Composant React "Contact".
-// - Affiche les informations de contact (adresse, téléphone, email, réseaux sociaux)
-// - Affiche une carte Leaflet avec localisation
-// - Contient un formulaire de contact relié au backend (POST /contact)
-// - Affiche un popup de succès après envoi
+// Fichier : /components/Contact.tsx - VERSION CORRIGÉE
 // ============================================================
-
 import { MapPin, Phone, Mail, Clock, Facebook, Linkedin, Send } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
+// Configuration de l'API
+const API_BASE_URL = 'https://c4e-website-back.onrender.com'; 
+
 // ------------------------------------------------------------
 // Composant popup moderne affiché après succès de l'envoi
 // ------------------------------------------------------------
 const SuccessPopup = ({ message, onClose }: { message: string; onClose: () => void }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000); // auto-fermeture après 3 sec
+    const timer = setTimeout(onClose, 3000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -39,7 +36,6 @@ const SuccessPopup = ({ message, onClose }: { message: string; onClose: () => vo
 // Composant principal : Contact
 // ------------------------------------------------------------
 const Contact = () => {
-  // États du formulaire
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -48,26 +44,31 @@ const Contact = () => {
     subject: '',
     message: ''
   });
-  const [showSuccess, setShowSuccess] = useState(false); // contrôle du popup succès
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Gestion des changements de champs
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Soumission du formulaire (POST vers backend Node.js)
+  // CORRECTION : Utilisation de l'URL Render
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    
     try {
-      const res = await fetch('http://localhost:3001/contact', {
+      console.log('🔄 Envoi du message vers:', `${API_BASE_URL}/contact`);
+      
+      const res = await fetch(`${API_BASE_URL}/contact`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(formData)
       });
 
       if (res.ok) {
-        setShowSuccess(true); // Affiche le popup
-        // Réinitialise le formulaire
+        setShowSuccess(true);
         setFormData({
           firstName: '',
           lastName: '',
@@ -76,11 +77,17 @@ const Contact = () => {
           subject: '',
           message: ''
         });
+        console.log('✅ Message envoyé avec succès');
       } else {
-        alert("Erreur lors de l'envoi du message.");
+        const errorData = await res.json();
+        console.error('❌ Erreur serveur:', errorData);
+        alert("Erreur lors de l'envoi du message: " + (errorData.error || 'Erreur serveur'));
       }
     } catch (err) {
-      alert("Erreur lors de l'envoi du message.");
+      console.error('❌ Erreur réseau:', err);
+      alert("Erreur de connexion au serveur. Vérifiez votre connexion internet.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -92,7 +99,6 @@ const Contact = () => {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Icône personnalisée (logo)
     const logoIcon = L.icon({
       iconUrl: '/logo.png',
       iconSize: [50, 50],
@@ -100,28 +106,21 @@ const Contact = () => {
       popupAnchor: [0, -50]
     });
 
-    // Marqueur avec popup d'adresse
     L.marker([33.59277, -7.63177], { icon: logoIcon })
       .addTo(map)
       .bindPopup('75 Boulevard d\'Anfa, Casablanca, Maroc')
       .openPopup();
 
-    // Nettoyage à la destruction du composant
     return (): void => {
       map.remove();
     };
   }, []);
 
-  // ------------------------------------------------------------
-  // Rendu du composant
-  // ------------------------------------------------------------
   return (
     <section id="contact" className="scroll-mt-20 py-20 bg-secondary/30 relative">
-      {/* Popup de succès (affiché après envoi) */}
       {showSuccess && <SuccessPopup message="Message envoyé avec succès !" onClose={() => setShowSuccess(false)} />}
       
       <div className="container mx-auto px-6">
-        {/* Titre section */}
         <div className="text-center mb-16">
           <motion.h2 
             className="text-4xl md:text-5xl font-bold text-foreground mb-6"
@@ -150,11 +149,8 @@ const Contact = () => {
           />
         </div>
 
-        {/* Grille : Infos de contact + Formulaire */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* ------------------------------------------------------------
-              Colonne gauche : Informations de contact + carte
-          ------------------------------------------------------------ */}
+          {/* Colonne gauche : Informations de contact + carte */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -171,7 +167,6 @@ const Contact = () => {
               <ContactInfo icon={<Linkedin className="h-6 w-6 text-white" />} title="LinkedIn" text="https://www.linkedin.com/company/c4e-africa" color="bg-blue-500" link />
             </div>
 
-            {/* Carte Leaflet */}
             <motion.div 
               className="bg-gradient-ocean rounded-2xl h-64 overflow-hidden shadow-lg"
               initial={{ opacity: 0, y: 30 }}
@@ -183,9 +178,7 @@ const Contact = () => {
             </motion.div>
           </motion.div>
 
-          {/* ------------------------------------------------------------
-              Colonne droite : Formulaire de contact
-          ------------------------------------------------------------ */}
+          {/* Colonne droite : Formulaire de contact */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -195,7 +188,6 @@ const Contact = () => {
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
               <h3 className="text-2xl font-bold text-foreground mb-6">Envoyez-nous un message</h3>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Champs prénom + nom */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input 
                     type="text" 
@@ -216,7 +208,6 @@ const Contact = () => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-300"
                   />
                 </div>
-                {/* Email */}
                 <input 
                   type="email" 
                   name="email" 
@@ -226,7 +217,6 @@ const Contact = () => {
                   required 
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-300"
                 />
-                {/* Téléphone */}
                 <input 
                   type="tel" 
                   name="phone" 
@@ -235,7 +225,6 @@ const Contact = () => {
                   placeholder="Téléphone" 
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-300"
                 />
-                {/* Sujet */}
                 <select 
                   name="subject" 
                   value={formData.subject} 
@@ -251,7 +240,6 @@ const Contact = () => {
                   <option value="partenariat">Partenariat</option>
                   <option value="autre">Autre</option>
                 </select>
-                {/* Message */}
                 <textarea 
                   name="message" 
                   value={formData.message} 
@@ -261,14 +249,25 @@ const Contact = () => {
                   rows={5} 
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all duration-300 resize-none"
                 ></textarea>
-                {/* Bouton d'envoi */}
                 <motion.button 
                   type="submit" 
-                  className="w-full bg-gradient-to-r from-accent to-primary text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  disabled={isSubmitting}
+                  className={`w-full bg-gradient-to-r from-accent to-primary text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  whileHover={!isSubmitting ? { scale: 1.02 } : {}}
+                  whileTap={!isSubmitting ? { scale: 0.98 } : {}}
                 >
-                  <Send className="mr-2 h-5 w-5" /> Envoyer le message
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Envoi en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-5 w-5" /> Envoyer le message
+                    </>
+                  )}
                 </motion.button>
               </form>
             </div>
@@ -281,10 +280,7 @@ const Contact = () => {
 
 export default Contact;
 
-// ------------------------------------------------------------
-// Sous-composant : ContactInfo
-// Affiche une ligne d'information (icône + titre + texte ou lien)
-// ------------------------------------------------------------
+// Sous-composant ContactInfo (inchangé)
 const ContactInfo = ({ icon, title, text, color, link }: { icon: React.ReactNode; title: string; text: string; color: string; link?: boolean }) => (
   <div className="flex items-start space-x-4 p-4 rounded-xl hover:bg-white hover:shadow-md transition-all duration-300">
     <div className={`${color} w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md`}>
