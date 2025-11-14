@@ -56,15 +56,15 @@ const Hero = () => {
           <div className="max-w-4xl mx-auto">
 
             {/* 🟡 Logo animé - VERSION CIRCLAIRE SIMPLE ET NETTE */}
-            <div className="flex justify-center mb-8 mt-5">
-              <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden shadow-2xl border-4 border-white bg-gradient-to-tr from-accent to-primary flex items-center justify-center transform hover:scale-110 transition-transform duration-500">
-                <img
-                  src="/logo1.png"
-                  alt="C4E Africa Logo"
-                  className="w-3/4 h-3/4 object-contain"
-                />
-              </div>
-            </div>
+  <div className="flex justify-center mb-8 mt-5">
+  <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden shadow-xl border-4 border-white bg-gradient-to-tr from-accent to-primary flex items-center justify-center">
+    <img
+      src="/logoC4E.png"
+      alt="C4E Africa Logo"
+      className="w-3/4 h-3/4 object-cover rounded-full"
+    />
+  </div>
+</div>
 
             {/* 🟡 Titre principal */}
             <div className="animate-fade-in mb-6" style={{ animationDelay: '0.2s' }}>
