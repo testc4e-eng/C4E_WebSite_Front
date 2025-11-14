@@ -57,13 +57,13 @@ const Hero = () => {
 
       {/* 🟡 Logo animé */}
 <div className="flex justify-center mb-8 mt-5">
-  <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden shadow-xl border-4 border-white bg-gradient-to-tr from-accent to-primary flex items-center justify-center">
-    <img
-      src="/logo1.png"
-      alt="C4E Africa Logo"
-      className="w-3/4 h-3/4 object-cover rounded-full"
-    />
-  </div>
+<div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden shadow-lg border-3 border-white bg-gradient-to-tr from-accent to-primary flex items-center justify-center p-3">
+  <img
+    src="/logo1.png"
+    alt="C4E Africa Logo"
+    className="w-full h-full object-contain p-1"
+  />
+</div>
 </div>
 
       {/* 🟡 Titre principal */}

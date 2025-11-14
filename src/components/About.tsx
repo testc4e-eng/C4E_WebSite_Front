@@ -57,7 +57,6 @@ const About = () => {
               <div className="w-24 h-1 bg-gradient-accent mx-auto rounded-full"></div>
             </div>
 
-
             {/* Présentation */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20 px-4 lg:px-0">
               <motion.div
@@ -94,11 +93,14 @@ const About = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 viewport={{ once: true }}
               >
-                <img
-                  src="/logo1.png"
-                  alt="Notre Société"
-                  className="rounded-3xl shadow-xl border-4 border-green-200 w-[350px] max-w-full h-auto hover:scale-105 transition-transform duration-500"
-                />
+                {/* LOGO CORRIGÉ - Taille réduite et mieux contrôlée */}
+                <div className="relative w-64 h-64 rounded-3xl shadow-xl border-4 border-green-200 bg-white/90 backdrop-blur-sm flex items-center justify-center p-6 hover:scale-105 transition-transform duration-500">
+                  <img
+                    src="/logo1.png"
+                    alt="Notre Société"
+                    className="w-full h-full object-contain p-4"
+                  />
+                </div>
               </motion.div>
             </div>
 
