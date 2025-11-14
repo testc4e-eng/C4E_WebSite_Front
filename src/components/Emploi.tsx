@@ -1,10 +1,10 @@
 // ============================================================
-// Fichier : /src/pages/Emploi.tsx - AVEC BOUTON PARTAGER
+// Fichier : /src/pages/Emploi.tsx - AVEC AFFICHAGE DIRECT DE L'OFFRE
 // ============================================================
 import { useState, useEffect, useCallback } from 'react';
-import { Briefcase, MapPin, Calendar, Search, Plus, Users, Home, Share2 } from 'lucide-react';
+import { Briefcase, MapPin, Calendar, Search, Plus, Users, Home, Share2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface OffreDB {
   id: number;
@@ -22,6 +22,7 @@ type OngletType = 'emploi' | 'stage';
 
 const Emploi = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [offres, setOffres] = useState<OffreDB[]>([]);
   const [filteredOffres, setFilteredOffres] = useState<OffreDB[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,10 @@ const Emploi = () => {
   const [showAll, setShowAll] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showSharePopup, setShowSharePopup] = useState<number | null>(null);
+
+  // Récupération des paramètres d'URL
+  const offreIdFromUrl = searchParams.get('offre');
+  const posteFromUrl = searchParams.get('poste');
 
   // REMPLACEZ par votre vraie URL Render
   const API_BASE_URL = 'https://c4e-website-back.onrender.com';
@@ -108,6 +113,11 @@ const Emploi = () => {
     fetchOffres();
   }, [fetchOffres]);
 
+  // Trouver l'offre spécifique depuis l'URL
+  const offreSpecifique = offreIdFromUrl 
+    ? offres.find(offre => offre.id === parseInt(offreIdFromUrl))
+    : null;
+
   // Fonction pour générer le lien de partage
   const generateShareLink = (offreId: number, titre: string) => {
     const baseUrl = `${FRONTEND_URL}/emploi`;
@@ -162,6 +172,11 @@ const Emploi = () => {
       // Fallback : ouvrir le popup de partage personnalisé
       setShowSharePopup(offreId);
     }
+  };
+
+  // Fonction pour retourner à la liste complète
+  const retourListe = () => {
+    setSearchParams({});
   };
 
   // Filtrer les offres selon l'onglet actif
@@ -240,6 +255,126 @@ const Emploi = () => {
     );
   }
 
+  // Si une offre spécifique est demandée via l'URL
+  if (offreSpecifique) {
+    return (
+      <section className="pt-32 pb-20 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
+        <div className="container mx-auto px-6 max-w-4xl">
+          {/* Bouton retour */}
+          <motion.button
+            onClick={retourListe}
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-8 transition-colors"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Retour à toutes les offres
+          </motion.button>
+
+          {/* Offre spécifique */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="bg-white rounded-2xl p-8 shadow-2xl border border-gray-100"
+          >
+            {/* En-tête */}
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <div className="flex items-center text-sm text-gray-600 mb-2">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  {offreSpecifique.localisation}
+                </div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                  {offreSpecifique.titre}
+                </h1>
+              </div>
+              <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-4 py-2 rounded-full text-sm font-medium">
+                {offreSpecifique.type}
+              </span>
+            </div>
+
+            {/* Description complète */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-3">Description du poste</h2>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                {offreSpecifique.description}
+              </p>
+            </div>
+
+            {/* Exigences détaillées */}
+            {offreSpecifique.exigences && offreSpecifique.exigences.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">Compétences requises</h2>
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {offreSpecifique.exigences.map((exigence, idx) => (
+                    <li key={idx} className="flex items-center text-gray-700">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                      {exigence}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Informations complémentaires */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {offreSpecifique.salaire && (
+                <div className="bg-blue-50 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-blue-600" />
+                    Rémunération
+                  </h3>
+                  <p className="text-gray-700">{offreSpecifique.salaire}</p>
+                </div>
+              )}
+              
+              <div className="bg-orange-50 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-orange-600" />
+                  Date limite
+                </h3>
+                <p className="text-gray-700">Expire le {formatDate(offreSpecifique.date_expiration)}</p>
+              </div>
+            </div>
+
+            {/* Boutons d'action */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
+              <motion.button
+                onClick={() => shareViaNative(offreSpecifique.id, offreSpecifique.titre, offreSpecifique.description)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center justify-center gap-2 px-6 py-3 border-2 border-blue-500 text-blue-500 font-semibold rounded-full hover:bg-blue-500 hover:text-white transition-all duration-300"
+              >
+                <Share2 className="h-5 w-5" />
+                Partager cette offre
+              </motion.button>
+
+              <motion.button
+                onClick={() =>
+                  navigate('/formulaire-emploi', {
+                    state: { 
+                      type: offreSpecifique.type.toLowerCase().includes('stage') ? 'stage' : 'emploi', 
+                      offreId: offreSpecifique.id, 
+                      poste: offreSpecifique.titre 
+                    },
+                  })
+                }
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                Postuler à cette offre
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+    );
+  }
+
+  // Affichage normal de la liste des offres
   return (
     <section className="pt-32 pb-20 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen">
       <div className="container mx-auto px-6">
