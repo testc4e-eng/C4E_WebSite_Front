@@ -1,7 +1,7 @@
 // src/components/login.tsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Mail, Lock, LogIn, Building, UserCog } from "lucide-react";
+import { Mail, Lock, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 import api from "../lib/api";
 
@@ -29,7 +29,6 @@ interface ApiError {
 const Login = () => {
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
-  const [userType, setUserType] = useState<"gestionnaire" | "administrateur">("gestionnaire");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -40,21 +39,22 @@ const Login = () => {
     setError("");
 
     try {
-      console.log("Payload envoyé:", { email, motDePasse, type: userType });
+      console.log("Payload envoyé:", { email, motDePasse });
 
-      // ✅ Envoi correct vers le backend
-const { data } = await api.post<LoginResponse>(
-  "/api/auth/login",
-  null, // pas de token
-  { email, motDePasse, type: userType } // corps de la requête
-);
-      // ✅ Utilisation correcte de 'data' (et non 'res')
-      if (data.token) {
+      // ✅ Envoi vers le backend sans spécifier le type
+      const { data } = await api.post<LoginResponse>(
+        "/api/auth/login",
+        { email, motDePasse } // Corps de la requête sans type
+      );
+
+      // ✅ Utilisation correcte de 'data'
+      if (data.token && data.user) {
         localStorage.setItem("token", data.token);
-        localStorage.setItem("userType", userType);
+        localStorage.setItem("userType", data.user.type);
+        localStorage.setItem("userRole", data.user.role);
 
-        // ✅ Redirection selon le type d'utilisateur
-        if (userType === "administrateur") {
+        // ✅ Redirection automatique selon le rôle de l'utilisateur
+        if (data.user.type === "administrateur") {
           navigate("/admin-dashboard");
         } else {
           navigate("/dashboard");
@@ -93,42 +93,8 @@ const { data } = await api.post<LoginResponse>(
           </Link>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">C4E AFRICA</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Connexion à l'espace d'administration
+            Connexion à votre espace
           </p>
-        </motion.div>
-
-        {/* Sélecteur du type d'utilisateur */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-        >
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => setUserType("gestionnaire")}
-              className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md transition-all duration-300 ${
-                userType === "gestionnaire"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <Building className="h-5 w-5 mr-2" />
-              Gestionnaire
-            </button>
-            <button
-              type="button"
-              onClick={() => setUserType("administrateur")}
-              className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md transition-all duration-300 ${
-                userType === "administrateur"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <UserCog className="h-5 w-5 mr-2" />
-              Administrateur
-            </button>
-          </div>
         </motion.div>
 
         <motion.form
@@ -138,29 +104,6 @@ const { data } = await api.post<LoginResponse>(
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          {/* Indicateur du type d'utilisateur sélectionné */}
-          <div className="text-center mb-4">
-            <span
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                userType === "gestionnaire"
-                  ? "bg-blue-100 text-blue-800"
-                  : "bg-purple-100 text-purple-800"
-              }`}
-            >
-              {userType === "gestionnaire" ? (
-                <>
-                  <Building className="h-4 w-4 mr-1" />
-                  Espace Gestionnaire
-                </>
-              ) : (
-                <>
-                  <UserCog className="h-4 w-4 mr-1" />
-                  Espace Administrateur
-                </>
-              )}
-            </span>
-          </div>
-
           {/* Champs Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -228,7 +171,7 @@ const { data } = await api.post<LoginResponse>(
             ) : (
               <>
                 <LogIn className="h-5 w-5 mr-2" />
-                Se Connecter en tant que {userType === "gestionnaire" ? "Gestionnaire" : "Administrateur"}
+                Se Connecter
               </>
             )}
           </motion.button>
