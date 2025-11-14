@@ -17,16 +17,6 @@ interface ApiResponse {
   data: Utilisateur[];
 }
 
-interface ApiError {
-  response?: {
-    data?: {
-      message: string;
-    };
-    status: number;
-  };
-  message: string;
-}
-
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<"gestionnaires" | "administrateurs">("gestionnaires");
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
@@ -80,16 +70,15 @@ const AdminDashboard = () => {
       setStats({ total, actifs, inactifs: total - actifs });
       
       console.log(`✅ ${usersData.length} ${activeTab} chargés`);
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("❌ Erreur lors du chargement :", err);
-      const error = err as ApiError;
-      console.error("Détails erreur:", error.response?.data);
+      console.error("Détails erreur:", err.response?.data);
       setUtilisateurs([]);
       setFilteredUsers([]);
       setStats({ total: 0, actifs: 0, inactifs: 0 });
       
       // Gestion des erreurs d'authentification
-      if (error.response?.status === 401 || error.response?.status === 403) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
         document.dispatchEvent(
           new CustomEvent("showToast", {
             detail: { 
@@ -100,6 +89,15 @@ const AdminDashboard = () => {
         );
         localStorage.removeItem('token');
         navigate('/login');
+      } else {
+        document.dispatchEvent(
+          new CustomEvent("showToast", {
+            detail: { 
+              message: "Erreur lors du chargement des utilisateurs", 
+              type: "error" 
+            }
+          })
+        );
       }
     } finally {
       setIsLoading(false);
@@ -150,7 +148,7 @@ const AdminDashboard = () => {
       document.dispatchEvent(
         new CustomEvent("showToast", {
           detail: { 
-            message: "Le mot de passe doit faire au moins 6 caractères", 
+            message: "Le mot de passe doit contenir au moins 6 caractères", 
             type: "error" 
           }
         })
@@ -167,16 +165,16 @@ const AdminDashboard = () => {
 
       console.log("🔄 Tentative d'ajout...", userData);
       
-      // CORRECTION : Utilisation correcte de l'API
+      // CORRECTION : Appel API correct
       const response = await api.post(`/api/admin/${activeTab}`, null, userData);
       
       console.log("✅ Réponse ajout:", response);
       
-      // Réinitialisation du formulaire
+      // Réinitialisation
       setNewEmail("");
       setNewPassword("");
       
-      // Rechargement de la liste
+      // Rechargement
       await fetchUsers();
 
       document.dispatchEvent(
@@ -191,14 +189,18 @@ const AdminDashboard = () => {
       console.error("❌ Erreur ajout détaillée:", err);
       
       let errorMessage = "Erreur lors de l'ajout";
+      
+      // Récupération du message d'erreur du backend
       if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
       } else if (err.message) {
         errorMessage = err.message;
       }
       
-      // Gestion spécifique des erreurs 401 - Token expiré
-      if (err.response?.status === 401) {
+      // Gestion spécifique des erreurs d'authentification
+      if (err.response?.status === 401 || err.response?.status === 403) {
         errorMessage = "Session expirée, veuillez vous reconnecter";
         localStorage.removeItem('token');
         setTimeout(() => navigate('/login'), 2000);
@@ -217,6 +219,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // CORRECTION de handleDelete
   const handleDelete = async (id: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
     
@@ -229,13 +232,14 @@ const AdminDashboard = () => {
           detail: { message: "Utilisateur supprimé avec succès", type: "success" }
         })
       );
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("❌ Erreur suppression :", err);
-      const error = err as ApiError;
       
       let errorMessage = "Erreur lors de la suppression";
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
       }
       
       document.dispatchEvent(
