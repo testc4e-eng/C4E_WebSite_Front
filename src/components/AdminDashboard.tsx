@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { LogOut, UserCog, Shield, Users, Plus, Edit, Trash2, Search, Mail, Home } from "lucide-react";
+import { LogOut, UserCog, Shield, Users, Plus, Edit, Trash2, Search, Mail, Home, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "../lib/api";
 import { useNavigate } from "react-router-dom";
@@ -36,12 +36,40 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, actifs: 0, inactifs: 0 });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const navigate = useNavigate();
+
+  // Gestion du token expiré
+  useEffect(() => {
+    const handleTokenExpired = () => {
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { 
+            message: "Session expirée, veuillez vous reconnecter", 
+            type: "error" 
+          }
+        })
+      );
+      localStorage.removeItem('token');
+      navigate('/login');
+    };
+
+    window.addEventListener('tokenExpired', handleTokenExpired);
+    
+    return () => {
+      window.removeEventListener('tokenExpired', handleTokenExpired);
+    };
+  }, [navigate]);
 
   const fetchUsers = useCallback(async () => {
     try {
       setIsLoading(true);
       console.log(`🔄 Chargement des ${activeTab}...`);
+      
+      const token = localStorage.getItem('token');
+      console.log("🔐 Token utilisé:", token ? `${token.substring(0, 20)}...` : "Aucun token");
+      
       const res = await api.get<ApiResponse>(`/api/admin/${activeTab}`);
       const usersData: Utilisateur[] = res.data.data || [];
       setUtilisateurs(usersData);
@@ -60,8 +88,8 @@ const AdminDashboard = () => {
       setFilteredUsers([]);
       setStats({ total: 0, actifs: 0, inactifs: 0 });
       
-      // Si erreur 403, rediriger vers login
-      if (error.response?.status === 403) {
+      // Gestion des erreurs d'authentification
+      if (error.response?.status === 401 || error.response?.status === 403) {
         document.dispatchEvent(
           new CustomEvent("showToast", {
             detail: { 
@@ -89,68 +117,112 @@ const AdminDashboard = () => {
     setFilteredUsers(filtered);
   }, [searchTerm, utilisateurs]);
 
-// Dans AdminDashboard.tsx - Correction de handleAdd
-const handleAdd = async () => {
-  if (!newEmail || !newPassword) {
-    alert("Veuillez remplir tous les champs");
-    return;
-  }
-
-  try {
-    const userData = {
-      email: newEmail,
-      motDePasse: newPassword
-    };
-
-    console.log("🔄 Tentative d'ajout...");
-    
-    const response = await api.post(`/api/admin/${activeTab}`, userData);
-    
-    // CORRECTION : Ne pas vérifier response.data.success (peut ne pas exister)
-    setNewEmail("");
-    setNewPassword("");
-    fetchUsers();
-
-    document.dispatchEvent(
-      new CustomEvent("showToast", {
-        detail: {
-          message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
-          type: "success"
-        }
-      })
-    );
-  } catch (err: any) {
-    console.error("❌ Erreur ajout détaillée:", err);
-    
-    let errorMessage = "Erreur lors de l'ajout";
-    if (err.response?.data?.message) {
-      errorMessage = err.response.data.message;
+  // CORRECTION COMPLÈTE de handleAdd
+  const handleAdd = async () => {
+    if (!newEmail || !newPassword) {
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { 
+            message: "Veuillez remplir tous les champs", 
+            type: "error" 
+          }
+        })
+      );
+      return;
     }
-    
-    // Gestion spécifique des erreurs 401 - Token expiré
-    if (err.response?.status === 401) {
-      errorMessage = "Session expirée, veuillez vous reconnecter";
-      localStorage.removeItem('token');
-      setTimeout(() => navigate('/login'), 2000);
+
+    // Validation email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { 
+            message: "Format d'email invalide", 
+            type: "error" 
+          }
+        })
+      );
+      return;
     }
-    
-    document.dispatchEvent(
-      new CustomEvent("showToast", {
-        detail: { 
-          message: errorMessage, 
-          type: "error" 
-        }
-      })
-    );
-  }
-};
+
+    // Validation mot de passe
+    if (newPassword.length < 6) {
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { 
+            message: "Le mot de passe doit faire au moins 6 caractères", 
+            type: "error" 
+          }
+        })
+      );
+      return;
+    }
+
+    try {
+      setIsAdding(true);
+      const userData = {
+        email: newEmail,
+        motDePasse: newPassword
+      };
+
+      console.log("🔄 Tentative d'ajout...", userData);
+      
+      // CORRECTION : Utilisation correcte de l'API
+      const response = await api.post(`/api/admin/${activeTab}`, null, userData);
+      
+      console.log("✅ Réponse ajout:", response);
+      
+      // Réinitialisation du formulaire
+      setNewEmail("");
+      setNewPassword("");
+      
+      // Rechargement de la liste
+      await fetchUsers();
+
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: {
+            message: `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
+            type: "success"
+          }
+        })
+      );
+    } catch (err: any) {
+      console.error("❌ Erreur ajout détaillée:", err);
+      
+      let errorMessage = "Erreur lors de l'ajout";
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Gestion spécifique des erreurs 401 - Token expiré
+      if (err.response?.status === 401) {
+        errorMessage = "Session expirée, veuillez vous reconnecter";
+        localStorage.removeItem('token');
+        setTimeout(() => navigate('/login'), 2000);
+      }
+      
+      document.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { 
+            message: errorMessage, 
+            type: "error" 
+          }
+        })
+      );
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
     
     try {
       await api.delete(`/api/admin/${activeTab}/${id}`);
-      fetchUsers();
+      await fetchUsers();
 
       document.dispatchEvent(
         new CustomEvent("showToast", {
@@ -358,23 +430,44 @@ const handleAdd = async () => {
                 onChange={(e) => setNewEmail(e.target.value)} 
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
               />
-              <input 
-                type="password" 
-                placeholder="Mot de passe temporaire" 
-                value={newPassword} 
-                onChange={(e) => setNewPassword(e.target.value)} 
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
-              />
+              <div className="flex-1 relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="Mot de passe temporaire" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12" 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
               <motion.button 
                 onClick={handleAdd} 
-                whileHover={{ scale: 1.02 }} 
-                whileTap={{ scale: 0.98 }} 
-                className="flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl transition-all duration-300 shadow-lg font-semibold"
+                disabled={isAdding}
+                whileHover={{ scale: isAdding ? 1 : 1.02 }} 
+                whileTap={{ scale: isAdding ? 1 : 0.98 }} 
+                className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-xl transition-all duration-300 shadow-lg font-semibold ${
+                  isAdding 
+                    ? "bg-gray-400 text-white cursor-not-allowed" 
+                    : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+                }`}
               >
-                <Plus className="h-5 w-5" />
-                <span>Créer le compte</span>
+                {isAdding ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <Plus className="h-5 w-5" />
+                )}
+                <span>{isAdding ? "Création..." : "Créer le compte"}</span>
               </motion.button>
             </div>
+            <p className="text-sm text-gray-500 mt-2">
+              Le mot de passe doit contenir au moins 6 caractères
+            </p>
           </motion.div>
 
           {/* Barre de recherche */}
@@ -483,6 +576,16 @@ const handleAdd = async () => {
                               whileTap={{ scale: 0.9 }} 
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
                               title="Modifier"
+                              onClick={() => {
+                                document.dispatchEvent(
+                                  new CustomEvent("showToast", {
+                                    detail: { 
+                                      message: "Fonctionnalité de modification à venir", 
+                                      type: "info" 
+                                    }
+                                  })
+                                );
+                              }}
                             >
                               <Edit className="h-4 w-4" />
                             </motion.button>

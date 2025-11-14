@@ -13,6 +13,11 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
+// Interface pour les headers avec Authorization
+interface CustomHeadersInit extends HeadersInit {
+  Authorization?: string;
+}
+
 /**
  * Base URL de l'API : priorise VITE (build-time), sinon fallback Render.
  * ⚠️ Ne pas mettre de slash final dans VITE_API_URL.
@@ -21,7 +26,7 @@ export const API_BASE_URL: string =
   import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
 
 /**
- * Concaténation sûre d’URL via URL()
+ * Concaténation sûre d'URL via URL()
  */
 export const apiUrl = (path: string): string =>
   new URL(path, API_BASE_URL).toString();
@@ -95,12 +100,20 @@ export async function httpGet<T = unknown>(
   const { signal, cleanup } = withTimeout(rest?.signal, timeoutMs);
 
   try {
+    const headers: Record<string, string> = {
+      ...(rest?.headers as Record<string, string> || {}),
+    };
+
+    // Ajout du token si disponible
+    const authToken = token || localStorage.getItem("token");
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
     const res = await fetch(apiUrl(path), {
       method: "GET",
-headers: {
-  Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-  ...(rest?.headers || {}),
-},
+      headers,
+      signal,
       ...rest,
     });
 
@@ -126,11 +139,16 @@ export async function httpJson<T = unknown>(
   const { signal, cleanup } = withTimeout(rest?.signal, timeoutMs);
 
   try {
-const headers: HeadersInit = {
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${token || localStorage.getItem("token") || ""}`,
-  ...(rest?.headers || {}),
-}
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(rest?.headers as Record<string, string> || {}),
+    };
+
+    // Ajout du token si disponible
+    const authToken = token || localStorage.getItem("token");
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
 
     const res = await fetch(apiUrl(path), {
       method,
@@ -149,7 +167,7 @@ const headers: HeadersInit = {
 }
 
 /**
- * CRUD ergonomique
+ * CRUD ergonomique - CORRECTION DES SIGNATURES
  */
 export const postJson = <T = unknown>(
   path: string,
@@ -182,19 +200,16 @@ export const fileUrl = (filePath?: string | null): string | null => {
 };
 
 /**
- * Export par défaut : objet API complet
+ * Export par défaut : objet API complet avec interface axios-like
  */
 const api = {
   API_BASE_URL,
   url: apiUrl,
   get: httpGet,
-  json: httpJson,
   post: postJson,
   put: putJson,
   delete: delJson,
   fileUrl,
 };
-
-
 
 export default api;
