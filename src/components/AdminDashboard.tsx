@@ -78,8 +78,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   
   // États pour la navigation principale
-  const [currentView, setCurrentView] = useState<"main" | "gestion-candidatures">("main");
-  const [activeSection, setActiveSection] = useState<"utilisateurs" | "offres" | "candidatures">("utilisateurs");
+  const [currentView, setCurrentView] = useState<"main" | "gestion-utilisateurs" | "gestion-candidatures">("main");
   
   // États pour la gestion des utilisateurs
   const [activeTab, setActiveTab] = useState<"gestionnaires" | "administrateurs">("gestionnaires");
@@ -234,7 +233,7 @@ const AdminDashboard = () => {
   }, [activeTabCandidatures]);
 
   useEffect(() => {
-    if (currentView === "main") {
+    if (currentView === "gestion-utilisateurs") {
       fetchUsers();
     } else if (currentView === "gestion-candidatures") {
       fetchOffres();
@@ -540,7 +539,7 @@ const AdminDashboard = () => {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
           className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-200 hover:shadow-3xl transition-all duration-300 cursor-pointer group"
-          onClick={() => setCurrentView("main")}
+          onClick={() => setCurrentView("gestion-utilisateurs")}
         >
           <div className="text-center">
             <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
@@ -614,6 +613,19 @@ const AdminDashboard = () => {
   // Composant pour la gestion des utilisateurs
   const GestionUtilisateurs = () => (
     <div className="space-y-6">
+      {/* Header avec bouton retour */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => setCurrentView("main")}
+          className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-300"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span>Retour au dashboard</span>
+        </button>
+        <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
+        <div className="w-32"></div> {/* Pour l'équilibrage */}
+      </div>
+
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-2xl p-6 shadow-lg border">
@@ -844,106 +856,275 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // Composant pour la gestion des offres (à implémenter)
-  const GestionOffres = () => (
-    <div className="text-center p-8">
-      <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-gray-700">Gestion des Offres</h3>
-      <p className="text-gray-500">Section en cours de développement</p>
-    </div>
-  );
-
+  // Composant pour la gestion des candidatures (Dashboard Gestionnaire)
   const GestionCandidatures = () => (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900 text-center">
-        Gestion des Candidatures
-      </h2>
+      {/* Header avec bouton retour */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => setCurrentView("main")}
+          className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-300"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span>Retour au dashboard</span>
+        </button>
+        <h2 className="text-3xl font-bold text-gray-900">Gestion des Candidatures</h2>
+        <div className="w-32"></div> {/* Pour l'équilibrage */}
+      </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <Users className="h-12 w-12 text-blue-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">{candidatures.length}</h3>
-          <p className="text-gray-600">Total candidatures</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <BarChart3 className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">
-            {candidatures.filter(c => c.statut === "en_attente").length}
-          </h3>
-          <p className="text-gray-600">En attente</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <FileText className="h-12 w-12 text-green-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">
-            {candidatures.filter(c => c.statut === "acceptee").length}
-          </h3>
-          <p className="text-gray-600">Acceptées</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <Archive className="h-12 w-12 text-red-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">
-            {candidatures.filter(c => c.statut === "refusee").length}
-          </h3>
-          <p className="text-gray-600">Refusées</p>
+      {/* Navigation Dashboard Gestionnaire */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-white rounded-2xl p-2 shadow-lg border">
+          <div className="flex space-x-1">
+            <button 
+              onClick={() => setActiveTabCandidatures("offres")} 
+              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                activeTabCandidatures === "offres" 
+                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg" 
+                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
+              }`}
+            >
+              <Briefcase className="h-5 w-5" />
+              <span>Offres d'emploi</span>
+            </button>
+            <button 
+              onClick={() => setActiveTabCandidatures("candidatures")} 
+              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                activeTabCandidatures === "candidatures" 
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" 
+                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
+              }`}
+            >
+              <FileText className="h-5 w-5" />
+              <span>Candidatures spontanées</span>
+            </button>
+            <button 
+              onClick={() => setActiveTabCandidatures("candidatures-postes")} 
+              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                activeTabCandidatures === "candidatures-postes" 
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg" 
+                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
+              }`}
+            >
+              <Users className="h-5 w-5" />
+              <span>Candidatures sur postes</span>
+            </button>
+            <button 
+              onClick={() => setActiveTabCandidatures("archives")} 
+              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                activeTabCandidatures === "archives" 
+                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg" 
+                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
+              }`}
+            >
+              <Archive className="h-5 w-5" />
+              <span>Archives</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Liste des candidatures */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold text-gray-700">Nom</th>
-                <th className="px-6 py-4 text-left font-semibold text-gray-700">Email</th>
-                <th className="px-6 py-4 text-left font-semibold text-gray-700">Type</th>
-                <th className="px-6 py-4 text-left font-semibold text-gray-700">Date</th>
-                <th className="px-6 py-4 text-left font-semibold text-gray-700">Statut</th>
-                <th className="px-6 py-4 text-left font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {candidatures.map((cand) => (
-                <tr key={cand.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-gray-900">{cand.nom}</td>
-                  <td className="px-6 py-4 text-gray-600">{cand.email}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                      cand.type === "emploi" ? "bg-blue-100 text-blue-800" :
-                      cand.type === "stage" ? "bg-green-100 text-green-800" :
-                      "bg-purple-100 text-purple-800"
+      {/* Contenu selon l'onglet */}
+      {activeTabCandidatures === "offres" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 border">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Gestion des Offres d'Emploi</h3>
+            
+            {/* Formulaire d'ajout d'offre */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Plus className="h-5 w-5 mr-2 text-green-600" />
+                Ajouter une nouvelle offre
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <input
+                  type="text"
+                  placeholder="Titre de l'offre"
+                  value={nouvelleOffre.titre}
+                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, titre: e.target.value})}
+                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Localisation"
+                  value={nouvelleOffre.localisation}
+                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, localisation: e.target.value})}
+                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                />
+                <select
+                  value={nouvelleOffre.type}
+                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, type: e.target.value as OffreEmploi["type"]})}
+                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="CDI">CDI</option>
+                  <option value="CDD 12 mois">CDD 12 mois</option>
+                  <option value="Stage">Stage</option>
+                  <option value="PFE">PFE</option>
+                </select>
+                <input
+                  type="date"
+                  placeholder="Date d'expiration"
+                  value={nouvelleOffre.dateExpiration}
+                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, dateExpiration: e.target.value})}
+                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <textarea
+                placeholder="Description de l'offre"
+                value={nouvelleOffre.description}
+                onChange={(e) => setNouvelleOffre({...nouvelleOffre, description: e.target.value})}
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 mb-4"
+              />
+              <button
+                onClick={ajouterOffre}
+                className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-semibold"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Créer l'offre</span>
+              </button>
+            </div>
+
+            {/* Liste des offres */}
+            <div className="space-y-4">
+              <h4 className="text-xl font-semibold text-gray-900">Offres publiées</h4>
+              {offres.map((offre) => (
+                <div key={offre.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h5 className="text-lg font-bold text-gray-900">{offre.titre}</h5>
+                      <p className="text-gray-600">{offre.localisation} • {offre.type}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => supprimerOffre(offre.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-gray-700 mb-4">{offre.description}</p>
+                  <div className="flex justify-between items-center text-sm text-gray-500">
+                    <span>Expire le: {new Date(offre.dateExpiration).toLocaleDateString()}</span>
+                    <span className={`px-3 py-1 rounded-full ${
+                      offre.statut === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                     }`}>
-                      {cand.type}
+                      {offre.statut}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    {new Date(cand.dateSoumission).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                      cand.statut === "en_attente" ? "bg-yellow-100 text-yellow-800" :
-                      cand.statut === "acceptee" ? "bg-green-100 text-green-800" :
-                      "bg-red-100 text-red-800"
-                    }`}>
-                      {cand.statut}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 space-x-2">
-                    <button
-                      onClick={() => setSelectedCandidature(cand)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"
-                      title="Voir détails"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTabCandidatures === "candidatures" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 border">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Candidatures Spontanées</h3>
+            
+            {/* Statistiques */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+                <Users className="h-12 w-12 text-blue-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">{candidatures.length}</h3>
+                <p className="text-gray-600">Total candidatures</p>
+              </div>
+              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+                <BarChart3 className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {candidatures.filter(c => c.statut === "en_attente").length}
+                </h3>
+                <p className="text-gray-600">En attente</p>
+              </div>
+              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+                <FileText className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {candidatures.filter(c => c.statut === "acceptee").length}
+                </h3>
+                <p className="text-gray-600">Acceptées</p>
+              </div>
+              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+                <Archive className="h-12 w-12 text-red-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {candidatures.filter(c => c.statut === "refusee").length}
+                </h3>
+                <p className="text-gray-600">Refusées</p>
+              </div>
+            </div>
+
+            {/* Liste des candidatures */}
+            <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-b border-gray-200">
+                    <th className="p-4 text-left font-semibold">Nom</th>
+                    <th className="p-4 text-left font-semibold">Email</th>
+                    <th className="p-4 text-left font-semibold">Type</th>
+                    <th className="p-4 text-left font-semibold">Date</th>
+                    <th className="p-4 text-left font-semibold">Statut</th>
+                    <th className="p-4 text-left font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidatures.map((cand) => (
+                    <tr key={cand.id} className="border-b border-gray-100 hover:bg-gray-50/80">
+                      <td className="p-4 text-gray-900">{cand.nom}</td>
+                      <td className="p-4 text-gray-600">{cand.email}</td>
+                      <td className="p-4">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          cand.type === "spontanee" ? "bg-blue-100 text-blue-800" :
+                          "bg-purple-100 text-purple-800"
+                        }`}>
+                          {cand.type}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-600">
+                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          cand.statut === "en_attente" ? "bg-yellow-100 text-yellow-800" :
+                          cand.statut === "acceptee" ? "bg-green-100 text-green-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {cand.statut}
+                        </span>
+                      </td>
+                      <td className="p-4 space-x-2">
+                        <button
+                          onClick={() => setSelectedCandidature(cand)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Voir détails"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => changerStatutCandidature(cand, "acceptee")}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Accepter"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => changerStatutCandidature(cand, "refusee")}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Refuser"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal détails candidature */}
       {selectedCandidature && (
@@ -1042,50 +1223,45 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      {/* Navigation principale */}
+      {/* Contenu principal */}
       <div className="container mx-auto px-6 py-8">
-        <div className="flex justify-center mb-8 space-x-1 bg-white/50 rounded-xl p-1 shadow-md">
-          <button
-            onClick={() => setActiveSection("utilisateurs")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeSection === "utilisateurs"
-                ? "bg-blue-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
-            }`}
-          >
-            <Users className="h-5 w-5" />
-            <span>Gestion des Utilisateurs</span>
-          </button>
-          <button
-            onClick={() => setActiveSection("offres")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeSection === "offres"
-                ? "bg-blue-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
-            }`}
-          >
-            <Briefcase className="h-5 w-5" />
-            <span>Offres d'Emploi</span>
-          </button>
-          <button
-            onClick={() => setActiveSection("candidatures")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeSection === "candidatures"
-                ? "bg-blue-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
-            }`}
-          >
-            <FileText className="h-5 w-5" />
-            <span>Candidatures</span>
-          </button>
-        </div>
+        <AnimatePresence mode="wait">
+          {currentView === "main" && (
+            <motion.div
+              key="main"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <MainView />
+            </motion.div>
+          )}
 
-        {/* Contenu principal */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20">
-          {activeSection === "utilisateurs" && <GestionUtilisateurs />}
-          {activeSection === "offres" && <GestionOffres />}
-          {activeSection === "candidatures" && <GestionCandidatures />}
-        </div>
+          {currentView === "gestion-utilisateurs" && (
+            <motion.div
+              key="gestion-utilisateurs"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <GestionUtilisateurs />
+            </motion.div>
+          )}
+
+          {currentView === "gestion-candidatures" && (
+            <motion.div
+              key="gestion-candidatures"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <GestionCandidatures />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Modal modification mot de passe */}
