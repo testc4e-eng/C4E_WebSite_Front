@@ -166,7 +166,7 @@ const Dashboard = () => {
   const token = localStorage.getItem("token");
 
   const [activeTab, setActiveTab] = useState<
-    "offres" | "candidatures" | "candidatures-postes" | "archives"
+    "offres" | "candidatures" | "candidatures-postes" | "candidatures-traitees"
   >("offres");
   const [offres, setOffres] = useState<OffreEmploi[]>([]);
   const [loadingOffres, setLoadingOffres] = useState(true);
@@ -288,11 +288,11 @@ useEffect(() => {
         );
 
         setCandidatures(candidaturesSurOffres);
-      } else if (activeTab === "archives") {
+      } else if (activeTab === "candidatures-traitees") {
         const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
 
         if (!res.ok)
-          throw new Error("Erreur lors du chargement des archives.");
+          throw new Error("Erreur lors du chargement des candidatures traitées.");
 
         setCandidatures(data);
       }
@@ -305,7 +305,7 @@ useEffect(() => {
     }
   };
 
-  if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
+  if (["candidatures", "candidatures-postes", "candidatures-traitees"].includes(activeTab)) {
     fetchCandidatures();
   }
 }, [activeTab, token]);
@@ -645,32 +645,39 @@ useEffect(() => {
     }
   };
 
-  // Fonctions pour les archives
-  const candidaturesArchivees = candidatures.filter(
-    (c) => c.statut === "acceptee" || c.statut === "refusee"
-  );
+  // Fonctions utilitaires pour les candidatures
+  const getCandidaturesEnCours = (candidaturesList: Candidature[]) => {
+    return candidaturesList.filter(c => c.statut === "en_attente");
+  };
 
-  const candidaturesFiltreesArchive =
+  const getCandidaturesTraitees = (candidaturesList: Candidature[]) => {
+    return candidaturesList.filter(c => c.statut === "acceptee" || c.statut === "refusee");
+  };
+
+  // Fonctions pour les candidatures traitées
+  const candidaturesTraitees = getCandidaturesTraitees(candidatures);
+
+  const candidaturesFiltreesTraitees =
     archiveFilter === "tous"
-      ? candidaturesArchivees
-      : candidaturesArchivees.filter((c) =>
+      ? candidaturesTraitees
+      : candidaturesTraitees.filter((c) =>
           archiveFilter === "acceptees"
             ? c.statut === "acceptee"
             : c.statut === "refusee"
         );
 
-  const candidaturesRecherchees = candidaturesFiltreesArchive.filter(
+  const candidaturesRecherchees = candidaturesFiltreesTraitees.filter(
     (c) =>
       c.nom.toLowerCase().includes(searchArchive.toLowerCase()) ||
       c.email.toLowerCase().includes(searchArchive.toLowerCase()) ||
       (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
   );
 
-  const statsArchives = {
-    total: candidaturesArchivees.length,
-    acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee")
+  const statsTraitees = {
+    total: candidaturesTraitees.length,
+    acceptees: candidaturesTraitees.filter((c) => c.statut === "acceptee")
       .length,
-    refusees: candidaturesArchivees.filter((c) => c.statut === "refusee")
+    refusees: candidaturesTraitees.filter((c) => c.statut === "refusee")
       .length,
   };
 
@@ -720,9 +727,12 @@ useEffect(() => {
 
   // Composant pour les statistiques globales
   const StatsOverview = () => {
+    const candidaturesEnCours = getCandidaturesEnCours(candidatures);
+    const candidaturesTraitees = getCandidaturesTraitees(candidatures);
+
     const stats = {
-      total: candidatures.length,
-      enAttente: candidatures.filter((c) => c.statut === "en_attente").length,
+      enAttente: candidaturesEnCours.length,
+      traitees: candidaturesTraitees.length,
       acceptees: candidatures.filter((c) => c.statut === "acceptee").length,
       refusees: candidatures.filter((c) => c.statut === "refusee").length,
       offresActives: offres.filter((o) => o.statut === "active").length,
@@ -730,27 +740,6 @@ useEffect(() => {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Candidatures */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
-                Total
-              </p>
-              <p className="text-3xl font-bold text-gray-900 mb-2">
-                {stats.total}
-              </p>
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <p className="text-xs text-gray-500">Candidatures</p>
-              </div>
-            </div>
-            <div className="p-3 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors duration-300">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
         {/* En Attente */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-amber-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
@@ -768,6 +757,27 @@ useEffect(() => {
             </div>
             <div className="p-3 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors duration-300">
               <Clock className="h-6 w-6 text-amber-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Traitées */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                Traitées
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mb-2">
+                {stats.traitees}
+              </p>
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <p className="text-xs text-gray-500">Avec réponse</p>
+              </div>
+            </div>
+            <div className="p-3 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors duration-300">
+              <Archive className="h-6 w-6 text-purple-600" />
             </div>
           </div>
         </div>
@@ -911,10 +921,10 @@ useEffect(() => {
                     <div className="bg-gray-50 rounded-lg p-3 mb-4">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-700">
-                          Candidatures
+                          Candidatures en attente
                         </span>
                         <span className="text-lg font-bold text-blue-600">
-                          {stats.total}
+                          {stats.enAttente}
                         </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-600">
@@ -939,14 +949,14 @@ useEffect(() => {
                           setSelectedOffre(offre);
                           setViewMode("candidatures");
                         }}
-                        disabled={stats.total === 0}
+                        disabled={stats.enAttente === 0}
                         className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 font-medium"
                       >
                         <UserCheck className="h-4 w-4" />
                         <span>
-                          {stats.total === 0
-                            ? "Aucune candidature"
-                            : `Voir (${stats.total})`}
+                          {stats.enAttente === 0
+                            ? "Aucune en attente"
+                            : `Voir (${stats.enAttente})`}
                         </span>
                       </button>
                       <button
@@ -1019,7 +1029,9 @@ useEffect(() => {
         "🔍 DEBUG - Candidatures finales pour offre:",
         candidaturesPourOffre
       );
-      return candidaturesPourOffre;
+
+      // FILTRER POUR N'AFFICHER QUE LES EN COURS
+      return candidaturesPourOffre.filter(c => c.statut === "en_attente");
     };
 
     const candidaturesPourOffre = getSortedCandidatures(
@@ -1060,14 +1072,14 @@ useEffect(() => {
                 {selectedOffre.titre}
               </h3>
               <p className="text-gray-600">
-                {stats.total} candidature(s){" "}
+                {stats.total} candidature(s) en attente{" "}
                 {filtreType === "emploi" ? "CDI/CDD" : "Stage/PFE"}
               </p>
             </div>
           </div>
 
           {/* Stats cards */}
-          <div className="grid grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-3 gap-4 mt-4">
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
               <div className="text-2xl font-bold text-yellow-600">
                 {stats.enAttente}
@@ -1085,12 +1097,6 @@ useEffect(() => {
                 {stats.refusees}
               </div>
               <div className="text-sm text-red-700">Refusées</div>
-            </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">
-                {stats.total}
-              </div>
-              <div className="text-sm text-blue-700">Total</div>
             </div>
           </div>
         </div>
@@ -1126,26 +1132,22 @@ useEffect(() => {
           </div>
 
           <div className="text-sm text-gray-600">
-            Affichage de {candidaturesPourOffre.length} candidature(s)
+            Affichage de {candidaturesPourOffre.length} candidature(s) en attente
           </div>
         </div>
 
         {/* Tableau des candidatures */}
         {candidaturesPourOffre.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-            <UserCheck className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <CheckCircle className="h-16 w-16 text-green-300 mx-auto mb-4" />
             <h4 className="text-lg font-semibold text-gray-700 mb-2">
-              Aucune candidature
+              Aucune candidature en attente
             </h4>
             <p className="text-gray-500 mb-4">
-              Aucune candidature n'a été trouvée pour ce poste.
+              Toutes les candidatures pour ce poste ont été traitées.
             </p>
             <div className="text-sm text-gray-400 bg-gray-50 p-4 rounded-lg max-w-md mx-auto">
-              <p>💡 Debug info:</p>
-              <p>Offre ID: {selectedOffre.id}</p>
-              <p>Titre: "{selectedOffre.titre}"</p>
-              <p>Type: {selectedOffre.type}</p>
-              <p>Filtre appliqué: {filtreType}</p>
+              <p>💡 Les candidatures traitées sont disponibles dans l'onglet "Candidatures Traitées"</p>
             </div>
           </div>
         ) : (
@@ -1501,7 +1503,7 @@ useEffect(() => {
             }`}
           >
             <Users className="h-5 w-5" />
-            <span>Candidatures Spontanées - Stage/PFE</span>
+            <span>Candidatures Spontanées</span>
           </button>
           <button
             onClick={() => setActiveTab("candidatures-postes")}
@@ -1515,15 +1517,15 @@ useEffect(() => {
             <span>Candidatures par Postes</span>
           </button>
           <button
-            onClick={() => setActiveTab("archives")}
+            onClick={() => setActiveTab("candidatures-traitees")}
             className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeTab === "archives"
+              activeTab === "candidatures-traitees"
                 ? "bg-yellow-500 text-white shadow-lg"
                 : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
             }`}
           >
             <Archive className="h-5 w-5" />
-            <span>Archives</span>
+            <span>Candidatures Traitées</span>
           </button>
         </div>
 
@@ -1935,8 +1937,20 @@ useEffect(() => {
         {activeTab === "candidatures" && (
           <section className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-900 text-center">
-              Gestion des Candidatures Spontanées & Stage/PFE
+              Candidatures Spontanées - En Cours
             </h2>
+
+            <div className="flex justify-center mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-blue-700">
+                  <Clock className="h-5 w-5" />
+                  <span className="font-medium">Affichage des candidatures en attente de traitement</span>
+                </div>
+                <p className="text-blue-600 text-sm mt-1">
+                  Les candidatures acceptées ou refusées sont disponibles dans l'onglet "Candidatures Traitées"
+                </p>
+              </div>
+            </div>
 
             <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
               <select
@@ -2000,24 +2014,15 @@ useEffect(() => {
             {["stage_spontane", "spontanee"].map((type) => {
               if (filterType !== "tous" && filterType !== type) return null;
 
-              const candidaturesByType =
-                type === "stage_spontane"
-                  ? candidatures.filter((c) => c.type === "stage_spontane")
-                  : candidatures.filter((c) => c.type === "spontanee");
-
-              // DEBUG: Vérifier le filtrage
-              console.log(
-                `🔍 DEBUG - Candidatures pour ${type}:`,
-                candidaturesByType
-              );
-
+              const candidaturesByType = candidatures.filter((c) => c.type === type);
+              const candidaturesEnCours = getCandidaturesEnCours(candidaturesByType);
+              
               const sortedCandidatures = getSortedCandidatures(
-                candidaturesByType,
+                candidaturesEnCours,
                 sortBy,
                 sortOrder
               );
 
-              // Afficher même si vide pour voir le message
               return (
                 <div
                   key={type}
@@ -2025,26 +2030,21 @@ useEffect(() => {
                 >
                   <h3 className="text-lg font-semibold text-gray-700 bg-gray-100 px-6 py-3 capitalize">
                     {type === "stage_spontane"
-                      ? "Candidatures Spontanées Stage/PFE"
-                      : "Candidatures Spontanées Générales"}{" "}
-                    <span className="ml-2 bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
-                      {sortedCandidatures.length}
+                      ? "Candidatures Spontanées Stage/PFE - En Cours"
+                      : "Candidatures Spontanées Générales - En Cours"}{" "}
+                    <span className="ml-2 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                      {sortedCandidatures.length} en attente
                     </span>
                   </h3>
 
                   {sortedCandidatures.length === 0 ? (
                     <div className="text-center py-12 text-gray-500">
-                      <Book className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                      <CheckCircle className="h-16 w-16 text-green-300 mx-auto mb-4" />
                       <h4 className="text-lg font-semibold text-gray-700 mb-2">
-                        Aucune candidature{" "}
-                        {type === "stage_spontane"
-                          ? "spontanée de stage/PFE"
-                          : "spontanée générale"}
+                        Aucune candidature en attente
                       </h4>
                       <p className="text-gray-500">
-                        {type === "stage_spontane"
-                          ? "Aucune candidature spontanée de stage ou PFE n'a été reçue pour le moment."
-                          : "Aucune candidature spontanée générale n'a été reçue pour le moment."}
+                        Toutes les candidatures {type === "stage_spontane" ? "de stage/PFE" : "générales"} ont été traitées.
                       </p>
                     </div>
                   ) : (
@@ -2310,8 +2310,20 @@ useEffect(() => {
         {activeTab === "candidatures-postes" && (
           <section className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-900 text-center">
-              Gestion des Candidatures par Postes
+              Candidatures par Postes - En Cours
             </h2>
+
+            <div className="flex justify-center mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-blue-700">
+                  <Clock className="h-5 w-5" />
+                  <span className="font-medium">Affichage des candidatures en attente de traitement</span>
+                </div>
+                <p className="text-blue-600 text-sm mt-1">
+                  Les candidatures acceptées ou refusées sont disponibles dans l'onglet "Candidatures Traitées"
+                </p>
+              </div>
+            </div>
 
             {/* Onglets pour filtrer par type d'offre */}
             <div className="flex justify-center mb-8">
@@ -2542,43 +2554,43 @@ useEffect(() => {
           </section>
         )}
 
-        {activeTab === "archives" && (
+        {activeTab === "candidatures-traitees" && (
           <section className="space-y-6">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Archives des Candidatures
+                Candidatures Traitées
               </h2>
               <p className="text-gray-600 text-lg">
-                Consultation des candidatures déjà traitées (acceptées/refusées)
+                Historique des candidatures avec réponse (acceptation ou refus)
               </p>
             </div>
 
-            {/* Statistiques des archives */}
+            {/* Statistiques des candidatures traitées */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-lg p-6 text-center">
                 <Archive className="h-12 w-12 text-gray-500 mx-auto mb-3" />
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {statsArchives.total}
+                  {statsTraitees.total}
                 </h3>
-                <p className="text-gray-600">Total archivé</p>
+                <p className="text-gray-600">Total traité</p>
               </div>
               <div className="bg-white rounded-xl shadow-lg p-6 text-center">
                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {statsArchives.acceptees}
+                  {statsTraitees.acceptees}
                 </h3>
                 <p className="text-gray-600">Candidatures acceptées</p>
               </div>
               <div className="bg-white rounded-xl shadow-lg p-6 text-center">
                 <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {statsArchives.refusees}
+                  {statsTraitees.refusees}
                 </h3>
                 <p className="text-gray-600">Candidatures refusées</p>
               </div>
             </div>
 
-            {/* Filtres archives */}
+            {/* Filtres candidatures traitées */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
                 <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full">
@@ -2593,7 +2605,7 @@ useEffect(() => {
                       }
                       className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm w-full md:w-auto"
                     >
-                      <option value="tous">Toutes les archives</option>
+                      <option value="tous">Toutes les candidatures traitées</option>
                       <option value="acceptees">Candidatures acceptées</option>
                       <option value="refusees">Candidatures refusées</option>
                     </select>
@@ -2615,19 +2627,17 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Tableau des archives */}
+            {/* Tableau des candidatures traitées */}
             {loadingCandidatures ? (
               <div className="text-center py-12 bg-white rounded-xl shadow-lg">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Chargement des archives...</p>
+                <p className="mt-4 text-gray-600">Chargement des candidatures traitées...</p>
               </div>
             ) : candidaturesRecherchees.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-xl shadow-lg">
                 <Archive className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h4 className="text-lg font-semibold text-gray-700 mb-2">
-                  {searchArchive
-                    ? "Aucun résultat trouvé"
-                    : "Aucune candidature archivée"}
+                  {searchArchive ? "Aucun résultat trouvé" : "Aucune candidature traitée"}
                 </h4>
                 <p className="text-gray-500">
                   {searchArchive
@@ -2651,10 +2661,7 @@ useEffect(() => {
                           Type
                         </th>
                         <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Diplôme
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Score
+                          Poste
                         </th>
                         <th className="px-6 py-4 text-left font-semibold text-gray-700">
                           Date
@@ -2707,12 +2714,7 @@ useEffect(() => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-gray-600">
-                            <DisplayDiplome diplome={cand.diplome} />
-                          </td>
-                          <td className="px-6 py-4 text-gray-600">
-                            <DisplayCompetenceScore
-                              score={cand.competenceScore}
-                            />
+                            {cand.poste || "Spontanée"}
                           </td>
                           <td className="px-6 py-4 text-gray-600">
                             {new Date(cand.dateSoumission).toLocaleDateString()}
@@ -2730,20 +2732,13 @@ useEffect(() => {
                                 : "Refusée"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 space-x-2">
+                          <td className="px-6 py-4">
                             <button
                               onClick={() => setSelectedCandidature(cand)}
                               className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               title="Voir détails"
                             >
                               <Eye className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => supprimerCandidature(cand)}
-                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                              title="Supprimer cette candidature"
-                            >
-                              <Trash2 className="h-4 w-4" />
                             </button>
                           </td>
                         </tr>
@@ -2754,13 +2749,13 @@ useEffect(() => {
               </div>
             )}
 
-            {/* Modal de détails pour les archives */}
+            {/* Modal de détails pour les candidatures traitées */}
             {selectedCandidature && (
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
                   <div className="flex justify-between items-center mb-4 border-b pb-2">
                     <h3 className="text-2xl font-bold text-gray-800">
-                      Détails de la candidature archivée
+                      Détails de la candidature traitée
                     </h3>
                     <div className="flex items-center space-x-2">
                       <span
