@@ -36,6 +36,7 @@ import {
   BarChart3,
   Home,
   Search,
+  Key,
 } from "lucide-react";
 import api from "../lib/api";
 
@@ -116,7 +117,7 @@ const getFileUrl = (filePath?: string) => {
   // Si déjà une URL complète (cas Render ou lien absolu)
   if (filePath.startsWith("http")) return filePath;
 
-  // Construction correcte de l’URL finale
+  // Construction correcte de l'URL finale
   return `${API_BASE_URL}${
     filePath.startsWith("/") ? filePath : "/" + filePath
   }`;
@@ -209,6 +210,16 @@ const Dashboard = () => {
     "tous" | "acceptees" | "refusees"
   >("tous");
   const [searchArchive, setSearchArchive] = useState("");
+
+  // État pour la modale de changement de mot de passe
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
 
   useEffect(() => {
     if (!token) navigate("/login");
@@ -508,6 +519,7 @@ useEffect(() => {
       setErrorCandidatures(`Échec: ${message}`);
     }
   };
+
   const changerStatut = async (
     candidature: Candidature,
     statut: Candidature["statut"]
@@ -575,6 +587,62 @@ useEffect(() => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
+  };
+
+  // Fonction pour changer le mot de passe
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      setPasswordError("Veuillez remplir tous les champs.");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Les nouveaux mots de passe ne correspondent pas.");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("Le mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+
+    try {
+      const res = await fetch(getApiUrl("/api/auth/change-password"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Erreur lors du changement de mot de passe.");
+      }
+
+      setPasswordSuccess("Mot de passe changé avec succès !");
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      
+      // Fermer la modale après 2 secondes
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess("");
+      }, 2000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setPasswordError(message);
+    }
   };
 
   // Fonctions pour les archives
@@ -1244,42 +1312,171 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-<header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200 sticky top-0 z-40">
-  <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-    <div className="flex items-center space-x-4">
-      {/* Logo cliquable */}
-      <Link to="/">
-        <img
-          src="/logo.png"
-          alt="Logo C4E Africa"
-          className="h-10 w-10 rounded-full shadow-md cursor-pointer"
-        />
-      </Link>
-      <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-        Dashboard Gestionnaire
-      </h1>
-    </div>
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200 sticky top-0 z-40">
+        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            {/* Logo cliquable */}
+            <Link to="/">
+              <img
+                src="/logo.png"
+                alt="Logo C4E Africa"
+                className="h-10 w-10 rounded-full shadow-md cursor-pointer"
+              />
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Dashboard Gestionnaire
+            </h1>
+          </div>
 
-    <div className="flex items-center space-x-4">
-      {/* Bouton Accueil */}
-      <Link
-        to="/"
-        className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
-      >
-        Accueil
-      </Link>
+          <div className="flex items-center space-x-4">
+            {/* Bouton Changer Mot de Passe */}
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium shadow-sm"
+            >
+              <Key className="h-5 w-5" />
+              <span>Changer Mot de Passe</span>
+            </button>
 
-      {/* Bouton Déconnexion */}
-      <button
-        onClick={handleLogout}
-        className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
-      >
-        <LogOut className="h-5 w-5" />
-        <span>Déconnexion</span>
-      </button>
-    </div>
-  </div>
-</header>
+            {/* Bouton Accueil */}
+            <Link
+              to="/"
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
+            >
+              Accueil
+            </Link>
+
+            {/* Bouton Déconnexion */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Déconnexion</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Modale de changement de mot de passe */}
+      {showChangePassword && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold text-gray-800">
+                Changer le mot de passe
+              </h3>
+              <button
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordError("");
+                  setPasswordSuccess("");
+                  setPasswordData({
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {passwordError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  {passwordError}
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de passe actuel
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      currentPassword: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Entrez votre mot de passe actuel"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Entrez le nouveau mot de passe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirmer le nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Confirmez le nouveau mot de passe"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordError("");
+                  setPasswordSuccess("");
+                  setPasswordData({
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                  });
+                }}
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleChangePassword}
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium"
+              >
+                Changer le mot de passe
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="container mx-auto px-6 py-8">
         {/* Navigation principale */}
