@@ -93,9 +93,7 @@ const Login = () => {
             />
           </Link>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">C4E AFRICA</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Connexion à votre espace
-          </p>
+
         </motion.div>
 
         <motion.form

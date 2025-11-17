@@ -1,24 +1,23 @@
 // 📂 Chemin : src/components/Hero.tsx
 // 🎯 Rôle : Ce fichier définit la section "Hero" de la page d'accueil (bannière principale).
-// Elle inclut un logo animé, un slogan, une courte présentation, des boutons CTA (Call-To-Action),
-// un indicateur de scroll et les sections suivantes : Stats, Services et Contact.
 
 // =========================
 // Importation des dépendances
 // =========================
-import { ChevronDown } from 'lucide-react'; // Icône flèche vers le bas
+import { ChevronDown } from 'lucide-react';
 import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // Navigation entre pages et gestion URL
+import { useNavigate, useLocation } from 'react-router-dom';
 import Services from './Services';
 import Stats from './Stats';
 import Contact from './Contact';
+import Header from './Header'; // IMPORTATION DU HEADER
 
 // =========================
 // Composant principal Hero
 // =========================
 const Hero = () => {
-  const navigate = useNavigate(); // Permet la navigation vers une autre page
-  const location = useLocation(); // Permet de récupérer le hash (#id) dans l'URL
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // 📌 Scroll automatique vers la section si l'URL contient un hash (#id)
   useEffect(() => {
@@ -30,8 +29,7 @@ const Hero = () => {
     }
   }, [location]);
 
-  // 📌 Fonction déclenchée par l'indicateur de scroll (flèche en bas)
-  // Permet de descendre directement jusqu'à la section "Stats"
+  // 📌 Fonction déclenchée par l'indicateur de scroll
   const scrollToNextSection = () => {
     const element = document.querySelector('#stats');
     if (element) {
@@ -44,10 +42,13 @@ const Hero = () => {
   // =========================
   return (
     <>
+      {/* 🟡 HEADER VISIBLE IMMÉDIATEMENT */}
+      <Header />
+      
       {/* Section Hero */}
-      <section id="home" className="hero-bg min-h-screen flex items-center justify-center relative">
+      <section id="home" className="hero-bg min-h-screen flex items-center justify-center relative pt-24"> {/* Augmenté pt-16 à pt-24 */}
 
-        {/* 🌐 Éléments flottants en arrière-plan pour l'effet visuel */}
+        {/* 🌐 Éléments flottants en arrière-plan */}
         <div className="absolute top-20 left-10 w-20 h-20 bg-accent/10 rounded-full floating"></div>
         <div className="absolute top-40 right-20 w-16 h-16 bg-primary-light/10 rounded-full floating-delayed"></div>
         <div className="absolute bottom-40 left-20 w-24 h-24 bg-accent/5 rounded-full floating"></div>
@@ -55,19 +56,19 @@ const Hero = () => {
         <div className="container mx-auto px-6 text-center relative z-10">
           <div className="max-w-4xl mx-auto">
 
-            {/* 🟡 Logo animé - VERSION CIRCLAIRE SIMPLE ET NETTE */}
-  <div className="flex justify-center mb-8 mt-5">
-  <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden shadow-xl border-4 border-white bg-gradient-to-tr from-accent to-primary flex items-center justify-center">
-    <img
-      src="/logoC4E.png"
-      alt="C4E Africa Logo"
-      className="w-3/4 h-3/4 object-cover rounded-full"
-    />
-  </div>
-</div>
+            {/* 🟡 Logo animé - PLUS D'ESPACE AVEC pt-16 */}
+            <div className="flex justify-center mb-12 pt-16"> {/* Augmenté pt-8 à pt-16 */}
+              <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden shadow-xl border-4 border-white bg-gradient-to-tr from-accent to-primary flex items-center justify-center">
+                <img
+                  src="/logoC4E.png"
+                  alt="C4E Africa Logo"
+                  className="w-3/4 h-3/4 object-cover rounded-full"
+                />
+              </div>
+            </div>
 
             {/* 🟡 Titre principal */}
-            <div className="animate-fade-in mb-6" style={{ animationDelay: '0.2s' }}>
+            <div className="mb-6">
               <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
                 Solutions Scientifiques
                 <span className="block text-gradient-accent">pour la Durabilité</span>
@@ -75,14 +76,14 @@ const Hero = () => {
             </div>
 
             {/* 🟡 Slogan */}
-            <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            <div>
               <p className="text-2xl md:text-3xl text-white/90 mb-6 font-medium">
                 Façonnons un Avenir Durable pour l'Afrique
               </p>
             </div>
 
             {/* 🟡 Description courte + bouton "En savoir plus" */}
-            <div className="animate-fade-in mb-12 text-center" style={{ animationDelay: '0.6s' }}>
+            <div className="mb-12 text-center">
               <p className="text-xl md:text-2xl font-semibold text-white max-w-3xl mx-auto leading-relaxed mb-4">
                 C4E AFRICA est un bureau d'études spécialisé dans les domaines de l'Eau, de l'Énergie, de l'Environnement et de l'Éducation.
               </p>
@@ -98,10 +99,7 @@ const Hero = () => {
             </div>
 
             {/* 🟡 Boutons Call-To-Action */}
-            <div
-              className="animate-fade-in flex flex-col sm:flex-row gap-6 justify-center items-center"
-              style={{ animationDelay: '0.8s' }}
-            >
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <button
                 onClick={() => document.querySelector('#services')?.scrollIntoView({ behavior: 'smooth' })}
                 className="btn-hero group"
@@ -113,7 +111,7 @@ const Hero = () => {
           </div>
         </div>
 
-        {/* 🟡 Indicateur de scroll (flèche en bas de la section) */}
+        {/* 🟡 Indicateur de scroll */}
         <button
           onClick={scrollToNextSection}
           className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white/60 hover:text-white transition-colors animate-bounce"
@@ -131,7 +129,4 @@ const Hero = () => {
   );
 };
 
-// =========================
-// Export du composant
-// =========================
 export default Hero;
