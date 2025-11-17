@@ -56,24 +56,6 @@ interface Candidature {
   motivation?: string;
 }
 
-interface ApiResponse<T> {
-  data: T;
-  message?: string;
-  offre?: T;
-}
-
-interface OffreApiData {
-  id: number;
-  titre: string;
-  description: string;
-  salaire: string;
-  date_expiration: string;
-  statut: "active" | "inactive";
-  type: OffreEmploi["type"];
-  localisation: string;
-  exigences: string[];
-}
-
 const AdminDashboard = () => {
   const navigate = useNavigate();
   
@@ -103,21 +85,14 @@ const AdminDashboard = () => {
     type: "CDI" as OffreEmploi["type"],
     localisation: "",
   });
-  const [editingOffre, setEditingOffre] = useState<OffreEmploi | null>(null);
-  const [exigencesFields, setExigencesFields] = useState<string[]>([""]);
-  const [editingExigences, setEditingExigences] = useState<string[]>([""]);
 
   // États pour les candidatures
   const [candidatures, setCandidatures] = useState<Candidature[]>([]);
   const [loadingCandidatures, setLoadingCandidatures] = useState(false);
   const [selectedCandidature, setSelectedCandidature] = useState<Candidature | null>(null);
-  const [activeTabCandidatures, setActiveTabCandidatures] = useState<"offres" | "candidatures" | "candidatures-postes" | "archives">("offres");
+  const [activeTabCandidatures, setActiveTabCandidatures] = useState<"offres" | "candidatures" | "archives">("offres");
   const [filterType, setFilterType] = useState<"tous" | "stage_spontane" | "spontanee">("tous");
-  const [sortBy, setSortBy] = useState<"date" | "diplome" | "competence" | "experience">("date");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [viewMode, setViewMode] = useState<"postes" | "candidatures">("postes");
-  const [selectedOffre, setSelectedOffre] = useState<OffreEmploi | null>(null);
-  const [ongletCandidatures, setOngletCandidatures] = useState<"emploi" | "stage">("emploi");
+  const [sortBy, setSortBy] = useState<"date" | "diplome">("date");
   const [archiveFilter, setArchiveFilter] = useState<"tous" | "acceptees" | "refusees">("tous");
   const [searchArchive, setSearchArchive] = useState("");
 
@@ -182,23 +157,11 @@ const AdminDashboard = () => {
   const fetchOffres = useCallback(async () => {
     try {
       setLoadingOffres(true);
-      const { data } = await api.get<OffreApiData[]>("/api/offres");
-      
-      const offresFormatted: OffreEmploi[] = data.map((o: OffreApiData) => ({
-        id: o.id,
-        titre: o.titre,
-        description: o.description,
-        salaire: o.salaire,
-        dateExpiration: o.date_expiration,
-        statut: o.statut,
-        type: o.type,
-        localisation: o.localisation,
-        exigences: o.exigences || [],
-      }));
-      
-      setOffres(offresFormatted);
+      const { data } = await api.get<OffreEmploi[]>("/api/offres");
+      setOffres(data || []);
     } catch (err: unknown) {
       console.error("Erreur chargement offres:", err);
+      setOffres([]);
     } finally {
       setLoadingOffres(false);
     }
@@ -208,29 +171,15 @@ const AdminDashboard = () => {
   const fetchCandidatures = useCallback(async () => {
     try {
       setLoadingCandidatures(true);
-      
-      if (activeTabCandidatures === "candidatures") {
-        const { data } = await api.get<Candidature[]>("/api/candidatures/spontanees/toutes");
-        setCandidatures(data || []);
-      } else if (activeTabCandidatures === "candidatures-postes") {
-        const { data } = await api.get<Candidature[]>("/api/candidatures");
-        const candidaturesSurOffres = data.filter(
-          (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
-        );
-        setCandidatures(candidaturesSurOffres);
-      } else if (activeTabCandidatures === "archives") {
-        const { data } = await api.get<Candidature[]>("/api/candidatures");
-        setCandidatures(data);
-      } else {
-        const { data } = await api.get<Candidature[]>("/api/candidatures");
-        setCandidatures(data || []);
-      }
+      const { data } = await api.get<Candidature[]>("/api/candidatures");
+      setCandidatures(data || []);
     } catch (err: unknown) {
       console.error("Erreur chargement candidatures:", err);
+      setCandidatures([]);
     } finally {
       setLoadingCandidatures(false);
     }
-  }, [activeTabCandidatures]);
+  }, []);
 
   useEffect(() => {
     if (currentView === "gestion-utilisateurs") {
@@ -239,7 +188,7 @@ const AdminDashboard = () => {
       fetchOffres();
       fetchCandidatures();
     }
-  }, [currentView, fetchUsers, fetchOffres, fetchCandidatures, activeTabCandidatures]);
+  }, [currentView, fetchUsers, fetchOffres, fetchCandidatures]);
 
   useEffect(() => {
     const filtered = utilisateurs.filter((user) =>
@@ -312,18 +261,14 @@ const AdminDashboard = () => {
     }
 
     try {
-      const exigencesArray = exigencesFields.filter((req) => req.trim() !== "");
-      
-      const { data } = await api.post<ApiResponse<OffreEmploi>>("/api/offres", null, {
+      const { data } = await api.post<OffreEmploi>("/api/offres", null, {
         ...nouvelleOffre,
         date_expiration: nouvelleOffre.dateExpiration,
-        exigences: exigencesArray,
+        exigences: [],
         statut: "active"
       });
 
-      if (data.offre) {
-        setOffres(prev => [...prev, data.offre]);
-      }
+      setOffres(prev => [...prev, data]);
       
       setNouvelleOffre({
         titre: "",
@@ -333,7 +278,6 @@ const AdminDashboard = () => {
         type: "CDI",
         localisation: "",
       });
-      setExigencesFields([""]);
       
       showToast("Offre ajoutée avec succès", "success");
     } catch (err: unknown) {
@@ -409,11 +353,10 @@ const AdminDashboard = () => {
 
     try {
       setChangingPassword(true);
-      // Implémentez l'appel API pour changer le mot de passe ici
-      // await api.put("/api/auth/change-password", null, {
-      //   currentPassword,
-      //   newPassword: newPasswordUser
-      // });
+      await api.put("/api/auth/change-password", null, {
+        currentPassword,
+        newPassword: newPasswordUser
+      });
       
       showToast("Mot de passe modifié avec succès", "success");
       setShowPasswordModal(false);
@@ -856,7 +799,7 @@ const AdminDashboard = () => {
     </div>
   );
 
-  // Composant pour la gestion des candidatures (Dashboard Gestionnaire)
+  // Composant pour la gestion des candidatures
   const GestionCandidatures = () => (
     <div className="space-y-6">
       {/* Header avec bouton retour */}
@@ -869,10 +812,10 @@ const AdminDashboard = () => {
           <span>Retour au dashboard</span>
         </button>
         <h2 className="text-3xl font-bold text-gray-900">Gestion des Candidatures</h2>
-        <div className="w-32"></div> {/* Pour l'équilibrage */}
+        <div className="w-32"></div>
       </div>
 
-      {/* Navigation Dashboard Gestionnaire */}
+      {/* Navigation simplifiée */}
       <div className="flex justify-center mb-8">
         <div className="bg-white rounded-2xl p-2 shadow-lg border">
           <div className="flex space-x-1">
@@ -885,7 +828,7 @@ const AdminDashboard = () => {
               }`}
             >
               <Briefcase className="h-5 w-5" />
-              <span>Offres d'emploi</span>
+              <span>Offres</span>
             </button>
             <button 
               onClick={() => setActiveTabCandidatures("candidatures")} 
@@ -896,18 +839,7 @@ const AdminDashboard = () => {
               }`}
             >
               <FileText className="h-5 w-5" />
-              <span>Candidatures spontanées</span>
-            </button>
-            <button 
-              onClick={() => setActiveTabCandidatures("candidatures-postes")} 
-              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                activeTabCandidatures === "candidatures-postes" 
-                  ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg" 
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-              }`}
-            >
-              <Users className="h-5 w-5" />
-              <span>Candidatures sur postes</span>
+              <span>Candidatures</span>
             </button>
             <button 
               onClick={() => setActiveTabCandidatures("archives")} 
@@ -924,71 +856,111 @@ const AdminDashboard = () => {
         </div>
       </div>
 
+      {/* Statistiques globales */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+          <Users className="h-12 w-12 text-blue-500 mx-auto mb-3" />
+          <h3 className="text-2xl font-bold text-gray-900">{candidatures.length}</h3>
+          <p className="text-gray-600">Total candidatures</p>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+          <BarChart3 className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
+          <h3 className="text-2xl font-bold text-gray-900">
+            {candidatures.filter(c => c.statut === "en_attente").length}
+          </h3>
+          <p className="text-gray-600">En attente</p>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+          <FileText className="h-12 w-12 text-green-500 mx-auto mb-3" />
+          <h3 className="text-2xl font-bold text-gray-900">
+            {candidatures.filter(c => c.statut === "acceptee").length}
+          </h3>
+          <p className="text-gray-600">Acceptées</p>
+        </div>
+        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
+          <Archive className="h-12 w-12 text-red-500 mx-auto mb-3" />
+          <h3 className="text-2xl font-bold text-gray-900">
+            {candidatures.filter(c => c.statut === "refusee").length}
+          </h3>
+          <p className="text-gray-600">Refusées</p>
+        </div>
+      </div>
+
       {/* Contenu selon l'onglet */}
       {activeTabCandidatures === "offres" && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 border">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">Gestion des Offres d'Emploi</h3>
-            
-            {/* Formulaire d'ajout d'offre */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Plus className="h-5 w-5 mr-2 text-green-600" />
-                Ajouter une nouvelle offre
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <input
-                  type="text"
-                  placeholder="Titre de l'offre"
-                  value={nouvelleOffre.titre}
-                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, titre: e.target.value})}
-                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Localisation"
-                  value={nouvelleOffre.localisation}
-                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, localisation: e.target.value})}
-                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                />
-                <select
-                  value={nouvelleOffre.type}
-                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, type: e.target.value as OffreEmploi["type"]})}
-                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="CDI">CDI</option>
-                  <option value="CDD 12 mois">CDD 12 mois</option>
-                  <option value="Stage">Stage</option>
-                  <option value="PFE">PFE</option>
-                </select>
-                <input
-                  type="date"
-                  placeholder="Date d'expiration"
-                  value={nouvelleOffre.dateExpiration}
-                  onChange={(e) => setNouvelleOffre({...nouvelleOffre, dateExpiration: e.target.value})}
-                  className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <textarea
-                placeholder="Description de l'offre"
-                value={nouvelleOffre.description}
-                onChange={(e) => setNouvelleOffre({...nouvelleOffre, description: e.target.value})}
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 mb-4"
+        <div className="bg-white rounded-3xl shadow-2xl p-8 border">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">Gestion des Offres</h3>
+          
+          {/* Formulaire d'ajout simplifié */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Plus className="h-5 w-5 mr-2 text-green-600" />
+              Ajouter une nouvelle offre
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="Titre de l'offre"
+                value={nouvelleOffre.titre}
+                onChange={(e) => setNouvelleOffre({...nouvelleOffre, titre: e.target.value})}
+                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
               />
-              <button
-                onClick={ajouterOffre}
-                className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-semibold"
+              <input
+                type="text"
+                placeholder="Localisation"
+                value={nouvelleOffre.localisation}
+                onChange={(e) => setNouvelleOffre({...nouvelleOffre, localisation: e.target.value})}
+                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+              />
+              <select
+                value={nouvelleOffre.type}
+                onChange={(e) => setNouvelleOffre({...nouvelleOffre, type: e.target.value as OffreEmploi["type"]})}
+                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
               >
-                <Plus className="h-5 w-5" />
-                <span>Créer l'offre</span>
-              </button>
+                <option value="CDI">CDI</option>
+                <option value="CDD 12 mois">CDD 12 mois</option>
+                <option value="Stage">Stage</option>
+                <option value="PFE">PFE</option>
+              </select>
+              <input
+                type="date"
+                placeholder="Date d'expiration"
+                value={nouvelleOffre.dateExpiration}
+                onChange={(e) => setNouvelleOffre({...nouvelleOffre, dateExpiration: e.target.value})}
+                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+              />
             </div>
+            <textarea
+              placeholder="Description de l'offre"
+              value={nouvelleOffre.description}
+              onChange={(e) => setNouvelleOffre({...nouvelleOffre, description: e.target.value})}
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 mb-4"
+            />
+            <button
+              onClick={ajouterOffre}
+              className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-semibold"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Créer l'offre</span>
+            </button>
+          </div>
 
-            {/* Liste des offres */}
-            <div className="space-y-4">
-              <h4 className="text-xl font-semibold text-gray-900">Offres publiées</h4>
-              {offres.map((offre) => (
+          {/* Liste des offres */}
+          <div className="space-y-4">
+            <h4 className="text-xl font-semibold text-gray-900">Offres publiées</h4>
+            {loadingOffres ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Chargement des offres...</p>
+              </div>
+            ) : offres.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-2xl">
+                <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">Aucune offre publiée</p>
+              </div>
+            ) : (
+              offres.map((offre) => (
                 <div key={offre.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -1005,7 +977,7 @@ const AdminDashboard = () => {
                       </button>
                     </div>
                   </div>
-                  <p className="text-gray-700 mb-4">{offre.description}</p>
+                  <p className="text-gray-700 mb-4 line-clamp-2">{offre.description}</p>
                   <div className="flex justify-between items-center text-sm text-gray-500">
                     <span>Expire le: {new Date(offre.dateExpiration).toLocaleDateString()}</span>
                     <span className={`px-3 py-1 rounded-full ${
@@ -1015,71 +987,202 @@ const AdminDashboard = () => {
                     </span>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
           </div>
         </div>
       )}
 
       {activeTabCandidatures === "candidatures" && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 border">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">Candidatures Spontanées</h3>
-            
-            {/* Statistiques */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-                <Users className="h-12 w-12 text-blue-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">{candidatures.length}</h3>
-                <p className="text-gray-600">Total candidatures</p>
-              </div>
-              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-                <BarChart3 className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {candidatures.filter(c => c.statut === "en_attente").length}
-                </h3>
-                <p className="text-gray-600">En attente</p>
-              </div>
-              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-                <FileText className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {candidatures.filter(c => c.statut === "acceptee").length}
-                </h3>
-                <p className="text-gray-600">Acceptées</p>
-              </div>
-              <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-                <Archive className="h-12 w-12 text-red-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {candidatures.filter(c => c.statut === "refusee").length}
-                </h3>
-                <p className="text-gray-600">Refusées</p>
-              </div>
-            </div>
+        <div className="bg-white rounded-3xl shadow-2xl p-8 border">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">Toutes les Candidatures</h3>
 
-            {/* Liste des candidatures */}
-            <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-b border-gray-200">
-                    <th className="p-4 text-left font-semibold">Nom</th>
-                    <th className="p-4 text-left font-semibold">Email</th>
-                    <th className="p-4 text-left font-semibold">Type</th>
-                    <th className="p-4 text-left font-semibold">Date</th>
-                    <th className="p-4 text-left font-semibold">Statut</th>
-                    <th className="p-4 text-left font-semibold">Actions</th>
+          {/* Filtres simples */}
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as "tous" | "stage_spontane" | "spontanee")}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="tous">Tous les types</option>
+              <option value="stage_spontane">Stages/PFE</option>
+              <option value="spontanee">Candidatures spontanées</option>
+            </select>
+            
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "date" | "diplome")}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="date">Trier par date</option>
+              <option value="diplome">Trier par diplôme</option>
+            </select>
+          </div>
+
+          {/* Liste des candidatures */}
+          <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-b border-gray-200">
+                  <th className="p-4 text-left font-semibold">Nom</th>
+                  <th className="p-4 text-left font-semibold">Email</th>
+                  <th className="p-4 text-left font-semibold">Type</th>
+                  <th className="p-4 text-left font-semibold">Date</th>
+                  <th className="p-4 text-left font-semibold">Statut</th>
+                  <th className="p-4 text-left font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingCandidatures ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-600">
+                      <div className="flex justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                      <p className="mt-2">Chargement des candidatures...</p>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {candidatures.map((cand) => (
-                    <tr key={cand.id} className="border-b border-gray-100 hover:bg-gray-50/80">
-                      <td className="p-4 text-gray-900">{cand.nom}</td>
+                ) : candidatures.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-600">
+                      <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                      <p>Aucune candidature trouvée</p>
+                    </td>
+                  </tr>
+                ) : (
+                  candidatures
+                    .filter(cand => {
+                      if (filterType === "tous") return true;
+                      if (filterType === "stage_spontane") return cand.type === "stage_spontane";
+                      if (filterType === "spontanee") return cand.type === "spontanee";
+                      return true;
+                    })
+                    .map((cand) => (
+                      <tr key={`${cand.id}-${cand.type}`} className="border-b border-gray-100 hover:bg-gray-50/80">
+                        <td className="p-4 text-gray-900 font-medium">{cand.nom}</td>
+                        <td className="p-4 text-gray-600">{cand.email}</td>
+                        <td className="p-4">
+                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                            cand.type === "spontanee" ? "bg-blue-100 text-blue-800" :
+                            cand.type === "stage_spontane" ? "bg-green-100 text-green-800" :
+                            "bg-purple-100 text-purple-800"
+                          }`}>
+                            {cand.type === "spontanee" ? "Spontanée" : 
+                             cand.type === "stage_spontane" ? "Stage/PFE" : cand.type}
+                          </span>
+                        </td>
+                        <td className="p-4 text-gray-600">
+                          {new Date(cand.dateSoumission).toLocaleDateString()}
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                            cand.statut === "en_attente" ? "bg-yellow-100 text-yellow-800" :
+                            cand.statut === "acceptee" ? "bg-green-100 text-green-800" :
+                            "bg-red-100 text-red-800"
+                          }`}>
+                            {cand.statut === "en_attente" ? "En attente" :
+                             cand.statut === "acceptee" ? "Acceptée" : "Refusée"}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => setSelectedCandidature(cand)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Voir détails"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <select
+                              value={cand.statut}
+                              onChange={(e) => changerStatutCandidature(cand, e.target.value as Candidature["statut"])}
+                              className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="en_attente">En attente</option>
+                              <option value="acceptee">Acceptée</option>
+                              <option value="refusee">Refusée</option>
+                            </select>
+                            <button
+                              onClick={() => supprimerCandidature(cand)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTabCandidatures === "archives" && (
+        <div className="bg-white rounded-3xl shadow-2xl p-8 border">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">Archives des Candidatures</h3>
+
+          {/* Filtres archives */}
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <select
+              value={archiveFilter}
+              onChange={(e) => setArchiveFilter(e.target.value as "tous" | "acceptees" | "refusees")}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="tous">Toutes les archives</option>
+              <option value="acceptees">Candidatures acceptées</option>
+              <option value="refusees">Candidatures refusées</option>
+            </select>
+            
+            <input
+              type="text"
+              placeholder="Rechercher par nom ou email..."
+              value={searchArchive}
+              onChange={(e) => setSearchArchive(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Liste des archives */}
+          <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-b border-gray-200">
+                  <th className="p-4 text-left font-semibold">Nom</th>
+                  <th className="p-4 text-left font-semibold">Email</th>
+                  <th className="p-4 text-left font-semibold">Type</th>
+                  <th className="p-4 text-left font-semibold">Date</th>
+                  <th className="p-4 text-left font-semibold">Statut</th>
+                  <th className="p-4 text-left font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {candidatures
+                  .filter(cand => cand.statut === "acceptee" || cand.statut === "refusee")
+                  .filter(cand => {
+                    if (archiveFilter === "tous") return true;
+                    if (archiveFilter === "acceptees") return cand.statut === "acceptee";
+                    if (archiveFilter === "refusees") return cand.statut === "refusee";
+                    return true;
+                  })
+                  .filter(cand => 
+                    cand.nom.toLowerCase().includes(searchArchive.toLowerCase()) ||
+                    cand.email.toLowerCase().includes(searchArchive.toLowerCase())
+                  )
+                  .map((cand) => (
+                    <tr key={`${cand.id}-${cand.type}`} className="border-b border-gray-100 hover:bg-gray-50/80">
+                      <td className="p-4 text-gray-900 font-medium">{cand.nom}</td>
                       <td className="p-4 text-gray-600">{cand.email}</td>
                       <td className="p-4">
                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
                           cand.type === "spontanee" ? "bg-blue-100 text-blue-800" :
+                          cand.type === "stage_spontane" ? "bg-green-100 text-green-800" :
                           "bg-purple-100 text-purple-800"
                         }`}>
-                          {cand.type}
+                          {cand.type === "spontanee" ? "Spontanée" : 
+                           cand.type === "stage_spontane" ? "Stage/PFE" : cand.type}
                         </span>
                       </td>
                       <td className="p-4 text-gray-600">
@@ -1087,41 +1190,34 @@ const AdminDashboard = () => {
                       </td>
                       <td className="p-4">
                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                          cand.statut === "en_attente" ? "bg-yellow-100 text-yellow-800" :
-                          cand.statut === "acceptee" ? "bg-green-100 text-green-800" :
-                          "bg-red-100 text-red-800"
+                          cand.statut === "acceptee" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                         }`}>
-                          {cand.statut}
+                          {cand.statut === "acceptee" ? "Acceptée" : "Refusée"}
                         </span>
                       </td>
-                      <td className="p-4 space-x-2">
-                        <button
-                          onClick={() => setSelectedCandidature(cand)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Voir détails"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => changerStatutCandidature(cand, "acceptee")}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Accepter"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => changerStatutCandidature(cand, "refusee")}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Refuser"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      <td className="p-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setSelectedCandidature(cand)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Voir détails"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => supprimerCandidature(cand)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                }
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -1137,31 +1233,60 @@ const AdminDashboard = () => {
               </button>
             </div>
             
-            <div className="space-y-3">
-              <p><strong>Nom :</strong> {selectedCandidature.nom}</p>
-              <p><strong>Email :</strong> {selectedCandidature.email}</p>
-              <p><strong>Téléphone :</strong> {selectedCandidature.telephone || "Non renseigné"}</p>
-              <p><strong>Type :</strong> {selectedCandidature.type}</p>
-              <p><strong>Diplôme :</strong> {selectedCandidature.diplome || "Non renseigné"}</p>
-              <p><strong>Expérience :</strong> {selectedCandidature.experience || "Non renseigné"}</p>
-              <p><strong>Date :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <strong className="text-gray-700">Nom:</strong>
+                  <p className="text-gray-900">{selectedCandidature.nom}</p>
+                </div>
+                <div>
+                  <strong className="text-gray-700">Email:</strong>
+                  <p className="text-gray-900">{selectedCandidature.email}</p>
+                </div>
+                <div>
+                  <strong className="text-gray-700">Téléphone:</strong>
+                  <p className="text-gray-900">{selectedCandidature.telephone || "Non renseigné"}</p>
+                </div>
+                <div>
+                  <strong className="text-gray-700">Type:</strong>
+                  <p className="text-gray-900">{selectedCandidature.type}</p>
+                </div>
+                <div>
+                  <strong className="text-gray-700">Diplôme:</strong>
+                  <p className="text-gray-900">{selectedCandidature.diplome || "Non renseigné"}</p>
+                </div>
+                <div>
+                  <strong className="text-gray-700">Date:</strong>
+                  <p className="text-gray-900">{new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+                </div>
+              </div>
               
               {selectedCandidature.cvUrl && (
-                <p>
-                  <strong>CV :</strong>{" "}
-                  <a href={getFileUrl(selectedCandidature.cvUrl)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                <div>
+                  <strong className="text-gray-700">CV:</strong>
+                  <a 
+                    href={getFileUrl(selectedCandidature.cvUrl)} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-600 hover:underline ml-2"
+                  >
                     Télécharger
                   </a>
-                </p>
+                </div>
               )}
               
               {selectedCandidature.lettreMotivationUrl && (
-                <p>
-                  <strong>Lettre de motivation :</strong>{" "}
-                  <a href={getFileUrl(selectedCandidature.lettreMotivationUrl)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                <div>
+                  <strong className="text-gray-700">Lettre de motivation:</strong>
+                  <a 
+                    href={getFileUrl(selectedCandidature.lettreMotivationUrl)} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-600 hover:underline ml-2"
+                  >
                     Télécharger
                   </a>
-                </p>
+                </div>
               )}
             </div>
           </div>

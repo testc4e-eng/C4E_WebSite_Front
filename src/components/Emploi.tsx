@@ -1,5 +1,5 @@
 // ============================================================
-// Fichier : /src/pages/Emploi.tsx - AVEC TITRE CLIQUABLE
+// Fichier : /src/pages/Emploi.tsx - CORRIGÉ POUR LE SCROLL
 // ============================================================
 import { useState, useEffect, useCallback } from 'react';
 import { Briefcase, MapPin, Calendar, Search, Plus, Users, Home, Share2, ArrowLeft } from 'lucide-react';
@@ -39,6 +39,11 @@ const Emploi = () => {
   // REMPLACEZ par votre vraie URL Render
   const API_BASE_URL = 'https://c4e-website-back.onrender.com';
   const FRONTEND_URL = 'https://c4e-africa.com'; // Votre URL frontend
+
+  // 🔥 CORRECTION : Scroll vers le haut au chargement et changement d'offre
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [offreIdFromUrl]); // Se déclenche quand l'offre change
 
   const fetchOffres = useCallback(async () => {
     try {
@@ -128,7 +133,7 @@ const Emploi = () => {
     return `${baseUrl}?${params.toString()}`;
   };
 
-  // Fonction pour voir les détails d'une offre
+  // 🔥 CORRECTION : Fonction pour voir les détails d'une offre avec scroll vers le haut
   const voirDetailsOffre = (offreId: number, titre: string) => {
     setSearchParams({
       offre: offreId.toString(),
@@ -184,9 +189,10 @@ const Emploi = () => {
     }
   };
 
-  // Fonction pour retourner à la liste complète
+  // 🔥 CORRECTION : Fonction pour retourner à la liste avec scroll vers le haut
   const retourListe = () => {
     setSearchParams({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Filtrer les offres selon l'onglet actif
@@ -398,9 +404,6 @@ const Emploi = () => {
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
             Nos <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Offres</span>
           </h1>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            Découvrez nos opportunités de carrière et postulez pour le poste qui correspond à vos ambitions.
-          </p>
         </motion.div>
 
         {/* Onglets */}
@@ -416,6 +419,7 @@ const Emploi = () => {
                 onClick={() => {
                   setOngletActif('emploi');
                   setShowAll(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' }); // 🔥 Scroll vers le haut
                 }}
                 className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
                   ongletActif === 'emploi' 
@@ -430,6 +434,7 @@ const Emploi = () => {
                 onClick={() => {
                   setOngletActif('stage');
                   setShowAll(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' }); // 🔥 Scroll vers le haut
                 }}
                 className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
                   ongletActif === 'stage' 
@@ -609,29 +614,6 @@ const Emploi = () => {
                         </motion.button>
                       </div>
                     </div>
-
-                    {/* Popup de partage avancé (affiché au clic sur Partager) */}
-                    {showSharePopup === offer.id && (
-                      <motion.div 
-                        className="absolute bottom-20 right-4 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 z-20 min-w-64"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                      >
-                        <h4 className="font-semibold text-gray-900 mb-3">Partager cette offre</h4>
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => copyToClipboard(offer.id, offer.titre)}
-                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
-                          >
-                            <Share2 className="h-4 w-4" />
-                            Copier le lien
-                          </button>
-                          <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
-                            {generateShareLink(offer.id, offer.titre)}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -663,7 +645,10 @@ const Emploi = () => {
 
               {filteredOffres.length > 2 && (
                 <motion.button
-                  onClick={() => setShowAll(!showAll)}
+                  onClick={() => {
+                    setShowAll(!showAll);
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); // 🔥 Scroll vers le haut
+                  }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="px-8 py-3 border-2 border-blue-500 text-blue-500 font-semibold rounded-full hover:bg-blue-500 hover:text-white transition-all duration-300"
