@@ -623,22 +623,23 @@ const PasswordModal = useCallback(() => (
               onChange={(e) => setNewEmail(e.target.value)} 
               className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
             />
-            <div className="flex-1 relative">
-              <input 
-                type={showPassword ? "text" : "password"} 
-                placeholder="Mot de passe temporaire" 
-                value={newPassword} 
-                onChange={(e) => setNewPassword(e.target.value)} 
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 pr-12"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
+<div className="flex-1 relative">
+  <input 
+    type={showPassword ? "text" : "password"} 
+    placeholder="Mot de passe temporaire" 
+    value={newPassword} 
+    onChange={(e) => setNewPassword(e.target.value)} 
+    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 pr-12"
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 p-1 bg-white"
+  >
+    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+  </button>
+</div>
             <button 
               onClick={handleAddUser}
               disabled={isAdding}
