@@ -491,23 +491,6 @@ const AdminDashboard = () => {
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
               Gestion des Utilisateurs
             </h3>
-            <p className="text-gray-600 mb-6">
-              Administrez les comptes gestionnaires et administrateurs de la plateforme
-            </p>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-                <div className="text-sm text-gray-500">Total</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-green-600">{stats.actifs}</div>
-                <div className="text-sm text-gray-500">Actifs</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-red-600">{stats.inactifs}</div>
-                <div className="text-sm text-gray-500">Inactifs</div>
-              </div>
-            </div>
           </div>
         </motion.div>
 
@@ -529,24 +512,6 @@ const AdminDashboard = () => {
             <p className="text-gray-600 mb-6">
               Gérez les offres d'emploi et toutes les candidatures reçues
             </p>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl font-bold text-purple-600">{offres.length}</div>
-                <div className="text-sm text-gray-500">Offres</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {candidatures.filter(c => c.statut === "en_attente").length}
-                </div>
-                <div className="text-sm text-gray-500">En attente</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-green-600">
-                  {candidatures.filter(c => c.statut === "acceptee").length}
-                </div>
-                <div className="text-sm text-gray-500">Acceptées</div>
-              </div>
-            </div>
           </div>
         </motion.div>
       </div>
@@ -1312,7 +1277,7 @@ const AdminDashboard = () => {
               />
               <div className="text-left">
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Dashboard Administrateur
+                  Espace Administrateur
                 </h1>
                 <p className="text-gray-600 text-sm">Gestion complète de la plateforme</p>
               </div>
