@@ -391,7 +391,7 @@ const AdminDashboard = () => {
   };
 
   // Composants d'affichage
-const PasswordModal = useCallback(() => (
+const PasswordModal = () => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
       <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -457,13 +457,7 @@ const PasswordModal = useCallback(() => (
       </div>
     </div>
   </div>
-), [
-  currentPassword,
-  newPasswordUser,
-  confirmPassword,
-  changingPassword
-]);
-
+);
 
   // Vue principale avec les 2 cases carrées
   const MainView = () => (
