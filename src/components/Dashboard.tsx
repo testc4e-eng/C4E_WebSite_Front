@@ -37,6 +37,7 @@ import {
   Home,
   Search,
   Key,
+  Ban,
 } from "lucide-react";
 import api from "../lib/api";
 
@@ -70,7 +71,7 @@ interface ApiOffre {
   exigences: string[];
 }
 
-// CORRECTION : Ajout du type 'stage_spontane'
+// MODIFICATION : Ajout du statut 'ignoree'
 interface Candidature {
   id: number;
   type: "emploi" | "stage" | "pfe" | "spontanee" | "stage_spontane";
@@ -84,7 +85,7 @@ interface Candidature {
   motivation?: string;
   telephone?: string;
   dateSoumission: string;
-  statut: "en_attente" | "acceptee" | "refusee";
+  statut: "en_attente" | "acceptee" | "refusee" | "ignoree";
   competenceScore?: number;
   poste?: string;
   diplome?: string;
@@ -183,7 +184,6 @@ const Dashboard = () => {
   const [candidatures, setCandidatures] = useState<Candidature[]>([]);
   const [loadingCandidatures, setLoadingCandidatures] = useState(true);
   const [errorCandidatures, setErrorCandidatures] = useState("");
-  // CORRECTION : Ajout du type 'stage_spontane'
   const [filterType, setFilterType] = useState<
     "tous" | "stage_spontane" | "spontanee"
   >("tous");
@@ -205,9 +205,9 @@ const Dashboard = () => {
   const [exigencesFields, setExigencesFields] = useState<string[]>([""]);
   const [editingExigences, setEditingExigences] = useState<string[]>([""]);
 
-  // États pour les archives
+  // MODIFICATION : États pour les archives avec filtre "ignorees"
   const [archiveFilter, setArchiveFilter] = useState<
-    "tous" | "acceptees" | "refusees"
+    "tous" | "acceptees" | "refusees" | "ignorees"
   >("tous");
   const [searchArchive, setSearchArchive] = useState("");
 
@@ -226,89 +226,87 @@ const Dashboard = () => {
   }, [token, navigate]);
 
   useEffect(() => {
- const fetchOffres = async () => {
-  try {
-    setLoadingOffres(true);
-    setErrorOffres("");
+    const fetchOffres = async () => {
+      try {
+        setLoadingOffres(true);
+        setErrorOffres("");
 
-    const { res, data } = await api.get<Offre[]>("/api/offres", token);
+        const { res, data } = await api.get<OffreEmploi[]>("/api/offres", token);
 
-    if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
+        if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
 
-    setOffres(
-      data.map((o) => ({
-        id: o.id,
-        titre: o.titre,
-        description: o.description,
-        salaire: o.salaire,
-        dateExpiration: o.date_expiration,
-        statut: o.statut,
-        type: o.type,
-        localisation: o.localisation,
-        exigences: o.exigences || [],
-      }))
-    );
-  } catch (err: unknown) {
-    console.error("Catch error:", err);
-    const message =
-      err instanceof Error ? err.message : "Erreur connexion backend.";
-    setErrorOffres(message);
-  } finally {
-    setLoadingOffres(false);
-  }
-};
+        setOffres(
+          data.map((o) => ({
+            id: o.id,
+            titre: o.titre,
+            description: o.description,
+            salaire: o.salaire,
+            dateExpiration: o.dateExpiration,
+            statut: o.statut,
+            type: o.type,
+            localisation: o.localisation,
+            exigences: o.exigences || [],
+          }))
+        );
+      } catch (err: unknown) {
+        console.error("Catch error:", err);
+        const message =
+          err instanceof Error ? err.message : "Erreur connexion backend.";
+        setErrorOffres(message);
+      } finally {
+        setLoadingOffres(false);
+      }
+    };
     if (activeTab === "offres" || activeTab === "candidatures-postes")
       fetchOffres();
   }, [activeTab, token]);
 
-  // REMPLACEZ le useEffect existant par celui-ci :
-  // REMPLACEZ le useEffect existant par celui-ci :
-useEffect(() => {
-  const fetchCandidatures = async () => {
-    try {
-      setLoadingCandidatures(true);
-      setErrorCandidatures("");
+  useEffect(() => {
+    const fetchCandidatures = async () => {
+      try {
+        setLoadingCandidatures(true);
+        setErrorCandidatures("");
 
-      if (activeTab === "candidatures") {
-        const { res, data } = await api.get<Candidature[]>("/api/candidatures/spontanees/toutes", token);
+        if (activeTab === "candidatures") {
+          const { res, data } = await api.get<Candidature[]>("/api/candidatures/spontanees/toutes", token);
 
-        if (!res.ok)
-          throw new Error("Erreur lors du chargement des candidatures spontanées.");
+          if (!res.ok)
+            throw new Error("Erreur lors du chargement des candidatures spontanées.");
 
-        console.log("Données spontanées :", data);
-        setCandidatures(data);
-      } else if (activeTab === "candidatures-postes") {
-        const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
+          console.log("Données spontanées :", data);
+          setCandidatures(data);
+        } else if (activeTab === "candidatures-postes") {
+          const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
 
-        if (!res.ok)
-          throw new Error("Erreur lors du chargement des candidatures par offres.");
+          if (!res.ok)
+            throw new Error("Erreur lors du chargement des candidatures par offres.");
 
-        const candidaturesSurOffres = data.filter(
-          (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
-        );
+          const candidaturesSurOffres = data.filter(
+            (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+          );
 
-        setCandidatures(candidaturesSurOffres);
-      } else if (activeTab === "archives") {
-        const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
+          setCandidatures(candidaturesSurOffres);
+        } else if (activeTab === "archives") {
+          const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
 
-        if (!res.ok)
-          throw new Error("Erreur lors du chargement des archives.");
+          if (!res.ok)
+            throw new Error("Erreur lors du chargement des archives.");
 
-        setCandidatures(data);
+          setCandidatures(data);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+        console.error("Erreur fetch:", err);
+        setErrorCandidatures(message);
+      } finally {
+        setLoadingCandidatures(false);
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-      console.error("Erreur fetch:", err);
-      setErrorCandidatures(message);
-    } finally {
-      setLoadingCandidatures(false);
-    }
-  };
+    };
 
-  if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
-    fetchCandidatures();
-  }
-}, [activeTab, token]);
+    if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
+      fetchCandidatures();
+    }
+  }, [activeTab, token]);
 
   // Fonctions pour gérer les exigences dynamiques
   const ajouterChampExigence = () => {
@@ -477,8 +475,6 @@ useEffect(() => {
     }
   };
 
-  // CORRECTION : Fonction pour supprimer une candidature avec gestion du type 'stage_spontane'
-  // Solution alternative - utiliser la route principale
   const supprimerCandidature = async (candidature: Candidature) => {
     if (
       !window.confirm(
@@ -488,8 +484,6 @@ useEffect(() => {
       return;
     try {
       const { id, type } = candidature;
-
-      // CORRECTION : Utiliser la route principale avec paramètres
 
       const url = getApiUrl(`/api/candidatures/${type}/${id}`);
       console.log("🔗 URL de suppression:", url);
@@ -520,6 +514,41 @@ useEffect(() => {
     }
   };
 
+  // NOUVELLE FONCTION : Envoyer un email selon le statut
+  const envoyerEmailCandidature = async (
+    candidature: Candidature,
+    statut: "acceptee" | "refusee"
+  ) => {
+    try {
+      const response = await fetch(getApiUrl("/api/candidatures/envoyer-email"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          candidatureId: candidature.id,
+          type: candidature.type,
+          statut: statut,
+          email: candidature.email,
+          nom: candidature.nom,
+          poste: candidature.poste || "Non spécifié",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de l'envoi de l'email");
+      }
+
+      const result = await response.json();
+      console.log(`✅ Email ${statut} envoyé à ${candidature.email}`, result);
+    } catch (error) {
+      console.error("❌ Erreur envoi email:", error);
+      // Ne pas bloquer l'interface en cas d'erreur d'envoi d'email
+    }
+  };
+
+  // MODIFICATION : Fonction changerStatut avec envoi d'email pour accepter/refuser
   const changerStatut = async (
     candidature: Candidature,
     statut: Candidature["statut"]
@@ -557,6 +586,12 @@ useEffect(() => {
 
       const result = await res.json();
       console.log("✅ Statut mis à jour avec succès:", result);
+
+      // ENVOI D'EMAIL pour accepter/refuser uniquement
+      if (statut === "acceptee" || statut === "refusee") {
+        await envoyerEmailCandidature(candidature, statut);
+      }
+
     } catch (err: unknown) {
       console.error("❌ Erreur:", err);
 
@@ -589,59 +624,57 @@ useEffect(() => {
     navigate("/login");
   };
 
-  // Fonction pour changer le mot de passe
-// Fonction pour changer le mot de passe - VERSION CORRIGÉE
-const handleChangePassword = async () => {
-  setPasswordError("");
-  setPasswordSuccess("");
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
 
-  try {
-    console.log("🔍 DEBUG - Données avant envoi:", {
-      currentPassword: passwordData.currentPassword ? "PRÉSENT" : "MANQUANT",
-      newPassword: passwordData.newPassword ? "PRÉSENT" : "MANQUANT",
-      confirmPassword: passwordData.confirmPassword ? "PRÉSENT" : "MANQUANT",
-      tokenLength: token ? token.length : "MANQUANT"
-    });
+    try {
+      console.log("🔍 DEBUG - Données avant envoi:", {
+        currentPassword: passwordData.currentPassword ? "PRÉSENT" : "MANQUANT",
+        newPassword: passwordData.newPassword ? "PRÉSENT" : "MANQUANT",
+        confirmPassword: passwordData.confirmPassword ? "PRÉSENT" : "MANQUANT",
+        tokenLength: token ? token.length : "MANQUANT"
+      });
 
-    const response = await fetch(getApiUrl("/api/auth/change-password"), {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-        confirmPassword: passwordData.confirmPassword
-      }),
-    });
+      const response = await fetch(getApiUrl("/api/auth/change-password"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+          confirmPassword: passwordData.confirmPassword
+        }),
+      });
 
-    const data = await response.json();
-    console.log("📥 Réponse complète:", { status: response.status, data });
+      const data = await response.json();
+      console.log("📥 Réponse complète:", { status: response.status, data });
 
-    if (!response.ok) {
-      throw new Error(data.message || `Erreur HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(data.message || `Erreur HTTP ${response.status}`);
+      }
+
+      // Succès
+      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+      
+      // Réinitialiser le formulaire
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+    } catch (error) {
+      console.error("❌ Erreur détaillée:", error);
+      setPasswordError(error.message || "Une erreur inconnue est survenue");
     }
+  };
 
-    // Succès
-    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-    
-    // Réinitialiser le formulaire
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-
-  } catch (error) {
-    console.error("❌ Erreur détaillée:", error);
-    setPasswordError(error.message || "Une erreur inconnue est survenue");
-  }
-};
-
-  // Fonctions pour les archives
+  // MODIFICATION : Fonctions pour les archives avec statut "ignoree"
   const candidaturesArchivees = candidatures.filter(
-    (c) => c.statut === "acceptee" || c.statut === "refusee"
+    (c) => c.statut === "acceptee" || c.statut === "refusee" || c.statut === "ignoree"
   );
 
   const candidaturesFiltreesArchive =
@@ -650,7 +683,9 @@ const handleChangePassword = async () => {
       : candidaturesArchivees.filter((c) =>
           archiveFilter === "acceptees"
             ? c.statut === "acceptee"
-            : c.statut === "refusee"
+            : archiveFilter === "refusees"
+            ? c.statut === "refusee"
+            : c.statut === "ignoree"
         );
 
   const candidaturesRecherchees = candidaturesFiltreesArchive.filter(
@@ -660,11 +695,14 @@ const handleChangePassword = async () => {
       (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
   );
 
+  // MODIFICATION : Stats archives avec "ignorees"
   const statsArchives = {
     total: candidaturesArchivees.length,
     acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee")
       .length,
     refusees: candidaturesArchivees.filter((c) => c.statut === "refusee")
+      .length,
+    ignorees: candidaturesArchivees.filter((c) => c.statut === "ignoree")
       .length,
   };
 
@@ -714,16 +752,18 @@ const handleChangePassword = async () => {
 
   // Composant pour les statistiques globales
   const StatsOverview = () => {
+    // MODIFICATION : Stats avec statut "ignoree"
     const stats = {
       total: candidatures.length,
       enAttente: candidatures.filter((c) => c.statut === "en_attente").length,
       acceptees: candidatures.filter((c) => c.statut === "acceptee").length,
       refusees: candidatures.filter((c) => c.statut === "refusee").length,
+      ignorees: candidatures.filter((c) => c.statut === "ignoree").length,
       offresActives: offres.filter((o) => o.statut === "active").length,
     };
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         {/* Total Candidatures */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
@@ -804,6 +844,27 @@ const handleChangePassword = async () => {
             </div>
             <div className="p-3 bg-rose-50 rounded-xl group-hover:bg-rose-100 transition-colors duration-300">
               <XCircle className="h-6 w-6 text-rose-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Ignorées */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-gray-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                Ignorées
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mb-2">
+                {stats.ignorees}
+              </p>
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                <p className="text-xs text-gray-500">Archivées</p>
+              </div>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-xl group-hover:bg-gray-100 transition-colors duration-300">
+              <Ban className="h-6 w-6 text-gray-600" />
             </div>
           </div>
         </div>
@@ -1030,6 +1091,8 @@ const handleChangePassword = async () => {
         .length,
       refusees: candidaturesPourOffre.filter((c) => c.statut === "refusee")
         .length,
+      ignorees: candidaturesPourOffre.filter((c) => c.statut === "ignoree")
+        .length,
     };
 
     return (
@@ -1061,7 +1124,7 @@ const handleChangePassword = async () => {
           </div>
 
           {/* Stats cards */}
-          <div className="grid grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-5 gap-4 mt-4">
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
               <div className="text-2xl font-bold text-yellow-600">
                 {stats.enAttente}
@@ -1079,6 +1142,12 @@ const handleChangePassword = async () => {
                 {stats.refusees}
               </div>
               <div className="text-sm text-red-700">Refusées</div>
+            </div>
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-gray-600">
+                {stats.ignorees}
+              </div>
+              <div className="text-sm text-gray-700">Ignorées</div>
             </div>
             <div className="text-center p-3 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
@@ -1201,13 +1270,22 @@ const handleChangePassword = async () => {
                               ? "bg-yellow-100 text-yellow-800"
                               : cand.statut === "acceptee"
                               ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
+                              : cand.statut === "refusee"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {cand.statut}
+                          {cand.statut === "en_attente"
+                            ? "En attente"
+                            : cand.statut === "acceptee"
+                            ? "Acceptée"
+                            : cand.statut === "refusee"
+                            ? "Refusée"
+                            : "Ignorée"}
                         </span>
                       </td>
                       <td className="px-6 py-4 space-x-2">
+                        {/* MODIFICATION : Select avec 4 options */}
                         <select
                           value={cand.statut}
                           onChange={(e) =>
@@ -1219,8 +1297,9 @@ const handleChangePassword = async () => {
                           className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                         >
                           <option value="en_attente">En attente</option>
-                          <option value="acceptee">Acceptée</option>
-                          <option value="refusee">Refusée</option>
+                          <option value="acceptee">Accepter</option>
+                          <option value="refusee">Refuser</option>
+                          <option value="ignoree">Ignorer</option>
                         </select>
                         <button
                           onClick={() => setSelectedCandidature(cand)}
@@ -1272,6 +1351,7 @@ const handleChangePassword = async () => {
       acceptees: candidaturesOffre.filter((c) => c.statut === "acceptee")
         .length,
       refusees: candidaturesOffre.filter((c) => c.statut === "refusee").length,
+      ignorees: candidaturesOffre.filter((c) => c.statut === "ignoree").length,
     };
   };
 
@@ -2128,13 +2208,22 @@ const handleChangePassword = async () => {
                                       ? "bg-yellow-100 text-yellow-800"
                                       : cand.statut === "acceptee"
                                       ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
+                                      : cand.statut === "refusee"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-gray-100 text-gray-800"
                                   }`}
                                 >
-                                  {cand.statut}
+                                  {cand.statut === "en_attente"
+                                    ? "En attente"
+                                    : cand.statut === "acceptee"
+                                    ? "Acceptée"
+                                    : cand.statut === "refusee"
+                                    ? "Refusée"
+                                    : "Ignorée"}
                                 </span>
                               </td>
                               <td className="px-6 py-4 space-x-2">
+                                {/* MODIFICATION : Select avec 4 options */}
                                 <select
                                   value={cand.statut}
                                   onChange={(e) =>
@@ -2146,8 +2235,9 @@ const handleChangePassword = async () => {
                                   className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                 >
                                   <option value="en_attente">En attente</option>
-                                  <option value="acceptee">Acceptée</option>
-                                  <option value="refusee">Refusée</option>
+                                  <option value="acceptee">Accepter</option>
+                                  <option value="refusee">Refuser</option>
+                                  <option value="ignoree">Ignorer</option>
                                 </select>
                                 <button
                                   onClick={() => setSelectedCandidature(cand)}
@@ -2543,12 +2633,12 @@ const handleChangePassword = async () => {
                 Archives des Candidatures
               </h2>
               <p className="text-gray-600 text-lg">
-                Consultation des candidatures déjà traitées (acceptées/refusées)
+                Consultation des candidatures déjà traitées (acceptées/refusées/ignorées)
               </p>
             </div>
 
-            {/* Statistiques des archives */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* MODIFICATION : Statistiques des archives avec "ignorees" */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-lg p-6 text-center">
                 <Archive className="h-12 w-12 text-gray-500 mx-auto mb-3" />
                 <h3 className="text-2xl font-bold text-gray-900">
@@ -2570,9 +2660,16 @@ const handleChangePassword = async () => {
                 </h3>
                 <p className="text-gray-600">Candidatures refusées</p>
               </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                <Ban className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {statsArchives.ignorees}
+                </h3>
+                <p className="text-gray-600">Candidatures ignorées</p>
+              </div>
             </div>
 
-            {/* Filtres archives */}
+            {/* MODIFICATION : Filtres archives avec option "ignorees" */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
                 <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full">
@@ -2582,7 +2679,7 @@ const handleChangePassword = async () => {
                       value={archiveFilter}
                       onChange={(e) =>
                         setArchiveFilter(
-                          e.target.value as "tous" | "acceptees" | "refusees"
+                          e.target.value as "tous" | "acceptees" | "refusees" | "ignorees"
                         )
                       }
                       className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm w-full md:w-auto"
@@ -2590,6 +2687,7 @@ const handleChangePassword = async () => {
                       <option value="tous">Toutes les archives</option>
                       <option value="acceptees">Candidatures acceptées</option>
                       <option value="refusees">Candidatures refusées</option>
+                      <option value="ignorees">Candidatures ignorées</option>
                     </select>
                   </div>
                   <div className="relative flex-1">
@@ -2626,7 +2724,7 @@ const handleChangePassword = async () => {
                 <p className="text-gray-500">
                   {searchArchive
                     ? "Aucune candidature ne correspond à votre recherche."
-                    : "Les candidatures acceptées ou refusées apparaîtront ici."}
+                    : "Les candidatures acceptées, refusées ou ignorées apparaîtront ici."}
                 </p>
               </div>
             ) : (
@@ -2716,12 +2814,16 @@ const handleChangePassword = async () => {
                               className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
                                 cand.statut === "acceptee"
                                   ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
+                                  : cand.statut === "refusee"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-gray-100 text-gray-800"
                               }`}
                             >
                               {cand.statut === "acceptee"
                                 ? "Acceptée"
-                                : "Refusée"}
+                                : cand.statut === "refusee"
+                                ? "Refusée"
+                                : "Ignorée"}
                             </span>
                           </td>
                           <td className="px-6 py-4 space-x-2">
@@ -2761,12 +2863,16 @@ const handleChangePassword = async () => {
                         className={`px-3 py-1 rounded-full text-sm font-medium ${
                           selectedCandidature.statut === "acceptee"
                             ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
+                            : selectedCandidature.statut === "refusee"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {selectedCandidature.statut === "acceptee"
                           ? "Acceptée"
-                          : "Refusée"}
+                          : selectedCandidature.statut === "refusee"
+                          ? "Refusée"
+                          : "Ignorée"}
                       </span>
                     </div>
                   </div>
