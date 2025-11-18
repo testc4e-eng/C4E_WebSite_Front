@@ -595,77 +595,47 @@ const handleChangePassword = async () => {
   setPasswordError("");
   setPasswordSuccess("");
 
-  // Validation côté frontend
-  if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-    setPasswordError("Veuillez remplir tous les champs.");
-    return;
-  }
-
-  if (passwordData.newPassword !== passwordData.confirmPassword) {
-    setPasswordError("Les nouveaux mots de passe ne correspondent pas.");
-    return;
-  }
-
-  if (passwordData.newPassword.length < 6) {
-    setPasswordError("Le mot de passe doit contenir au moins 6 caractères.");
-    return;
-  }
-
   try {
-    // LOG détaillé de ce qui est envoyé
-    console.log("📤 FRONTEND - Données envoyées:", {
-      currentPassword: passwordData.currentPassword ? "***" : "MANQUANT",
-      newPassword: passwordData.newPassword ? "***" : "MANQUANT", 
-      confirmPassword: passwordData.confirmPassword ? "***" : "MANQUANT",
-      token: token ? "PRÉSENT" : "MANQUANT"
+    console.log("🔍 DEBUG - Données avant envoi:", {
+      currentPassword: passwordData.currentPassword ? "PRÉSENT" : "MANQUANT",
+      newPassword: passwordData.newPassword ? "PRÉSENT" : "MANQUANT",
+      confirmPassword: passwordData.confirmPassword ? "PRÉSENT" : "MANQUANT",
+      tokenLength: token ? token.length : "MANQUANT"
     });
 
-    const payload = {
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword,
-      confirmPassword: passwordData.confirmPassword
-    };
-
-    console.log("🔗 URL appelée:", getApiUrl("/api/auth/change-password"));
-    console.log("📦 Payload complet:", JSON.stringify(payload, null, 2));
-
-    const res = await fetch(getApiUrl("/api/auth/change-password"), {
+    const response = await fetch(getApiUrl("/api/auth/change-password"), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Authorization": `Bearer ${token}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword
+      }),
     });
 
-    console.log("📥 Réponse reçue - Status:", res.status);
-    
-    const responseData = await res.json();
-    console.log("📥 Réponse reçue - Data:", responseData);
+    const data = await response.json();
+    console.log("📥 Réponse complète:", { status: response.status, data });
 
-    if (!res.ok) {
-      // Si erreur 400, afficher le message détaillé du backend
-      throw new Error(responseData.message || `Erreur ${res.status} lors du changement de mot de passe`);
+    if (!response.ok) {
+      throw new Error(data.message || `Erreur HTTP ${response.status}`);
     }
 
     // Succès
-    setPasswordSuccess("Mot de passe changé avec succès !");
+    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+    
+    // Réinitialiser le formulaire
     setPasswordData({
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     });
-    
-    // Fermer la modale après 2 secondes
-    setTimeout(() => {
-      setShowChangePassword(false);
-      setPasswordSuccess("");
-    }, 2000);
 
-  } catch (err) {
-    console.error("❌ ERREUR FRONTEND - Change password:", err);
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    setPasswordError(message);
+  } catch (error) {
+    console.error("❌ Erreur détaillée:", error);
+    setPasswordError(error.message || "Une erreur inconnue est survenue");
   }
 };
 
