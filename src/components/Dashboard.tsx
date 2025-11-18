@@ -85,7 +85,7 @@ interface Candidature {
   motivation?: string;
   telephone?: string;
   dateSoumission: string;
-  statut: "en_attente" | "acceptee" | "refusee" | "ignoree";
+  statut: "en_attente" | "acceptee" | "refusee"; // ✅ Backend compatible
   competenceScore?: number;
   poste?: string;
   diplome?: string;
@@ -96,6 +96,7 @@ interface Candidature {
   source?: "offre" | "spontanee";
   universite?: string;
   type_etablissement?: string;
+  ignored?: boolean; // ✅ Géré localement
 }
 
 const diplomeOrder: Record<string, number> = {
@@ -548,28 +549,38 @@ const Dashboard = () => {
     }
   };
 
+
+
+
   // MODIFICATION : Fonction changerStatut avec envoi d'email pour accepter/refuser
 const changerStatut = async (
   candidature: Candidature,
-  statut: "en_attente" | "acceptee" | "refusee" | "ignorer"
+  nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
 ) => {
   try {
     const { id, type } = candidature;
 
-    console.log("🚀 Mise à jour statut:", { id, type, nouveau: statut });
+    console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
 
-    // ✅ Gérer "Ignorer" localement sans appeler l'API
-    if (statut === "ignorer") {
-      ignorerCandidature(candidature);
+    // ✅ CAS 1: "Ignorer" -> Gestion locale uniquement
+    if (nouveauStatut === "ignorer") {
+      setCandidatures((prev) =>
+        prev.map((c) =>
+          c.id === id && c.type === type
+            ? { ...c, ignored: true } // Marquer comme ignoré
+            : c
+        )
+      );
+      console.log(`✅ Candidature ${id} ignorée localement`);
       return;
     }
 
-    // ✅ Pour les 3 autres statuts, appeler votre backend existant
+    // ✅ CAS 2: Les 3 autres statuts -> Appel API backend
     // Mettre à jour localement immédiatement
     setCandidatures((prev) =>
-      prev.map((c) => 
-        c.id === id && c.type === type 
-          ? { ...c, statut, ignored: false } 
+      prev.map((c) =>
+        c.id === id && c.type === type
+          ? { ...c, statut: nouveauStatut, ignored: false }
           : c
       )
     );
@@ -577,10 +588,10 @@ const changerStatut = async (
     // Mapping pour l'API
     let typeAPI = type;
     if (type === "stage_spontane") {
-      typeAPI = "stage"; // Table candidatures_stage
+      typeAPI = "stage";
     }
 
-    // Appeler le backend existant
+    // Appeler le backend avec UNIQUEMENT les statuts valides
     const res = await fetch(
       getApiUrl(`/api/candidatures/statut/${typeAPI}/${id}`),
       {
@@ -589,30 +600,33 @@ const changerStatut = async (
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ statut }), // ✅ statut valide pour votre backend
+        body: JSON.stringify({ 
+          statut: nouveauStatut // ✅ Seulement "en_attente", "acceptee", "refusee"
+        }),
       }
     );
 
     if (!res.ok) {
-      throw new Error(`Erreur ${res.status}`);
+      const errorText = await res.text();
+      console.error(`❌ Erreur ${res.status}:`, errorText);
+      throw new Error(`Erreur ${res.status}: ${errorText}`);
     }
 
     const result = await res.json();
     console.log("✅ Statut mis à jour avec succès:", result);
 
-    // ✅ VOTRE BACKEND ENVOIE DÉJÀ L'EMAIL AUTOMATIQUEMENT !
-    // Donc pas besoin d'appeler envoyerEmailCandidature ici
-    console.log(`📧 Email sera envoyé automatiquement par le backend pour: ${candidature.email}`);
+    // ✅ Le backend envoie automatiquement l'email pour acceptee/refusee
 
   } catch (err: unknown) {
-    console.error("❌ Erreur:", err);
-
+    console.error("❌ Erreur détaillée:", err);
+    
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    setErrorCandidatures(`Échec: ${message}`);
+    setErrorCandidatures(`Échec mise à jour statut: ${message}`);
 
-    // Recharger les données en cas d'erreur
+    // Recharger les données pour récupérer l'état correct
     const fetchCandidatures = async () => {
       try {
+        console.log("🔄 Rechargement des candidatures après erreur...");
         const res = await fetch(getApiUrl("/api/candidatures"), {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -621,16 +635,91 @@ const changerStatut = async (
           const normalizedData = data.map((cand) => ({
             ...cand,
             offreId: cand.offreId || cand.offre_id,
-            ignored: false // Réinitialiser l'état ignoré
+            ignored: false // Réinitialiser
           }));
           setCandidatures(normalizedData);
+          console.log("✅ Candidatures rechargées après erreur");
         }
-      } catch (err) {
-        console.error("Erreur rechargement:", err);
+      } catch (reloadErr) {
+        console.error("❌ Erreur rechargement:", reloadErr);
       }
     };
     fetchCandidatures();
   }
+};
+
+const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
+  if (candidature.ignored) {
+    return (
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => restaurerCandidature(candidature)}
+          className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
+        >
+          <RotateCcw className="h-3 w-3" />
+          <span>Restaurer</span>
+        </button>
+        <button
+          onClick={() => setSelectedCandidature(candidature)}
+          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
+          title="Voir détails"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => supprimerCandidature(candidature)}
+          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
+          title="Supprimer"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center space-x-2">
+      <select
+        value={candidature.statut}
+        onChange={(e) => {
+          const selectedValue = e.target.value as "en_attente" | "acceptee" | "refusee" | "ignorer";
+          console.log("🎯 Sélection:", selectedValue);
+          changerStatut(candidature, selectedValue);
+        }}
+        className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+      >
+        <option value="en_attente">En attente</option>
+        <option value="acceptee">Accepter</option>
+        <option value="refusee">Refuser</option>
+        <option value="ignorer">Ignorer</option>
+      </select>
+      <button
+        onClick={() => setSelectedCandidature(candidature)}
+        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
+        title="Voir détails"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+      <button
+        onClick={() => supprimerCandidature(candidature)}
+        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
+        title="Supprimer"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
+// Fonction pour restaurer une candidature ignorée
+const restaurerCandidature = (candidature: Candidature) => {
+  setCandidatures((prev) =>
+    prev.map((c) =>
+      c.id === candidature.id && c.type === candidature.type
+        ? { ...c, ignored: false }
+        : c
+    )
+  );
+  console.log(`✅ Candidature de ${candidature.nom} restaurée`);
 };
 
   const handleLogout = () => {
