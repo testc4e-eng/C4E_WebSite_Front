@@ -549,75 +549,89 @@ const Dashboard = () => {
   };
 
   // MODIFICATION : Fonction changerStatut avec envoi d'email pour accepter/refuser
-  const changerStatut = async (
-    candidature: Candidature,
-    statut: Candidature["statut"]
-  ) => {
-    try {
-      const { id, type } = candidature;
+const changerStatut = async (
+  candidature: Candidature,
+  statut: "en_attente" | "acceptee" | "refusee" | "ignorer"
+) => {
+  try {
+    const { id, type } = candidature;
 
-      console.log("🚀 Mise à jour statut:", { id, type, nouveau: statut });
+    console.log("🚀 Mise à jour statut:", { id, type, nouveau: statut });
 
-      setCandidatures((prev) =>
-        prev.map((c) => (c.id === id && c.type === type ? { ...c, statut } : c))
-      );
-
-      // Mapping pour l'API
-      let typeAPI = type;
-      if (type === "stage_spontane") {
-        typeAPI = "stage"; // Table candidatures_stage
-      }
-
-      const res = await fetch(
-        getApiUrl(`/api/candidatures/statut/${typeAPI}/${id}`),
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ statut }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`Erreur ${res.status}`);
-      }
-
-      const result = await res.json();
-      console.log("✅ Statut mis à jour avec succès:", result);
-
-      // ENVOI D'EMAIL pour accepter/refuser uniquement
-      if (statut === "acceptee" || statut === "refusee") {
-        await envoyerEmailCandidature(candidature, statut);
-      }
-
-    } catch (err: unknown) {
-      console.error("❌ Erreur:", err);
-
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      setErrorCandidatures(`Échec: ${message}`);
-
-      const fetchCandidatures = async () => {
-        try {
-          const res = await fetch(getApiUrl("/api/candidatures"), {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data: Candidature[] = await res.json();
-            const normalizedData = data.map((cand) => ({
-              ...cand,
-              offreId: cand.offreId || cand.offre_id,
-            }));
-            setCandidatures(normalizedData);
-          }
-        } catch (err) {
-          console.error("Erreur rechargement:", err);
-        }
-      };
-      fetchCandidatures();
+    // ✅ Gérer "Ignorer" localement sans appeler l'API
+    if (statut === "ignorer") {
+      ignorerCandidature(candidature);
+      return;
     }
-  };
+
+    // ✅ Pour les 3 autres statuts, appeler votre backend existant
+    // Mettre à jour localement immédiatement
+    setCandidatures((prev) =>
+      prev.map((c) => 
+        c.id === id && c.type === type 
+          ? { ...c, statut, ignored: false } 
+          : c
+      )
+    );
+
+    // Mapping pour l'API
+    let typeAPI = type;
+    if (type === "stage_spontane") {
+      typeAPI = "stage"; // Table candidatures_stage
+    }
+
+    // Appeler le backend existant
+    const res = await fetch(
+      getApiUrl(`/api/candidatures/statut/${typeAPI}/${id}`),
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ statut }), // ✅ statut valide pour votre backend
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Erreur ${res.status}`);
+    }
+
+    const result = await res.json();
+    console.log("✅ Statut mis à jour avec succès:", result);
+
+    // ✅ VOTRE BACKEND ENVOIE DÉJÀ L'EMAIL AUTOMATIQUEMENT !
+    // Donc pas besoin d'appeler envoyerEmailCandidature ici
+    console.log(`📧 Email sera envoyé automatiquement par le backend pour: ${candidature.email}`);
+
+  } catch (err: unknown) {
+    console.error("❌ Erreur:", err);
+
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    setErrorCandidatures(`Échec: ${message}`);
+
+    // Recharger les données en cas d'erreur
+    const fetchCandidatures = async () => {
+      try {
+        const res = await fetch(getApiUrl("/api/candidatures"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data: Candidature[] = await res.json();
+          const normalizedData = data.map((cand) => ({
+            ...cand,
+            offreId: cand.offreId || cand.offre_id,
+            ignored: false // Réinitialiser l'état ignoré
+          }));
+          setCandidatures(normalizedData);
+        }
+      } catch (err) {
+        console.error("Erreur rechargement:", err);
+      }
+    };
+    fetchCandidatures();
+  }
+};
 
   const handleLogout = () => {
     localStorage.removeItem("token");
