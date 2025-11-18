@@ -1,27 +1,55 @@
-import { useState, useEffect, useCallback } from "react";
-import { 
-  LogOut, UserCog, Shield, Users, Plus, Edit, Trash2, Search, 
-  Mail, Home, Eye, EyeOff, Briefcase, FileText, Archive, 
-  BarChart3, Settings, Key, ArrowLeft
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import api from "../lib/api";
+// ============================================================
+// Fichier : /components/DashboardAdmin.tsx
+// Description : Composant principal du Dashboard Administrateur.
+// Rôle :
+// - Inclut toutes les fonctionnalités du Dashboard Gestionnaire
+// - Ajoute la gestion des utilisateurs (création, modification, suppression)
+// - Affiche les statistiques globales des candidatures et offres.
+// - Gère les onglets : Offres, Candidatures spontanées, Candidatures par postes, Archives, Utilisateurs.
+// - Permet l'ajout, la modification et la suppression des offres d'emploi.
+// - Permet la consultation, le tri et la gestion du statut des candidatures.
+// - Supporte plusieurs types de candidatures : emploi, stage, PFE, spontanee, stage_spontane.
+// - Intègre la recherche, le filtrage et le tri des candidatures et des archives.
+// - Gère dynamiquement les champs d'exigences pour les offres.
+// - Utilise React, TypeScript, fetch API pour interagir avec le backend et Lucide/Framer Motion pour les icônes et animations.
+// ============================================================
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import {
+  LogOut,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  Users,
+  Briefcase,
+  Book,
+  Mail,
+  Filter,
+  ArrowLeft,
+  UserCheck,
+  FileText,
+  Archive,
+  Download,
+  CheckCircle,
+  XCircle,
+  Clock,
+  BarChart3,
+  Home,
+  Search,
+  Key,
+  UserPlus,
+  Shield,
+} from "lucide-react";
+import api from "../lib/api";
 
-// Interfaces pour les utilisateurs
-interface Utilisateur {
-  id: number;
-  nom?: string;
-  email: string;
-  role: string;
-  type: "administrateur" | "gestionnaire";
-  date_creation: string;
-  statut: "actif" | "inactif";
-  dernier_connexion?: string;
-  sites_geres?: string[];
-}
+// === Ajout pour API dynamique ===
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
+const getApiUrl = (path: string) =>
+  `${API_BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
 
-// Interfaces pour les offres et candidatures
 interface OffreEmploi {
   id: number;
   titre: string;
@@ -34,6 +62,19 @@ interface OffreEmploi {
   exigences: string[];
 }
 
+interface ApiOffre {
+  id: number;
+  titre: string;
+  description: string;
+  salaire: string | null;
+  date_expiration: string;
+  statut: "active" | "inactive";
+  type: "CDI" | "CDD 12 mois" | "Stage" | "PFE";
+  localisation: string;
+  exigences: string[];
+}
+
+// CORRECTION : Ajout du type 'stage_spontane'
 interface Candidature {
   id: number;
   type: "emploi" | "stage" | "pfe" | "spontanee" | "stage_spontane";
@@ -43,40 +84,107 @@ interface Candidature {
   lettreMotivationUrl?: string;
   offreId?: number;
   offre_id?: number;
+  offre_type?: string;
+  motivation?: string;
+  telephone?: string;
   dateSoumission: string;
   statut: "en_attente" | "acceptee" | "refusee";
   competenceScore?: number;
   poste?: string;
   diplome?: string;
-  experience?: string;
-  telephone?: string;
+  competences?: { [key: string]: number };
   domaine?: string;
   duree?: string;
+  experience?: string;
+  source?: "offre" | "spontanee";
+  universite?: string;
   type_etablissement?: string;
-  motivation?: string;
 }
 
-const AdminDashboard = () => {
-  const navigate = useNavigate();
-  
-  // États pour la navigation principale
-  const [currentView, setCurrentView] = useState<"main" | "gestion-utilisateurs" | "gestion-candidatures">("main");
-  
-  // États pour la gestion des utilisateurs
-  const [activeTab, setActiveTab] = useState<"gestionnaires" | "administrateurs">("gestionnaires");
-  const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<Utilisateur[]>([]);
-  const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, actifs: 0, inactifs: 0 });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
+// Interface pour les utilisateurs
+interface User {
+  id: number;
+  nom: string;
+  email: string;
+  role: "admin" | "gestionnaire";
+  date_creation: string;
+  statut: "actif" | "inactif";
+}
 
-  // États pour les offres
+const diplomeOrder: Record<string, number> = {
+  technicien: 1,
+  licence: 2,
+  master: 3,
+  master_ingenieur: 3,
+  "cycle d'ingénieur": 3,
+  ingenieur: 3,
+  doctorat: 4,
+  bac: 0,
+  bts: 1,
+  dut: 1,
+};
+
+// Fonction utilitaire pour les URLs de fichiers
+const getFileUrl = (filePath?: string) => {
+  if (!filePath) return null;
+
+  // Si déjà une URL complète (cas Render ou lien absolu)
+  if (filePath.startsWith("http")) return filePath;
+
+  // Construction correcte de l'URL finale
+  return `${API_BASE_URL}${
+    filePath.startsWith("/") ? filePath : "/" + filePath
+  }`;
+};
+
+// Fonction de tri des candidatures
+function getSortedCandidatures(
+  candidatures: Candidature[],
+  sortBy: string,
+  sortOrder: "asc" | "desc"
+) {
+  return [...candidatures].sort((a, b) => {
+    let valA: string | number;
+    let valB: string | number;
+
+    switch (sortBy) {
+      case "date":
+        valA = new Date(a.dateSoumission).getTime();
+        valB = new Date(b.dateSoumission).getTime();
+        break;
+      case "diplome":
+        valA = diplomeOrder[a.diplome?.toLowerCase()] || 0;
+        valB = diplomeOrder[b.diplome?.toLowerCase()] || 0;
+        break;
+      case "competence":
+        valA = a.competenceScore || 0;
+        valB = b.competenceScore || 0;
+        break;
+      case "experience":
+        valA = a.experience || "";
+        valB = b.experience || "";
+        break;
+      default:
+        valA = new Date(a.dateSoumission).getTime();
+        valB = new Date(b.dateSoumission).getTime();
+    }
+
+    if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+    if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+}
+
+const DashboardAdmin = () => {
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token");
+
+  const [activeTab, setActiveTab] = useState<
+    "offres" | "candidatures" | "candidatures-postes" | "archives" | "utilisateurs"
+  >("offres");
   const [offres, setOffres] = useState<OffreEmploi[]>([]);
-  const [loadingOffres, setLoadingOffres] = useState(false);
+  const [loadingOffres, setLoadingOffres] = useState(true);
+  const [errorOffres, setErrorOffres] = useState("");
   const [nouvelleOffre, setNouvelleOffre] = useState({
     titre: "",
     description: "",
@@ -85,191 +193,317 @@ const AdminDashboard = () => {
     type: "CDI" as OffreEmploi["type"],
     localisation: "",
   });
-
-  // États pour les candidatures
+  const [editingOffre, setEditingOffre] = useState<OffreEmploi | null>(null);
   const [candidatures, setCandidatures] = useState<Candidature[]>([]);
-  const [loadingCandidatures, setLoadingCandidatures] = useState(false);
-  const [selectedCandidature, setSelectedCandidature] = useState<Candidature | null>(null);
-  const [activeTabCandidatures, setActiveTabCandidatures] = useState<"offres" | "candidatures" | "archives">("offres");
-  const [filterType, setFilterType] = useState<"tous" | "stage_spontane" | "spontanee">("tous");
-  const [sortBy, setSortBy] = useState<"date" | "diplome">("date");
-  const [archiveFilter, setArchiveFilter] = useState<"tous" | "acceptees" | "refusees">("tous");
+  const [loadingCandidatures, setLoadingCandidatures] = useState(true);
+  const [errorCandidatures, setErrorCandidatures] = useState("");
+  // CORRECTION : Ajout du type 'stage_spontane'
+  const [filterType, setFilterType] = useState<
+    "tous" | "stage_spontane" | "spontanee"
+  >("tous");
+  const [selectedCandidature, setSelectedCandidature] =
+    useState<Candidature | null>(null);
+  const [sortBy, setSortBy] = useState<
+    "date" | "diplome" | "competence" | "experience"
+  >("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // NOUVEAUX STATES pour la gestion par postes
+  const [viewMode, setViewMode] = useState<"postes" | "candidatures">("postes");
+  const [selectedOffre, setSelectedOffre] = useState<OffreEmploi | null>(null);
+  const [ongletCandidatures, setOngletCandidatures] = useState<
+    "emploi" | "stage"
+  >("emploi");
+
+  // États pour gérer les exigences dynamiques
+  const [exigencesFields, setExigencesFields] = useState<string[]>([""]);
+  const [editingExigences, setEditingExigences] = useState<string[]>([""]);
+
+  // États pour les archives
+  const [archiveFilter, setArchiveFilter] = useState<
+    "tous" | "acceptees" | "refusees"
+  >("tous");
   const [searchArchive, setSearchArchive] = useState("");
 
-  // États pour la modification du mot de passe
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPasswordUser, setNewPasswordUser] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [changingPassword, setChangingPassword] = useState(false);
+  // État pour la modale de changement de mot de passe
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
 
-  // Gestion du token expiré
+  // États pour la gestion des utilisateurs
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [errorUsers, setErrorUsers] = useState("");
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({
+    nom: "",
+    email: "",
+    password: "",
+    role: "gestionnaire" as "admin" | "gestionnaire",
+  });
+
   useEffect(() => {
-    const handleTokenExpired = () => {
-      showToast("Session expirée, veuillez vous reconnecter", "error");
-      localStorage.removeItem('token');
-      navigate('/login');
-    };
+    if (!token) navigate("/login");
+  }, [token, navigate]);
 
-    window.addEventListener('tokenExpired', handleTokenExpired);
-    
-    return () => {
-      window.removeEventListener('tokenExpired', handleTokenExpired);
-    };
-  }, [navigate]);
+  useEffect(() => {
+    const fetchOffres = async () => {
+      try {
+        setLoadingOffres(true);
+        setErrorOffres("");
 
-  // Chargement des utilisateurs
-  const fetchUsers = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      console.log(`🔄 Chargement des ${activeTab}...`);
-      
-      const { data } = await api.get<Utilisateur[]>(`/api/admin/${activeTab}`);
-      const usersData: Utilisateur[] = data || [];
-      
-      setUtilisateurs(usersData);
-      setFilteredUsers(usersData);
+        const { res, data } = await api.get<OffreEmploi[]>("/api/offres", token);
 
-      const total = usersData.length;
-      const actifs = usersData.filter((u) => u.statut === "actif").length;
-      setStats({ total, actifs, inactifs: total - actifs });
-      
-      console.log(`✅ ${usersData.length} ${activeTab} chargés`);
-    } catch (err: unknown) {
-      console.error("❌ Erreur lors du chargement :", err);
-      setUtilisateurs([]);
-      setFilteredUsers([]);
-      setStats({ total: 0, actifs: 0, inactifs: 0 });
-      
-      if (err && typeof err === 'object' && 'response' in err) {
-        const error = err as { response?: { status: number } };
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          localStorage.removeItem('token');
-          navigate('/login');
-        }
+        if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
+
+        setOffres(
+          data.map((o) => ({
+            id: o.id,
+            titre: o.titre,
+            description: o.description,
+            salaire: o.salaire,
+            dateExpiration: o.dateExpiration,
+            statut: o.statut,
+            type: o.type,
+            localisation: o.localisation,
+            exigences: o.exigences || [],
+          }))
+        );
+      } catch (err: unknown) {
+        console.error("Catch error:", err);
+        const message =
+          err instanceof Error ? err.message : "Erreur connexion backend.";
+        setErrorOffres(message);
+      } finally {
+        setLoadingOffres(false);
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeTab, navigate]);
-
-  // Chargement des offres
-  const fetchOffres = useCallback(async () => {
-    try {
-      setLoadingOffres(true);
-      const { data } = await api.get<OffreEmploi[]>("/api/offres");
-      setOffres(data || []);
-    } catch (err: unknown) {
-      console.error("Erreur chargement offres:", err);
-      setOffres([]);
-    } finally {
-      setLoadingOffres(false);
-    }
-  }, []);
-
-  // Chargement des candidatures
-  const fetchCandidatures = useCallback(async () => {
-    try {
-      setLoadingCandidatures(true);
-      const { data } = await api.get<Candidature[]>("/api/candidatures");
-      setCandidatures(data || []);
-    } catch (err: unknown) {
-      console.error("Erreur chargement candidatures:", err);
-      setCandidatures([]);
-    } finally {
-      setLoadingCandidatures(false);
-    }
-  }, []);
+    };
+    
+    if (activeTab === "offres" || activeTab === "candidatures-postes")
+      fetchOffres();
+  }, [activeTab, token]);
 
   useEffect(() => {
-    if (currentView === "gestion-utilisateurs") {
-      fetchUsers();
-    } else if (currentView === "gestion-candidatures") {
-      fetchOffres();
+    const fetchCandidatures = async () => {
+      try {
+        setLoadingCandidatures(true);
+        setErrorCandidatures("");
+
+        if (activeTab === "candidatures") {
+          const { res, data } = await api.get<Candidature[]>("/api/candidatures/spontanees/toutes", token);
+
+          if (!res.ok)
+            throw new Error("Erreur lors du chargement des candidatures spontanées.");
+
+          console.log("Données spontanées :", data);
+          setCandidatures(data);
+        } else if (activeTab === "candidatures-postes") {
+          const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
+
+          if (!res.ok)
+            throw new Error("Erreur lors du chargement des candidatures par offres.");
+
+          const candidaturesSurOffres = data.filter(
+            (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+          );
+
+          setCandidatures(candidaturesSurOffres);
+        } else if (activeTab === "archives") {
+          const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
+
+          if (!res.ok)
+            throw new Error("Erreur lors du chargement des archives.");
+
+          setCandidatures(data);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+        console.error("Erreur fetch:", err);
+        setErrorCandidatures(message);
+      } finally {
+        setLoadingCandidatures(false);
+      }
+    };
+
+    if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
       fetchCandidatures();
     }
-  }, [currentView, fetchUsers, fetchOffres, fetchCandidatures]);
+  }, [activeTab, token]);
+
+  // Fonction pour charger les utilisateurs
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      setErrorUsers("");
+
+      const { res, data } = await api.get<User[]>("/api/users", token);
+
+      if (!res.ok) throw new Error("Erreur lors du chargement des utilisateurs.");
+
+      setUsers(data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+      setErrorUsers(message);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   useEffect(() => {
-    const filtered = utilisateurs.filter((user) =>
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredUsers(filtered);
-  }, [searchTerm, utilisateurs]);
+    if (activeTab === "utilisateurs") {
+      fetchUsers();
+    }
+  }, [activeTab, token]);
 
-  // Gestion des utilisateurs
+  // Fonctions pour gérer les utilisateurs
   const handleAddUser = async () => {
-    if (!newEmail || !newPassword) {
-      showToast("Veuillez remplir tous les champs", "error");
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
-      showToast("Format d'email invalide", "error");
-      return;
-    }
-
     try {
-      setIsAdding(true);
-      const userData = { email: newEmail, motDePasse: newPassword };
+      setErrorUsers("");
 
-      await api.post(`/api/admin/${activeTab}`, null, userData);
-      
-      setNewEmail("");
-      setNewPassword("");
-      await fetchUsers();
+      const { res, data } = await api.post("/api/users", newUser, token);
 
-      showToast(
-        `${activeTab === "gestionnaires" ? "Gestionnaire" : "Administrateur"} ajouté avec succès`,
-        "success"
-      );
-    } catch (err: unknown) {
-      let errorMessage = "Erreur lors de l'ajout";
-      if (err && typeof err === 'object' && 'response' in err) {
-        const error = err as { response?: { data?: { message?: string } } };
-        errorMessage = error.response?.data?.message || errorMessage;
+      if (!res.ok) {
+        throw new Error(data.message || "Erreur lors de la création de l'utilisateur.");
       }
-      showToast(errorMessage, "error");
-    } finally {
-      setIsAdding(false);
-    }
-  };
 
-  const handleDeleteUser = async (id: number) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
-    
-    try {
-      await api.delete(`/api/admin/${activeTab}/${id}`);
-      await fetchUsers();
-      showToast("Utilisateur supprimé avec succès", "success");
-    } catch (err: unknown) {
-      let errorMessage = "Erreur lors de la suppression";
-      if (err && typeof err === 'object' && 'response' in err) {
-        const error = err as { response?: { data?: { message?: string } } };
-        errorMessage = error.response?.data?.message || errorMessage;
-      }
-      showToast(errorMessage, "error");
-    }
-  };
-
-  // Gestion des offres
-  const ajouterOffre = async () => {
-    if (!nouvelleOffre.titre || !nouvelleOffre.description || !nouvelleOffre.dateExpiration) {
-      showToast("Veuillez remplir tous les champs obligatoires", "error");
-      return;
-    }
-
-    try {
-      const { data } = await api.post<OffreEmploi>("/api/offres", null, {
-        ...nouvelleOffre,
-        date_expiration: nouvelleOffre.dateExpiration,
-        exigences: [],
-        statut: "active"
+      setUsers(prev => [...prev, data.user]);
+      setShowAddUser(false);
+      setNewUser({
+        nom: "",
+        email: "",
+        password: "",
+        role: "gestionnaire",
       });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setErrorUsers(message);
+    }
+  };
 
-      setOffres(prev => [...prev, data]);
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
+
+    try {
+      const { res } = await api.delete(`/api/users/${userId}`, token);
+
+      if (!res.ok) throw new Error("Erreur lors de la suppression de l'utilisateur.");
+
+      setUsers(prev => prev.filter(user => user.id !== userId));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setErrorUsers(message);
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: number, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === "actif" ? "inactif" : "actif";
       
+      const { res, data } = await api.put(
+        `/api/users/${userId}/status`,
+        { statut: newStatus },
+        token
+      );
+
+      if (!res.ok) throw new Error("Erreur lors de la modification du statut.");
+
+      setUsers(prev => prev.map(user => 
+        user.id === userId ? { ...user, statut: newStatus } : user
+      ));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setErrorUsers(message);
+    }
+  };
+
+  // Fonctions pour gérer les exigences dynamiques
+  const ajouterChampExigence = () => {
+    setExigencesFields([...exigencesFields, ""]);
+  };
+
+  const supprimerChampExigence = (index: number) => {
+    if (exigencesFields.length > 1) {
+      const nouvellesExigences = exigencesFields.filter((_, i) => i !== index);
+      setExigencesFields(nouvellesExigences);
+    }
+  };
+
+  const mettreAJourChampExigence = (index: number, valeur: string) => {
+    const nouvellesExigences = [...exigencesFields];
+    nouvellesExigences[index] = valeur;
+    setExigencesFields(nouvellesExigences);
+  };
+
+  const ajouterChampExigenceEdit = () => {
+    setEditingExigences([...editingExigences, ""]);
+  };
+
+  const supprimerChampExigenceEdit = (index: number) => {
+    if (editingExigences.length > 1) {
+      const nouvellesExigences = editingExigences.filter((_, i) => i !== index);
+      setEditingExigences(nouvellesExigences);
+    }
+  };
+
+  const mettreAJourChampExigenceEdit = (index: number, valeur: string) => {
+    const nouvellesExigences = [...editingExigences];
+    nouvellesExigences[index] = valeur;
+    setEditingExigences(nouvellesExigences);
+  };
+
+  const handleEditClick = (offre: OffreEmploi) => {
+    setEditingOffre(offre);
+    setEditingExigences(
+      offre.exigences.length > 0 ? [...offre.exigences] : [""]
+    );
+  };
+
+  const ajouterOffre = async () => {
+    if (
+      !nouvelleOffre.titre ||
+      !nouvelleOffre.description ||
+      !nouvelleOffre.dateExpiration ||
+      !nouvelleOffre.localisation
+    ) {
+      setErrorOffres("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+    try {
+      const exigencesArray = exigencesFields.filter((req) => req.trim() !== "");
+      const res = await fetch(getApiUrl("/api/offres"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...nouvelleOffre,
+          date_expiration: nouvelleOffre.dateExpiration,
+          exigences: exigencesArray,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Erreur ajout offre.");
+      }
+      const newOffreData = await res.json();
+      const newOffre: OffreEmploi = {
+        id: newOffreData.offre.id,
+        titre: newOffreData.offre.titre,
+        description: newOffreData.offre.description,
+        salaire: newOffreData.offre.salaire,
+        dateExpiration: newOffreData.offre.date_expiration,
+        statut: "active",
+        type: newOffreData.offre.type,
+        localisation: newOffreData.offre.localisation,
+        exigences: newOffreData.offre.exigences,
+      };
+      setOffres((prev) => [...prev, newOffre]);
       setNouvelleOffre({
         titre: "",
         description: "",
@@ -278,1087 +512,2763 @@ const AdminDashboard = () => {
         type: "CDI",
         localisation: "",
       });
-      
-      showToast("Offre ajoutée avec succès", "success");
+      setExigencesFields([""]);
+      setErrorOffres("");
     } catch (err: unknown) {
-      showToast("Erreur lors de l'ajout de l'offre", "error");
+      const message =
+        err instanceof Error ? err.message : "Erreur connexion backend.";
+      setErrorOffres(message);
+    }
+  };
+
+  const modifierOffre = async (offre: OffreEmploi) => {
+    if (
+      !offre.titre ||
+      !offre.description ||
+      !offre.dateExpiration ||
+      !offre.localisation
+    ) {
+      setErrorOffres("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+    try {
+      const exigencesArray = editingExigences.filter(
+        (req) => req.trim() !== ""
+      );
+      const res = await fetch(getApiUrl(`/api/offres/${offre.id}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          titre: offre.titre,
+          description: offre.description,
+          salaire: offre.salaire || null,
+          date_expiration: offre.dateExpiration,
+          type: offre.type,
+          localisation: offre.localisation,
+          exigences: exigencesArray,
+          statut: offre.statut,
+        }),
+      });
+      if (!res.ok) throw new Error("Erreur modification offre.");
+
+      const updatedOffre = {
+        ...offre,
+        exigences: exigencesArray,
+      };
+
+      setOffres((prev) =>
+        prev.map((o) => (o.id === offre.id ? updatedOffre : o))
+      );
+      setEditingOffre(null);
+      setEditingExigences([""]);
+      setErrorOffres("");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Erreur connexion backend.";
+      setErrorOffres(message);
     }
   };
 
   const supprimerOffre = async (id: number) => {
     if (!window.confirm("Confirmer la suppression ?")) return;
-    
     try {
-      await api.delete(`/api/offres/${id}`);
-      setOffres(prev => prev.filter(o => o.id !== id));
-      showToast("Offre supprimée avec succès", "success");
+      const res = await fetch(getApiUrl(`/api/offres/${id}`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Erreur suppression offre.");
+      setOffres((prev) => prev.filter((o) => o.id !== id));
     } catch (err: unknown) {
-      showToast("Erreur lors de la suppression", "error");
+      const message =
+        err instanceof Error ? err.message : "Erreur connexion backend.";
+      setErrorOffres(message);
     }
   };
 
-  // Gestion des candidatures
-  const changerStatutCandidature = async (candidature: Candidature, statut: Candidature["statut"]) => {
-    try {
-      const { id, type } = candidature;
-      let typeAPI = type;
-      if (type === "stage_spontane") {
-        typeAPI = "stage";
-      }
-
-      await api.put(`/api/candidatures/statut/${typeAPI}/${id}`, null, { statut });
-      
-      setCandidatures(prev =>
-        prev.map(c => c.id === id && c.type === type ? { ...c, statut } : c)
-      );
-      
-      showToast("Statut mis à jour avec succès", "success");
-    } catch (err: unknown) {
-      showToast("Erreur lors de la mise à jour du statut", "error");
-    }
-  };
-
+  // CORRECTION : Fonction pour supprimer une candidature avec gestion du type 'stage_spontane'
   const supprimerCandidature = async (candidature: Candidature) => {
-    if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`)) return;
-    
+    if (
+      !window.confirm(
+        `Confirmer la suppression de la candidature de ${candidature.nom} ?`
+      )
+    )
+      return;
     try {
       const { id, type } = candidature;
-      await api.delete(`/api/candidatures/${type}/${id}`);
-      
-      setCandidatures(prev =>
-        prev.filter(c => !(c.id === id && c.type === type))
+
+      const url = getApiUrl(`/api/candidatures/${type}/${id}`);
+      console.log("🔗 URL de suppression:", url);
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
+
+      setCandidatures((prev) =>
+        prev.filter((c) => !(c.id === id && c.type === type))
       );
-      
-      if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
+
+      if (
+        selectedCandidature?.id === id &&
+        selectedCandidature?.type === type
+      ) {
         setSelectedCandidature(null);
       }
-      
-      showToast("Candidature supprimée avec succès", "success");
+
+      console.log("✅ Supprimé avec succès");
     } catch (err: unknown) {
-      showToast("Erreur lors de la suppression", "error");
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur:", err);
+      setErrorCandidatures(`Échec: ${message}`);
     }
   };
 
-  // Gestion du mot de passe
-  const handleChangePassword = async () => {
-    if (!currentPassword || !newPasswordUser || !confirmPassword) {
-      showToast("Veuillez remplir tous les champs", "error");
-      return;
-    }
-
-    if (newPasswordUser !== confirmPassword) {
-      showToast("Les mots de passe ne correspondent pas", "error");
-      return;
-    }
-
+  const changerStatut = async (
+    candidature: Candidature,
+    statut: Candidature["statut"]
+  ) => {
     try {
-      setChangingPassword(true);
-      await api.put("/api/auth/change-password", null, {
-        currentPassword,
-        newPassword: newPasswordUser
-      });
-      
-      showToast("Mot de passe modifié avec succès", "success");
-      setShowPasswordModal(false);
-      setCurrentPassword("");
-      setNewPasswordUser("");
-      setConfirmPassword("");
-    } catch (err: unknown) {
-      showToast("Erreur lors du changement de mot de passe", "error");
-    } finally {
-      setChangingPassword(false);
-    }
-  };
+      const { id, type } = candidature;
 
-  // Utilitaires
-  const showToast = (message: string, type: "success" | "error" | "info" = "info") => {
-    document.dispatchEvent(
-      new CustomEvent("showToast", {
-        detail: { message, type }
-      })
-    );
+      console.log("🚀 Mise à jour statut:", { id, type, nouveau: statut });
+
+      setCandidatures((prev) =>
+        prev.map((c) => (c.id === id && c.type === type ? { ...c, statut } : c))
+      );
+
+      // Mapping pour l'API
+      let typeAPI = type;
+      if (type === "stage_spontane") {
+        typeAPI = "stage"; // Table candidatures_stage
+      }
+
+      const res = await fetch(
+        getApiUrl(`/api/candidatures/statut/${typeAPI}/${id}`),
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ statut }),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Erreur ${res.status}`);
+      }
+
+      const result = await res.json();
+      console.log("✅ Statut mis à jour avec succès:", result);
+    } catch (err: unknown) {
+      console.error("❌ Erreur:", err);
+
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setErrorCandidatures(`Échec: ${message}`);
+
+      const fetchCandidatures = async () => {
+        try {
+          const res = await fetch(getApiUrl("/api/candidatures"), {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data: Candidature[] = await res.json();
+            const normalizedData = data.map((cand) => ({
+              ...cand,
+              offreId: cand.offreId || cand.offre_id,
+            }));
+            setCandidatures(normalizedData);
+          }
+        } catch (err) {
+          console.error("Erreur rechargement:", err);
+        }
+      };
+      fetchCandidatures();
+    }
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem("token");
     navigate("/login");
   };
 
-  const getFileUrl = (filePath?: string) => {
-    if (!filePath) return null;
-    if (filePath.startsWith("http")) return filePath;
-    return `${api.API_BASE_URL}${filePath.startsWith("/") ? filePath : "/" + filePath}`;
+  // Fonction pour changer le mot de passe
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    try {
+      console.log("🔍 DEBUG - Données avant envoi:", {
+        currentPassword: passwordData.currentPassword ? "PRÉSENT" : "MANQUANT",
+        newPassword: passwordData.newPassword ? "PRÉSENT" : "MANQUANT",
+        confirmPassword: passwordData.confirmPassword ? "PRÉSENT" : "MANQUANT",
+        tokenLength: token ? token.length : "MANQUANT"
+      });
+
+      const response = await fetch(getApiUrl("/api/auth/change-password"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+          confirmPassword: passwordData.confirmPassword
+        }),
+      });
+
+      const data = await response.json();
+      console.log("📥 Réponse complète:", { status: response.status, data });
+
+      if (!response.ok) {
+        throw new Error(data.message || `Erreur HTTP ${response.status}`);
+      }
+
+      // Succès
+      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+      
+      // Réinitialiser le formulaire
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+    } catch (error) {
+      console.error("❌ Erreur détaillée:", error);
+      setPasswordError(error.message || "Une erreur inconnue est survenue");
+    }
+  };
+
+  // Fonctions pour les archives
+  const candidaturesArchivees = candidatures.filter(
+    (c) => c.statut === "acceptee" || c.statut === "refusee"
+  );
+
+  const candidaturesFiltreesArchive =
+    archiveFilter === "tous"
+      ? candidaturesArchivees
+      : candidaturesArchivees.filter((c) =>
+          archiveFilter === "acceptees"
+            ? c.statut === "acceptee"
+            : c.statut === "refusee"
+        );
+
+  const candidaturesRecherchees = candidaturesFiltreesArchive.filter(
+    (c) =>
+      c.nom.toLowerCase().includes(searchArchive.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchArchive.toLowerCase()) ||
+      (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
+  );
+
+  const statsArchives = {
+    total: candidaturesArchivees.length,
+    acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee")
+      .length,
+    refusees: candidaturesArchivees.filter((c) => c.statut === "refusee")
+      .length,
   };
 
   // Composants d'affichage
-const PasswordModal = () => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
-      <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-        <Key className="h-5 w-5 mr-2 text-blue-600" />
-        Modifier le mot de passe
-      </h3>
-      
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Mot de passe actuel
-          </label>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-          />
+  const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
+    if (!diplome) {
+      return <span className="text-gray-400 italic">Non renseigné</span>;
+    }
+    return (
+      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+        {diplome}
+      </span>
+    );
+  };
+
+  const DisplayCompetenceScore = ({ score }: { score?: number }) => {
+    if (!score) {
+      return <span className="text-gray-400 italic">N/A</span>;
+    }
+    return (
+      <div className="flex items-center space-x-2">
+        <div className="w-16 bg-gray-200 rounded-full h-2">
+          <div
+            className="bg-green-500 h-2 rounded-full"
+            style={{ width: `${Math.min(score, 100)}%` }}
+          ></div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nouveau mot de passe
-          </label>
-          <input
-            type="password"
-            value={newPasswordUser}
-            onChange={(e) => setNewPasswordUser(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Confirmer le mot de passe
-          </label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••"
-          />
-        </div>
+        <span className="text-sm font-medium">{score}%</span>
       </div>
+    );
+  };
 
-      <div className="flex justify-end space-x-3 mt-6">
-        <button
-          onClick={() => setShowPasswordModal(false)}
-          className="px-4 py-2 text-gray-600 hover:text-gray-800"
-        >
-          Annuler
-        </button>
-        <button
-          onClick={handleChangePassword}
-          disabled={changingPassword}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {changingPassword ? "Modification..." : "Modifier"}
-        </button>
-      </div>
-    </div>
-  </div>
-);
+  const DisplayExperience = ({ experience }: { experience?: string }) => {
+    if (!experience || experience === "0") {
+      return (
+        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+          0
+        </span>
+      );
+    }
+    return (
+      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+        {experience}
+      </span>
+    );
+  };
 
-  // Vue principale avec les 2 cases carrées
-  const MainView = () => (
-    <div className="space-y-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center"
-      >
-        <h2 className="text-4xl font-bold text-gray-900 mb-4">
-          Dashboard Administrateur
-        </h2>
-        <p className="text-xl text-gray-600">
-          Gestion complète de la plateforme C4E Africa
-        </p>
-      </motion.div>
+  // Composant pour les statistiques globales
+  const StatsOverview = () => {
+    const stats = {
+      total: candidatures.length,
+      enAttente: candidatures.filter((c) => c.statut === "en_attente").length,
+      acceptees: candidatures.filter((c) => c.statut === "acceptee").length,
+      refusees: candidatures.filter((c) => c.statut === "refusee").length,
+      offresActives: offres.filter((o) => o.statut === "active").length,
+    };
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-        {/* Carte Gestion des Utilisateurs */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-200 hover:shadow-3xl transition-all duration-300 cursor-pointer group"
-          onClick={() => setCurrentView("gestion-utilisateurs")}
-        >
-          <div className="text-center">
-            <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-              <Users className="h-10 w-10 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              Gestion des Utilisateurs
-            </h3>
-          </div>
-        </motion.div>
-
-        {/* Carte Gestion des Candidatures */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-200 hover:shadow-3xl transition-all duration-300 cursor-pointer group"
-          onClick={() => setCurrentView("gestion-candidatures")}
-        >
-          <div className="text-center">
-            <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-              <FileText className="h-10 w-10 text-white" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              Gestion des Candidatures
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Gérez les offres d'emploi et toutes les candidatures reçues
-            </p>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  );
-
-  // Composant pour la gestion des utilisateurs
-  const GestionUtilisateurs = () => (
-    <div className="space-y-6">
-      {/* Header avec bouton retour */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => setCurrentView("main")}
-          className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Retour au dashboard</span>
-        </button>
-        <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
-        <div className="w-32"></div> {/* Pour l'équilibrage */}
-      </div>
-
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border">
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Total Candidatures */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-medium">Total {activeTab}</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</p>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                Total
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mb-2">
+                {stats.total}
+              </p>
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <p className="text-xs text-gray-500">Candidatures</p>
+              </div>
             </div>
-            <div className="p-3 bg-blue-100 rounded-xl">
+            <div className="p-3 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors duration-300">
               <Users className="h-6 w-6 text-blue-600" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border">
+
+        {/* En Attente */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-amber-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-medium">Utilisateurs Actifs</p>
-              <p className="text-3xl font-bold text-green-600 mt-2">{stats.actifs}</p>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                En Attente
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mb-2">
+                {stats.enAttente}
+              </p>
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                <p className="text-xs text-gray-500">À traiter</p>
+              </div>
             </div>
-            <div className="p-3 bg-green-100 rounded-xl">
-              <UserCog className="h-6 w-6 text-green-600" />
+            <div className="p-3 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors duration-300">
+              <Clock className="h-6 w-6 text-amber-600" />
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border">
+
+        {/* Acceptées */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-emerald-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm font-medium">Utilisateurs Inactifs</p>
-              <p className="text-3xl font-bold text-red-600 mt-2">{stats.inactifs}</p>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                Acceptées
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mb-2">
+                {stats.acceptees}
+              </p>
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <p className="text-xs text-gray-500">Validées</p>
+              </div>
             </div>
-            <div className="p-3 bg-red-100 rounded-xl">
-              <Shield className="h-6 w-6 text-red-600" />
+            <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors duration-300">
+              <CheckCircle className="h-6 w-6 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Refusées */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-rose-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                Refusées
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mb-2">
+                {stats.refusees}
+              </p>
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+                <p className="text-xs text-gray-500">Non retenues</p>
+              </div>
+            </div>
+            <div className="p-3 bg-rose-50 rounded-xl group-hover:bg-rose-100 transition-colors duration-300">
+              <XCircle className="h-6 w-6 text-rose-600" />
             </div>
           </div>
         </div>
       </div>
+    );
+  };
 
-      {/* Tabs Utilisateurs */}
-      <div className="flex justify-center mb-8">
-        <div className="bg-white rounded-2xl p-2 shadow-lg border">
-          <div className="flex space-x-1">
-            <button 
-              onClick={() => setActiveTab("gestionnaires")} 
-              className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
-                activeTab === "gestionnaires" 
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg" 
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-              }`}
-            >
-              <Users className="h-5 w-5" />
-              <span>Gestionnaires</span>
-            </button>
-            <button 
-              onClick={() => setActiveTab("administrateurs")} 
-              className={`flex items-center space-x-3 px-8 py-4 rounded-xl font-semibold transition-all duration-300 ${
-                activeTab === "administrateurs" 
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" 
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-              }`}
-            >
-              <Shield className="h-5 w-5" />
-              <span>Administrateurs</span>
-            </button>
-          </div>
-        </div>
-      </div>
+  // Composant PostesList
+  const PostesList = ({
+    filtreType = "emploi",
+  }: {
+    filtreType?: "emploi" | "stage";
+  }) => {
+    const offresFiltrees = offres.filter((offre) => {
+      const typeLower = offre.type.toLowerCase();
+      if (filtreType === "emploi") {
+        return typeLower.includes("cdi") || typeLower.includes("cdd");
+      } else {
+        return typeLower.includes("stage") || typeLower.includes("pfe");
+      }
+    });
 
-      {/* Contenu Utilisateurs */}
-      <div className="bg-white rounded-3xl shadow-2xl p-8 border">
-        {/* Formulaire d'ajout */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Plus className="h-5 w-5 mr-2 text-green-600" />
-            Ajouter un nouveau {activeTab.slice(0, -1)}
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-2xl font-bold text-gray-800">
+            {filtreType === "emploi" ? "Postes CDI/CDD" : "Stages/PFE"}
           </h3>
-          <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
-            <input 
-              type="email" 
-              placeholder="Adresse email" 
-              value={newEmail} 
-              onChange={(e) => setNewEmail(e.target.value)} 
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-            />
-<div className="flex-1 relative">
-  <input 
-    type={showPassword ? "text" : "password"} 
-    placeholder="Mot de passe temporaire" 
-    value={newPassword} 
-    onChange={(e) => setNewPassword(e.target.value)} 
-    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 pr-12"
-  />
-
-  <button
-    type="button"
-    onClick={() => setShowPassword(!showPassword)}
-    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 p-1 bg-white"
-  >
-    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-  </button>
-</div>
-            <button 
-              onClick={handleAddUser}
-              disabled={isAdding}
-              className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-xl transition-all duration-300 shadow-lg font-semibold ${
-                isAdding 
-                  ? "bg-gray-400 text-white cursor-not-allowed" 
-                  : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
-              }`}
-            >
-              {isAdding ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : (
-                <Plus className="h-5 w-5" />
-              )}
-              <span>{isAdding ? "Création..." : "Créer le compte"}</span>
-            </button>
+          <div className="text-sm text-gray-600">
+            {offresFiltrees.length} poste(s) trouvé(s)
           </div>
         </div>
 
-        {/* Barre de recherche */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-            <input
-              type="text"
-              placeholder="Rechercher par email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-            />
+        {errorOffres && (
+          <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+            {errorOffres}
           </div>
-        </div>
+        )}
 
-        {/* Tableau des utilisateurs */}
-        <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-b border-gray-200">
-                <th className="p-4 text-left font-semibold">Utilisateur</th>
-                <th className="p-4 text-left font-semibold">Rôle</th>
-                <th className="p-4 text-left font-semibold">Statut</th>
-                <th className="p-4 text-left font-semibold">Créé le</th>
-                <th className="p-4 text-left font-semibold">Dernière connexion</th>
-                <th className="p-4 text-right font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-600">
-                    <div className="flex justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    </div>
-                    <p className="mt-2">Chargement des utilisateurs...</p>
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-600">
-                    <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p>Aucun utilisateur trouvé</p>
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50/80">
-                    <td className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                          {user.email.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{user.email}</p>
-                          <p className="text-sm text-gray-500 flex items-center">
-                            <Mail className="h-3 w-3 mr-1" />
-                            Email vérifié
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        user.statut === "actif" 
-                          ? "bg-green-100 text-green-800" 
-                          : "bg-red-100 text-red-800"
-                      }`}>
-                        <div className={`w-2 h-2 rounded-full mr-2 ${
-                          user.statut === "actif" ? "bg-green-500" : "bg-red-500"
-                        }`}></div>
-                        {user.statut}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="text-gray-600">
-                        {new Date(user.date_creation).toLocaleDateString("fr-FR")}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="text-gray-600">
-                        {user.dernier_connexion 
-                          ? new Date(user.dernier_connexion).toLocaleDateString("fr-FR") 
-                          : "Jamais"
-                        }
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex justify-end space-x-2">
-                        <button 
-                          onClick={() => handleDeleteUser(user.id)} 
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Composant pour la gestion des candidatures
-  const GestionCandidatures = () => (
-    <div className="space-y-6">
-      {/* Header avec bouton retour */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => setCurrentView("main")}
-          className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-300"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Retour au dashboard</span>
-        </button>
-        <h2 className="text-3xl font-bold text-gray-900">Gestion des Candidatures</h2>
-        <div className="w-32"></div>
-      </div>
-
-      {/* Navigation simplifiée */}
-      <div className="flex justify-center mb-8">
-        <div className="bg-white rounded-2xl p-2 shadow-lg border">
-          <div className="flex space-x-1">
-            <button 
-              onClick={() => setActiveTabCandidatures("offres")} 
-              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                activeTabCandidatures === "offres" 
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg" 
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-              }`}
-            >
-              <Briefcase className="h-5 w-5" />
-              <span>Offres</span>
-            </button>
-            <button 
-              onClick={() => setActiveTabCandidatures("candidatures")} 
-              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                activeTabCandidatures === "candidatures" 
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" 
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-              }`}
-            >
-              <FileText className="h-5 w-5" />
-              <span>Candidatures</span>
-            </button>
-            <button 
-              onClick={() => setActiveTabCandidatures("archives")} 
-              className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                activeTabCandidatures === "archives" 
-                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg" 
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/70"
-              }`}
-            >
-              <Archive className="h-5 w-5" />
-              <span>Archives</span>
-            </button>
+        {loadingOffres ? (
+          <div className="text-center py-8 text-gray-600">
+            Chargement des postes...
           </div>
-        </div>
-      </div>
-
-      {/* Statistiques globales */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <Users className="h-12 w-12 text-blue-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">{candidatures.length}</h3>
-          <p className="text-gray-600">Total candidatures</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <BarChart3 className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">
-            {candidatures.filter(c => c.statut === "en_attente").length}
-          </h3>
-          <p className="text-gray-600">En attente</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <FileText className="h-12 w-12 text-green-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">
-            {candidatures.filter(c => c.statut === "acceptee").length}
-          </h3>
-          <p className="text-gray-600">Acceptées</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow-lg border text-center">
-          <Archive className="h-12 w-12 text-red-500 mx-auto mb-3" />
-          <h3 className="text-2xl font-bold text-gray-900">
-            {candidatures.filter(c => c.statut === "refusee").length}
-          </h3>
-          <p className="text-gray-600">Refusées</p>
-        </div>
-      </div>
-
-      {/* Contenu selon l'onglet */}
-      {activeTabCandidatures === "offres" && (
-        <div className="bg-white rounded-3xl shadow-2xl p-8 border">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6">Gestion des Offres</h3>
-          
-          {/* Formulaire d'ajout simplifié */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Plus className="h-5 w-5 mr-2 text-green-600" />
-              Ajouter une nouvelle offre
+        ) : offresFiltrees.length === 0 ? (
+          <div className="text-center py-8 text-gray-600 bg-white rounded-xl shadow-lg p-8">
+            <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">
+              Aucun {filtreType === "emploi" ? "poste CDI/CDD" : "stage/PFE"}{" "}
+              vacant
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Titre de l'offre"
-                value={nouvelleOffre.titre}
-                onChange={(e) => setNouvelleOffre({...nouvelleOffre, titre: e.target.value})}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Localisation"
-                value={nouvelleOffre.localisation}
-                onChange={(e) => setNouvelleOffre({...nouvelleOffre, localisation: e.target.value})}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-              />
-              <select
-                value={nouvelleOffre.type}
-                onChange={(e) => setNouvelleOffre({...nouvelleOffre, type: e.target.value as OffreEmploi["type"]})}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="CDI">CDI</option>
-                <option value="CDD 12 mois">CDD 12 mois</option>
-                <option value="Stage">Stage</option>
-                <option value="PFE">PFE</option>
-              </select>
-              <input
-                type="date"
-                placeholder="Date d'expiration"
-                value={nouvelleOffre.dateExpiration}
-                onChange={(e) => setNouvelleOffre({...nouvelleOffre, dateExpiration: e.target.value})}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <textarea
-              placeholder="Description de l'offre"
-              value={nouvelleOffre.description}
-              onChange={(e) => setNouvelleOffre({...nouvelleOffre, description: e.target.value})}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 mb-4"
-            />
-            <button
-              onClick={ajouterOffre}
-              className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-semibold"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Créer l'offre</span>
-            </button>
+            <p className="text-gray-500">
+              {filtreType === "emploi"
+                ? "Créez votre première offre d'emploi pour commencer à recevoir des candidatures."
+                : "Créez votre première offre de stage/PFE pour commencer à recevoir des candidatures."}
+            </p>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {offresFiltrees.map((offre) => {
+              const stats = getCandidatureStats(offre.id);
 
-          {/* Liste des offres */}
-          <div className="space-y-4">
-            <h4 className="text-xl font-semibold text-gray-900">Offres publiées</h4>
-            {loadingOffres ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Chargement des offres...</p>
-              </div>
-            ) : offres.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-2xl">
-                <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Aucune offre publiée</p>
-              </div>
-            ) : (
-              offres.map((offre) => (
-                <div key={offre.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h5 className="text-lg font-bold text-gray-900">{offre.titre}</h5>
-                      <p className="text-gray-600">{offre.localisation} • {offre.type}</p>
+              return (
+                <div
+                  key={offre.id}
+                  className="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-200"
+                >
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                        {offre.titre}
+                      </h4>
+                      <span
+                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                          offre.statut === "active"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {offre.statut}
+                      </span>
                     </div>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Briefcase className="h-4 w-4 mr-2" />
+                        {offre.type}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Users className="h-4 w-4 mr-2" />
+                        {offre.localisation}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <span className="mr-2">📅</span>
+                        Expire le{" "}
+                        {new Date(offre.dateExpiration).toLocaleDateString()}
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">
+                          Candidatures
+                        </span>
+                        <span className="text-lg font-bold text-blue-600">
+                          {stats.total}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span className="flex items-center">
+                          <span className="w-2 h-2 bg-yellow-400 rounded-full mr-1"></span>
+                          En attente: {stats.enAttente}
+                        </span>
+                        <span className="flex items-center">
+                          <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                          Acceptées: {stats.acceptees}
+                        </span>
+                        <span className="flex items-center">
+                          <span className="w-2 h-2 bg-red-400 rounded-full mr-1"></span>
+                          Refusées: {stats.refusees}
+                        </span>
+                      </div>
+                    </div>
+
                     <div className="flex space-x-2">
                       <button
+                        onClick={() => {
+                          setSelectedOffre(offre);
+                          setViewMode("candidatures");
+                        }}
+                        disabled={stats.total === 0}
+                        className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                      >
+                        <UserCheck className="h-4 w-4" />
+                        <span>
+                          {stats.total === 0
+                            ? "Aucune candidature"
+                            : `Voir (${stats.total})`}
+                        </span>
+                      </button>
+                      <button
                         onClick={() => supprimerOffre(offre.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Supprimer"
+                        className="flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 font-medium"
+                        title="Supprimer ce poste"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
-                  <p className="text-gray-700 mb-4 line-clamp-2">{offre.description}</p>
-                  <div className="flex justify-between items-center text-sm text-gray-500">
-                    <span>Expire le: {new Date(offre.dateExpiration).toLocaleDateString()}</span>
-                    <span className={`px-3 py-1 rounded-full ${
-                      offre.statut === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                    }`}>
-                      {offre.statut}
-                    </span>
-                  </div>
                 </div>
-              ))
-            )}
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Composant CandidaturesForPoste
+  const CandidaturesForPoste = ({
+    filtreType = "emploi",
+  }: {
+    filtreType?: "emploi" | "stage";
+  }) => {
+    if (!selectedOffre) return null;
+
+    const getCandidaturesPourOffre = () => {
+      console.log("🔍 DEBUG - Offre sélectionnée:", {
+        id: selectedOffre.id,
+        titre: selectedOffre.titre,
+        type: selectedOffre.type,
+      });
+
+      // Filtrer d'abord par type
+      const candidaturesFiltreesParType = candidatures.filter((cand) => {
+        if (filtreType === "emploi") {
+          return cand.type === "emploi";
+        } else {
+          // Pour Stage/PFE, inclure les deux types
+          return cand.type === "stage" || cand.type === "pfe";
+        }
+      });
+
+      console.log(
+        `🔍 DEBUG - Candidatures après filtrage type (${filtreType}):`,
+        candidaturesFiltreesParType.length
+      );
+
+      // CORRECTION : Utiliser offre_id au lieu de offreId
+      const candidaturesPourOffre = candidaturesFiltreesParType.filter(
+        (cand) => {
+          // MATCHING DIRECT par offre_id
+          if (cand.offre_id === selectedOffre.id) {
+            console.log(
+              `✅ Match direct: ${cand.nom} (offre_id: ${cand.offre_id})`
+            );
+            return true;
+          }
+
+          console.log(
+            `❌ Non match: ${cand.nom} | offre_id:${cand.offre_id} vs selected:${selectedOffre.id} | type:${cand.type} vs selected:${selectedOffre.type}`
+          );
+          return false;
+        }
+      );
+
+      console.log(
+        "🔍 DEBUG - Candidatures finales pour offre:",
+        candidaturesPourOffre
+      );
+      return candidaturesPourOffre;
+    };
+
+    const candidaturesPourOffre = getSortedCandidatures(
+      getCandidaturesPourOffre(),
+      sortBy,
+      sortOrder
+    );
+
+    const stats = {
+      total: candidaturesPourOffre.length,
+      enAttente: candidaturesPourOffre.filter((c) => c.statut === "en_attente")
+        .length,
+      acceptees: candidaturesPourOffre.filter((c) => c.statut === "acceptee")
+        .length,
+      refusees: candidaturesPourOffre.filter((c) => c.statut === "refusee")
+        .length,
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Header avec stats */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  setViewMode("postes");
+                  setSelectedOffre(null);
+                }}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Retour aux postes</span>
+              </button>
+            </div>
+            <div className="text-right">
+              <h3 className="text-2xl font-bold text-gray-900">
+                {selectedOffre.titre}
+              </h3>
+              <p className="text-gray-600">
+                {stats.total} candidature(s){" "}
+                {filtreType === "emploi" ? "CDI/CDD" : "Stage/PFE"}
+              </p>
+            </div>
+          </div>
+
+          {/* Stats cards */}
+          <div className="grid grid-cols-4 gap-4 mt-4">
+            <div className="text-center p-3 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">
+                {stats.enAttente}
+              </div>
+              <div className="text-sm text-yellow-700">En attente</div>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {stats.acceptees}
+              </div>
+              <div className="text-sm text-green-700">Acceptées</div>
+            </div>
+            <div className="text-center p-3 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">
+                {stats.refusees}
+              </div>
+              <div className="text-sm text-red-700">Refusées</div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.total}
+              </div>
+              <div className="text-sm text-blue-700">Total</div>
+            </div>
           </div>
         </div>
-      )}
 
-      {activeTabCandidatures === "candidatures" && (
-        <div className="bg-white rounded-3xl shadow-2xl p-8 border">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6">Toutes les Candidatures</h3>
-
-          {/* Filtres simples */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as "tous" | "stage_spontane" | "spontanee")}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="tous">Tous les types</option>
-              <option value="stage_spontane">Stages/PFE</option>
-              <option value="spontanee">Candidatures spontanées</option>
-            </select>
-            
+        {/* Filtres et tri */}
+        <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4 bg-white p-4 rounded-xl shadow-lg">
+          <div className="flex items-center space-x-2">
+            <Filter className="h-5 w-5 text-gray-600" />
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "date" | "diplome")}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
+              onChange={(e) =>
+                setSortBy(
+                  e.target.value as
+                    | "date"
+                    | "diplome"
+                    | "competence"
+                    | "experience"
+                )
+              }
+              className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
             >
               <option value="date">Trier par date</option>
               <option value="diplome">Trier par diplôme</option>
+              <option value="competence">Trier par compétences</option>
+              <option value="experience">Trier par expérience</option>
             </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              className="p-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all duration-200"
+            >
+              {sortOrder === "asc" ? "↑" : "↓"}
+            </button>
           </div>
 
-          {/* Liste des candidatures */}
-          <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-b border-gray-200">
-                  <th className="p-4 text-left font-semibold">Nom</th>
-                  <th className="p-4 text-left font-semibold">Email</th>
-                  <th className="p-4 text-left font-semibold">Type</th>
-                  <th className="p-4 text-left font-semibold">Date</th>
-                  <th className="p-4 text-left font-semibold">Statut</th>
-                  <th className="p-4 text-left font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loadingCandidatures ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-600">
-                      <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      </div>
-                      <p className="mt-2">Chargement des candidatures...</p>
-                    </td>
-                  </tr>
-                ) : candidatures.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-600">
-                      <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                      <p>Aucune candidature trouvée</p>
-                    </td>
-                  </tr>
-                ) : (
-                  candidatures
-                    .filter(cand => {
-                      if (filterType === "tous") return true;
-                      if (filterType === "stage_spontane") return cand.type === "stage_spontane";
-                      if (filterType === "spontanee") return cand.type === "spontanee";
-                      return true;
-                    })
-                    .map((cand) => (
-                      <tr key={`${cand.id}-${cand.type}`} className="border-b border-gray-100 hover:bg-gray-50/80">
-                        <td className="p-4 text-gray-900 font-medium">{cand.nom}</td>
-                        <td className="p-4 text-gray-600">{cand.email}</td>
-                        <td className="p-4">
-                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                            cand.type === "spontanee" ? "bg-blue-100 text-blue-800" :
-                            cand.type === "stage_spontane" ? "bg-green-100 text-green-800" :
-                            "bg-purple-100 text-purple-800"
-                          }`}>
-                            {cand.type === "spontanee" ? "Spontanée" : 
-                             cand.type === "stage_spontane" ? "Stage/PFE" : cand.type}
-                          </span>
-                        </td>
-                        <td className="p-4 text-gray-600">
-                          {new Date(cand.dateSoumission).toLocaleDateString()}
-                        </td>
-                        <td className="p-4">
-                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                            cand.statut === "en_attente" ? "bg-yellow-100 text-yellow-800" :
-                            cand.statut === "acceptee" ? "bg-green-100 text-green-800" :
-                            "bg-red-100 text-red-800"
-                          }`}>
-                            {cand.statut === "en_attente" ? "En attente" :
-                             cand.statut === "acceptee" ? "Acceptée" : "Refusée"}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => setSelectedCandidature(cand)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Voir détails"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            <select
-                              value={cand.statut}
-                              onChange={(e) => changerStatutCandidature(cand, e.target.value as Candidature["statut"])}
-                              className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="en_attente">En attente</option>
-                              <option value="acceptee">Acceptée</option>
-                              <option value="refusee">Refusée</option>
-                            </select>
-                            <button
-                              onClick={() => supprimerCandidature(cand)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Supprimer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
+          <div className="text-sm text-gray-600">
+            Affichage de {candidaturesPourOffre.length} candidature(s)
           </div>
         </div>
-      )}
 
-      {activeTabCandidatures === "archives" && (
-        <div className="bg-white rounded-3xl shadow-2xl p-8 border">
-          <h3 className="text-2xl font-bold text-gray-900 mb-6">Archives des Candidatures</h3>
-
-          {/* Filtres archives */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <select
-              value={archiveFilter}
-              onChange={(e) => setArchiveFilter(e.target.value as "tous" | "acceptees" | "refusees")}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="tous">Toutes les archives</option>
-              <option value="acceptees">Candidatures acceptées</option>
-              <option value="refusees">Candidatures refusées</option>
-            </select>
-            
-            <input
-              type="text"
-              placeholder="Rechercher par nom ou email..."
-              value={searchArchive}
-              onChange={(e) => setSearchArchive(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500"
-            />
+        {/* Tableau des candidatures */}
+        {candidaturesPourOffre.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+            <UserCheck className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">
+              Aucune candidature
+            </h4>
+            <p className="text-gray-500 mb-4">
+              Aucune candidature n'a été trouvée pour ce poste.
+            </p>
+            <div className="text-sm text-gray-400 bg-gray-50 p-4 rounded-lg max-w-md mx-auto">
+              <p>💡 Debug info:</p>
+              <p>Offre ID: {selectedOffre.id}</p>
+              <p>Titre: "{selectedOffre.titre}"</p>
+              <p>Type: {selectedOffre.type}</p>
+              <p>Filtre appliqué: {filtreType}</p>
+            </div>
           </div>
-
-          {/* Liste des archives */}
-          <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-b border-gray-200">
-                  <th className="p-4 text-left font-semibold">Nom</th>
-                  <th className="p-4 text-left font-semibold">Email</th>
-                  <th className="p-4 text-left font-semibold">Type</th>
-                  <th className="p-4 text-left font-semibold">Date</th>
-                  <th className="p-4 text-left font-semibold">Statut</th>
-                  <th className="p-4 text-left font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {candidatures
-                  .filter(cand => cand.statut === "acceptee" || cand.statut === "refusee")
-                  .filter(cand => {
-                    if (archiveFilter === "tous") return true;
-                    if (archiveFilter === "acceptees") return cand.statut === "acceptee";
-                    if (archiveFilter === "refusees") return cand.statut === "refusee";
-                    return true;
-                  })
-                  .filter(cand => 
-                    cand.nom.toLowerCase().includes(searchArchive.toLowerCase()) ||
-                    cand.email.toLowerCase().includes(searchArchive.toLowerCase())
-                  )
-                  .map((cand) => (
-                    <tr key={`${cand.id}-${cand.type}`} className="border-b border-gray-100 hover:bg-gray-50/80">
-                      <td className="p-4 text-gray-900 font-medium">{cand.nom}</td>
-                      <td className="p-4 text-gray-600">{cand.email}</td>
-                      <td className="p-4">
-                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                          cand.type === "spontanee" ? "bg-blue-100 text-blue-800" :
-                          cand.type === "stage_spontane" ? "bg-green-100 text-green-800" :
-                          "bg-purple-100 text-purple-800"
-                        }`}>
-                          {cand.type === "spontanee" ? "Spontanée" : 
-                           cand.type === "stage_spontane" ? "Stage/PFE" : cand.type}
-                        </span>
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Nom
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Email
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Diplôme
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Score Compétences
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Expérience
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Date Soumission
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Statut
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {candidaturesPourOffre.map((cand) => (
+                    <tr
+                      key={cand.id}
+                      className="hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <td className="px-6 py-4 text-gray-900">{cand.nom}</td>
+                      <td className="px-6 py-4 text-gray-600">{cand.email}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        <DisplayDiplome diplome={cand.diplome} />
                       </td>
-                      <td className="p-4 text-gray-600">
+                      <td className="px-6 py-4 text-gray-600">
+                        <DisplayCompetenceScore score={cand.competenceScore} />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        <DisplayExperience experience={cand.experience} />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
                         {new Date(cand.dateSoumission).toLocaleDateString()}
                       </td>
-                      <td className="p-4">
-                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                          cand.statut === "acceptee" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}>
-                          {cand.statut === "acceptee" ? "Acceptée" : "Refusée"}
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                            cand.statut === "en_attente"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : cand.statut === "acceptee"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {cand.statut}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => setSelectedCandidature(cand)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Voir détails"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => supprimerCandidature(cand)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                      <td className="px-6 py-4 space-x-2">
+                        <select
+                          value={cand.statut}
+                          onChange={(e) =>
+                            changerStatut(
+                              cand,
+                              e.target.value as Candidature["statut"]
+                            )
+                          }
+                          className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                        >
+                          <option value="en_attente">En attente</option>
+                          <option value="acceptee">Acceptée</option>
+                          <option value="refusee">Refusée</option>
+                        </select>
+                        <button
+                          onClick={() => setSelectedCandidature(cand)}
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          title="Voir détails"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => supprimerCandidature(cand)}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          title="Supprimer cette candidature"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
-                  ))
-                }
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    );
+  };
 
-      {/* Modal détails candidature */}
-      {selectedCandidature && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-2xl font-bold text-gray-800">Détails de la candidature</h3>
-              <button onClick={() => setSelectedCandidature(null)} className="text-gray-500 hover:text-gray-700">
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <strong className="text-gray-700">Nom:</strong>
-                  <p className="text-gray-900">{selectedCandidature.nom}</p>
-                </div>
-                <div>
-                  <strong className="text-gray-700">Email:</strong>
-                  <p className="text-gray-900">{selectedCandidature.email}</p>
-                </div>
-                <div>
-                  <strong className="text-gray-700">Téléphone:</strong>
-                  <p className="text-gray-900">{selectedCandidature.telephone || "Non renseigné"}</p>
-                </div>
-                <div>
-                  <strong className="text-gray-700">Type:</strong>
-                  <p className="text-gray-900">{selectedCandidature.type}</p>
-                </div>
-                <div>
-                  <strong className="text-gray-700">Diplôme:</strong>
-                  <p className="text-gray-900">{selectedCandidature.diplome || "Non renseigné"}</p>
-                </div>
-                <div>
-                  <strong className="text-gray-700">Date:</strong>
-                  <p className="text-gray-900">{new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              {selectedCandidature.cvUrl && (
-                <div>
-                  <strong className="text-gray-700">CV:</strong>
-                  <a 
-                    href={getFileUrl(selectedCandidature.cvUrl)} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-blue-600 hover:underline ml-2"
-                  >
-                    Télécharger
-                  </a>
-                </div>
-              )}
-              
-              {selectedCandidature.lettreMotivationUrl && (
-                <div>
-                  <strong className="text-gray-700">Lettre de motivation:</strong>
-                  <a 
-                    href={getFileUrl(selectedCandidature.lettreMotivationUrl)} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-blue-600 hover:underline ml-2"
-                  >
-                    Télécharger
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  // Fonctions utilitaires pour les statistiques
+  const getCandidatureStats = (offreId: number) => {
+    const candidaturesOffre = candidatures.filter((c) => {
+      // Vérifier offre_id au lieu de offreId
+      return c.offre_id === offreId;
+    });
+
+    console.log(`📊 Stats pour offre ${offreId}:`, {
+      total: candidaturesOffre.length,
+      candidatures: candidaturesOffre.map((c) => ({
+        id: c.id,
+        type: c.type,
+        offre_id: c.offre_id,
+        nom: c.nom,
+      })),
+    });
+
+    return {
+      total: candidaturesOffre.length,
+      enAttente: candidaturesOffre.filter((c) => c.statut === "en_attente")
+        .length,
+      acceptees: candidaturesOffre.filter((c) => c.statut === "acceptee")
+        .length,
+      refusees: candidaturesOffre.filter((c) => c.statut === "refusee").length,
+    };
+  };
+
+  const getCandidaturesForOffre = (offreId: number) => {
+    return getSortedCandidatures(
+      candidatures.filter((c) => {
+        if (c.offreId === offreId) return true;
+
+        // Fallback: matching par titre pour stages/PFE sans offreId
+        if ((c.type === "stage" || c.type === "pfe") && selectedOffre) {
+          const posteCandidat = c.poste?.toLowerCase();
+          const titreOffre = selectedOffre.titre.toLowerCase();
+          return (
+            posteCandidat?.includes(titreOffre) ||
+            titreOffre.includes(posteCandidat || "")
+          );
+        }
+
+        return false;
+      }),
+      sortBy,
+      sortOrder
+    );
+  };
+
+  if (!token)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Redirection...
+      </div>
+    );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-white/20 sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200 sticky top-0 z-40">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <button 
-              onClick={() => navigate("/")}
-              className="flex items-center space-x-3 group"
-            >
-              <img 
-                src="/logo.png" 
-                alt="Logo C4E Africa" 
-                className="h-12 w-12 rounded-2xl shadow-lg border-2 border-white/50 group-hover:shadow-xl transition-all duration-300" 
+            {/* Logo cliquable */}
+            <Link to="/">
+              <img
+                src="/logo.png"
+                alt="Logo C4E Africa"
+                className="h-10 w-10 rounded-full shadow-md cursor-pointer"
               />
-              <div className="text-left">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Espace Administrateur
-                </h1>
-                <p className="text-gray-600 text-sm">Gestion complète de la plateforme</p>
-              </div>
-            </button>
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Dashboard Administrateur
+            </h1>
           </div>
-          
+
           <div className="flex items-center space-x-4">
-            {/* Bouton modification mot de passe */}
+            {/* Bouton Changer Mot de Passe */}
             <button
-              onClick={() => setShowPasswordModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group"
+              onClick={() => setShowChangePassword(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium shadow-sm"
             >
-              <Key className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:block">Modifier mot de passe</span>
+              <Key className="h-5 w-5" />
+              <span>Changer Mot de Passe</span>
             </button>
 
-            <button 
-              onClick={() => navigate("/")}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group"
+            {/* Bouton Accueil */}
+            <Link
+              to="/"
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
             >
-              <Home className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:block">Accueil</span>
-            </button>
-            
-            <button 
+              Accueil
+            </Link>
+
+            {/* Bouton Déconnexion */}
+            <button
               onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 font-medium shadow-md group"
+              className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
             >
-              <LogOut className="h-5 w-5 group-hover:rotate-12 transition-transform" />
+              <LogOut className="h-5 w-5" />
               <span>Déconnexion</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Contenu principal */}
+      {/* Modale de changement de mot de passe */}
+      {showChangePassword && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold text-gray-800">
+                Changer le mot de passe
+              </h3>
+              <button
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordError("");
+                  setPasswordSuccess("");
+                  setPasswordData({
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {passwordError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  {passwordError}
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de passe actuel
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      currentPassword: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Entrez votre mot de passe actuel"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Entrez le nouveau mot de passe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirmer le nouveau mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Confirmez le nouveau mot de passe"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordError("");
+                  setPasswordSuccess("");
+                  setPasswordData({
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                  });
+                }}
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleChangePassword}
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium"
+              >
+                Changer le mot de passe
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-6 py-8">
-        <AnimatePresence mode="wait">
-          {currentView === "main" && (
-            <motion.div
-              key="main"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <MainView />
-            </motion.div>
-          )}
+        {/* Navigation principale */}
+        <div className="flex justify-center mb-8 space-x-1 bg-white/50 rounded-xl p-1 shadow-md">
+          <button
+            onClick={() => setActiveTab("offres")}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "offres"
+                ? "bg-yellow-500 text-white shadow-lg"
+                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+            }`}
+          >
+            <Briefcase className="h-5 w-5" />
+            <span>Offres d'Emploi</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("candidatures")}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "candidatures"
+                ? "bg-yellow-500 text-white shadow-lg"
+                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+            }`}
+          >
+            <Users className="h-5 w-5" />
+            <span>Candidatures Spontanées - Stage/PFE</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("candidatures-postes")}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "candidatures-postes"
+                ? "bg-yellow-500 text-white shadow-lg"
+                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+            }`}
+          >
+            <Briefcase className="h-5 w-5" />
+            <span>Candidatures par Postes</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("archives")}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "archives"
+                ? "bg-yellow-500 text-white shadow-lg"
+                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+            }`}
+          >
+            <Archive className="h-5 w-5" />
+            <span>Archives</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("utilisateurs")}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "utilisateurs"
+                ? "bg-yellow-500 text-white shadow-lg"
+                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+            }`}
+          >
+            <Shield className="h-5 w-5" />
+            <span>Gestion des Utilisateurs</span>
+          </button>
+        </div>
 
-          {currentView === "gestion-utilisateurs" && (
-            <motion.div
-              key="gestion-utilisateurs"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <GestionUtilisateurs />
-            </motion.div>
-          )}
+        {/* Statistiques globales */}
+        {(activeTab === "candidatures" ||
+          activeTab === "candidatures-postes") && <StatsOverview />}
 
-          {currentView === "gestion-candidatures" && (
-            <motion.div
-              key="gestion-candidatures"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <GestionCandidatures />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Contenu des onglets */}
+        {activeTab === "offres" && (
+          <section className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900 text-center">
+              Gestion des Offres d'Emploi
+            </h2>
+
+            {errorOffres && (
+              <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+                {errorOffres}
+              </div>
+            )}
+            {loadingOffres && (
+              <div className="text-center py-8 text-gray-600">
+                Chargement des offres...
+              </div>
+            )}
+
+            <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+              <h3 className="text-xl font-semibold mb-6 text-gray-800">
+                {editingOffre
+                  ? "Modifier l'Offre"
+                  : "Ajouter une Nouvelle Offre"}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Titre <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Développeur Full Stack"
+                    value={
+                      editingOffre ? editingOffre.titre : nouvelleOffre.titre
+                    }
+                    onChange={(e) =>
+                      editingOffre
+                        ? setEditingOffre({
+                            ...editingOffre,
+                            titre: e.target.value,
+                          })
+                        : setNouvelleOffre({
+                            ...nouvelleOffre,
+                            titre: e.target.value,
+                          })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={
+                      editingOffre ? editingOffre.type : nouvelleOffre.type
+                    }
+                    onChange={(e) =>
+                      editingOffre
+                        ? setEditingOffre({
+                            ...editingOffre,
+                            type: e.target.value as OffreEmploi["type"],
+                          })
+                        : setNouvelleOffre({
+                            ...nouvelleOffre,
+                            type: e.target.value as OffreEmploi["type"],
+                          })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  >
+                    <option value="CDI">CDI</option>
+                    <option value="CDD 12 mois">CDD 12 mois</option>
+                    <option value="Stage">Stage</option>
+                    <option value="PFE">PFE</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Localisation <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Casablanca, Maroc"
+                    value={
+                      editingOffre
+                        ? editingOffre.localisation
+                        : nouvelleOffre.localisation
+                    }
+                    onChange={(e) =>
+                      editingOffre
+                        ? setEditingOffre({
+                            ...editingOffre,
+                            localisation: e.target.value,
+                          })
+                        : setNouvelleOffre({
+                            ...nouvelleOffre,
+                            localisation: e.target.value,
+                          })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Salaire (optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 5000 MAD"
+                    value={
+                      editingOffre
+                        ? editingOffre.salaire || ""
+                        : nouvelleOffre.salaire
+                    }
+                    onChange={(e) =>
+                      editingOffre
+                        ? setEditingOffre({
+                            ...editingOffre,
+                            salaire: e.target.value,
+                          })
+                        : setNouvelleOffre({
+                            ...nouvelleOffre,
+                            salaire: e.target.value,
+                          })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date d'Expiration <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={
+                      editingOffre
+                        ? editingOffre.dateExpiration
+                        : nouvelleOffre.dateExpiration
+                    }
+                    onChange={(e) =>
+                      editingOffre
+                        ? setEditingOffre({
+                            ...editingOffre,
+                            dateExpiration: e.target.value,
+                          })
+                        : setNouvelleOffre({
+                            ...nouvelleOffre,
+                            dateExpiration: e.target.value,
+                          })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    placeholder="Description détaillée de l'offre..."
+                    value={
+                      editingOffre
+                        ? editingOffre.description
+                        : nouvelleOffre.description
+                    }
+                    onChange={(e) =>
+                      editingOffre
+                        ? setEditingOffre({
+                            ...editingOffre,
+                            description: e.target.value,
+                          })
+                        : setNouvelleOffre({
+                            ...nouvelleOffre,
+                            description: e.target.value,
+                          })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                    rows={4}
+                  />
+                </div>
+
+                {/* Section des exigences dynamiques */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Exigences du poste
+                  </label>
+
+                  {editingOffre ? (
+                    // Mode édition
+                    <div className="space-y-3">
+                      {editingExigences.map((exigence, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="text"
+                            placeholder={`Exigence ${
+                              index + 1
+                            } (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                            value={exigence}
+                            onChange={(e) =>
+                              mettreAJourChampExigenceEdit(
+                                index,
+                                e.target.value
+                              )
+                            }
+                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                          />
+                          {editingExigences.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => supprimerChampExigenceEdit(index)}
+                              className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                              title="Supprimer cette exigence"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={ajouterChampExigenceEdit}
+                        className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Ajouter une exigence</span>
+                      </button>
+                    </div>
+                  ) : (
+                    // Mode création
+                    <div className="space-y-3">
+                      {exigencesFields.map((exigence, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="text"
+                            placeholder={`Exigence ${
+                              index + 1
+                            } (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                            value={exigence}
+                            onChange={(e) =>
+                              mettreAJourChampExigence(index, e.target.value)
+                            }
+                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                          />
+                          {exigencesFields.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => supprimerChampExigence(index)}
+                              className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                              title="Supprimer cette exigence"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={ajouterChampExigence}
+                        className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Ajouter une exigence</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-500 mt-2">
+                    Chaque exigence sera stockée individuellement et pourra être
+                    utilisée pour le matching avec les candidats.
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-4 mt-6">
+                <button
+                  onClick={
+                    editingOffre
+                      ? () => modifierOffre(editingOffre)
+                      : ajouterOffre
+                  }
+                  disabled={
+                    editingOffre
+                      ? !editingOffre.titre ||
+                        !editingOffre.description ||
+                        !editingOffre.dateExpiration ||
+                        !editingOffre.localisation
+                      : !nouvelleOffre.titre ||
+                        !nouvelleOffre.description ||
+                        !nouvelleOffre.dateExpiration ||
+                        !nouvelleOffre.localisation
+                  }
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 shadow-md transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>{editingOffre ? "Modifier" : "Ajouter"}</span>
+                </button>
+                {editingOffre && (
+                  <button
+                    onClick={() => {
+                      setEditingOffre(null);
+                      setEditingExigences([""]);
+                    }}
+                    className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 shadow-md transition-all duration-200 font-medium"
+                  >
+                    Annuler
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                        Titre
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                        Type
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                        Localisation
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                        Salaire
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                        Expiration
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                        Statut
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {offres.map((offre) => (
+                      <tr
+                        key={offre.id}
+                        className="hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                          {offre.titre}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {offre.type}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {offre.localisation}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {offre.salaire || "N/A"}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {new Date(offre.dateExpiration).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                              offre.statut === "active"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {offre.statut}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 space-x-2">
+                          <button
+                            onClick={() => handleEditClick(offre)}
+                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            title="Modifier"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => supprimerOffre(offre.id)}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "candidatures" && (
+          <section className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900 text-center">
+              Gestion des Candidatures Spontanées & Stage/PFE
+            </h2>
+
+            <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
+              <select
+                value={filterType}
+                onChange={(e) =>
+                  setFilterType(
+                    e.target.value as "tous" | "stage_spontane" | "spontanee"
+                  )
+                }
+                className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
+              >
+                <option value="tous">Toutes les candidatures spontanées</option>
+                <option value="stage_spontane">Stages/PFE Spontanés</option>
+                <option value="spontanee">
+                  Candidatures spontanées générales
+                </option>
+              </select>
+
+              <div className="flex items-center space-x-2">
+                <Filter className="h-5 w-5 text-gray-600" />
+                <select
+                  value={sortBy}
+                  onChange={(e) =>
+                    setSortBy(
+                      e.target.value as
+                        | "date"
+                        | "diplome"
+                        | "competence"
+                        | "experience"
+                    )
+                  }
+                  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
+                >
+                  <option value="date">Trier par date</option>
+                  <option value="diplome">Trier par diplôme</option>
+                  <option value="competence">Trier par compétences</option>
+                  <option value="experience">Trier par expérience</option>
+                </select>
+                <button
+                  onClick={() =>
+                    setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                  }
+                  className="p-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all duration-200"
+                >
+                  {sortOrder === "asc" ? "↑" : "↓"}
+                </button>
+              </div>
+            </div>
+
+            {errorCandidatures && (
+              <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+                {errorCandidatures}
+              </div>
+            )}
+            {loadingCandidatures && (
+              <div className="text-center py-8 text-gray-600">
+                Chargement des candidatures spontanées...
+              </div>
+            )}
+
+            {["stage_spontane", "spontanee"].map((type) => {
+              if (filterType !== "tous" && filterType !== type) return null;
+
+              const candidaturesByType =
+                type === "stage_spontane"
+                  ? candidatures.filter((c) => c.type === "stage_spontane")
+                  : candidatures.filter((c) => c.type === "spontanee");
+
+              // DEBUG: Vérifier le filtrage
+              console.log(
+                `🔍 DEBUG - Candidatures pour ${type}:`,
+                candidaturesByType
+              );
+
+              const sortedCandidatures = getSortedCandidatures(
+                candidaturesByType,
+                sortBy,
+                sortOrder
+              );
+
+              // Afficher même si vide pour voir le message
+              return (
+                <div
+                  key={type}
+                  className="bg-white rounded-xl shadow-lg overflow-hidden mb-6 w-full max-w-[98vw] mx-auto"
+                >
+                  <h3 className="text-lg font-semibold text-gray-700 bg-gray-100 px-6 py-3 capitalize">
+                    {type === "stage_spontane"
+                      ? "Candidatures Spontanées Stage/PFE"
+                      : "Candidatures Spontanées Générales"}{" "}
+                    <span className="ml-2 bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
+                      {sortedCandidatures.length}
+                    </span>
+                  </h3>
+
+                  {sortedCandidatures.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <Book className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                      <h4 className="text-lg font-semibold text-gray-700 mb-2">
+                        Aucune candidature{" "}
+                        {type === "stage_spontane"
+                          ? "spontanée de stage/PFE"
+                          : "spontanée générale"}
+                      </h4>
+                      <p className="text-gray-500">
+                        {type === "stage_spontane"
+                          ? "Aucune candidature spontanée de stage ou PFE n'a été reçue pour le moment."
+                          : "Aucune candidature spontanée générale n'a été reçue pour le moment."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                          <tr>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Type
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Nom
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Email
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Diplôme
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Score Compétences
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Expérience
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Date Soumission
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Statut
+                            </th>
+                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-gray-200">
+                          {sortedCandidatures.map((cand) => (
+                            <tr
+                              key={cand.id}
+                              className="hover:bg-gray-50 transition-colors duration-200"
+                            >
+                              <td className="px-6 py-4 font-medium text-gray-900 capitalize flex items-center space-x-2">
+                                {cand.type === "stage_spontane" && (
+                                  <Book className="h-4 w-4" />
+                                )}
+                                {cand.type === "spontanee" && (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                                <span>
+                                  {cand.type === "stage_spontane"
+                                    ? "Stage"
+                                    : cand.type === "spontanee"
+                                    ? "Candidature Spontanée"
+                                    : cand.type}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-gray-900">
+                                {cand.nom}
+                              </td>
+                              <td className="px-6 py-4 text-gray-600">
+                                {cand.email}
+                              </td>
+                              <td className="px-6 py-4 text-gray-600">
+                                <DisplayDiplome diplome={cand.diplome} />
+                              </td>
+                              <td className="px-6 py-4 text-gray-600">
+                                <DisplayCompetenceScore
+                                  score={cand.competenceScore}
+                                />
+                              </td>
+                              <td className="px-4 py-2 text-gray-600 w-[100px] text-sm truncate">
+                                <DisplayExperience
+                                  experience={cand.experience}
+                                />
+                              </td>
+                              <td className="px-6 py-4 text-gray-600">
+                                {new Date(
+                                  cand.dateSoumission
+                                ).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                    cand.statut === "en_attente"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : cand.statut === "acceptee"
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  {cand.statut}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 space-x-2">
+                                <select
+                                  value={cand.statut}
+                                  onChange={(e) =>
+                                    changerStatut(
+                                      cand,
+                                      e.target.value as Candidature["statut"]
+                                    )
+                                  }
+                                  className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                >
+                                  <option value="en_attente">En attente</option>
+                                  <option value="acceptee">Acceptée</option>
+                                  <option value="refusee">Refusée</option>
+                                </select>
+                                <button
+                                  onClick={() => setSelectedCandidature(cand)}
+                                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  title="Voir détails"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => supprimerCandidature(cand)}
+                                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                  title="Supprimer cette candidature"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {selectedCandidature && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+                  <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 className="text-2xl font-bold text-gray-800">
+                      Détails de la candidature
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh] custom-scrollbar">
+                    <p>
+                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                    </p>
+                    <p>
+                      <strong>📧 Email :</strong> {selectedCandidature.email}
+                    </p>
+                    {selectedCandidature.telephone && (
+                      <p>
+                        <strong>📞 Téléphone :</strong>{" "}
+                        {selectedCandidature.telephone}
+                      </p>
+                    )}
+                    {selectedCandidature.diplome && (
+                      <p>
+                        <strong>🎓 Diplôme :</strong>{" "}
+                        {selectedCandidature.diplome}
+                      </p>
+                    )}
+                    {selectedCandidature.experience && (
+                      <p>
+                        <strong>💼 Expérience :</strong>{" "}
+                        {selectedCandidature.experience}
+                      </p>
+                    )}
+                    {selectedCandidature.competenceScore && (
+                      <p>
+                        <strong>⭐ Score de compétences :</strong>{" "}
+                        {selectedCandidature.competenceScore}%
+                      </p>
+                    )}
+                    <p>
+                      <strong>📅 Date de soumission :</strong>{" "}
+                      {new Date(
+                        selectedCandidature.dateSoumission
+                      ).toLocaleDateString()}
+                    </p>
+
+                    {/* Ajout du type spécifique dans les détails */}
+                    <p>
+                      <strong>📋 Type de candidature :</strong>
+                      <span
+                        className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                          selectedCandidature.type === "stage_spontane"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {selectedCandidature.type === "stage_spontane"
+                          ? "Stage/PFE Spontané"
+                          : "Spontanée Générale"}
+                      </span>
+                    </p>
+
+                    {selectedCandidature.cvUrl && (
+                      <p>
+                        <strong>📎 CV :</strong>{" "}
+                        <a
+                          href={getFileUrl(selectedCandidature.cvUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center space-x-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Télécharger le CV (PDF)</span>
+                        </a>
+                      </p>
+                    )}
+
+                    {selectedCandidature.lettreMotivationUrl && (
+                      <p>
+                        <strong>📝 Lettre de motivation :</strong>{" "}
+                        <a
+                          href={getFileUrl(
+                            selectedCandidature.lettreMotivationUrl
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center space-x-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Télécharger la lettre de motivation (PDF)</span>
+                        </a>
+                      </p>
+                    )}
+
+                    {selectedCandidature.motivation &&
+                      !selectedCandidature.lettreMotivationUrl && (
+                        <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-700 max-h-40 overflow-y-auto">
+                          <strong>📝 Lettre de motivation :</strong>
+                          <p className="whitespace-pre-wrap mt-1">
+                            {selectedCandidature.motivation}
+                          </p>
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      onClick={() => supprimerCandidature(selectedCandidature)}
+                      className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Supprimer</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedCandidature(null)}
+                      className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "candidatures-postes" && (
+          <section className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900 text-center">
+              Gestion des Candidatures par Postes
+            </h2>
+
+            {/* Onglets pour filtrer par type d'offre */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-white rounded-full p-2 shadow-lg border border-gray-200">
+                <button
+                  onClick={() => {
+                    setOngletCandidatures("emploi");
+                    setViewMode("postes");
+                    setSelectedOffre(null);
+                  }}
+                  className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
+                    ongletCandidatures === "emploi"
+                      ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  CDI / CDD
+                </button>
+                <button
+                  onClick={() => {
+                    setOngletCandidatures("stage");
+                    setViewMode("postes");
+                    setSelectedOffre(null);
+                  }}
+                  className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
+                    ongletCandidatures === "stage"
+                      ? "bg-gradient-to-r from-green-500 to-teal-600 text-white shadow-lg"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Stages / PFE
+                </button>
+              </div>
+            </div>
+
+            {/* Affichage conditionnel */}
+            {viewMode === "postes" && (
+              <PostesList filtreType={ongletCandidatures} />
+            )}
+            {viewMode === "candidatures" && selectedOffre && (
+              <CandidaturesForPoste filtreType={ongletCandidatures} />
+            )}
+
+            {/* Modal de détails de candidature */}
+            {selectedCandidature && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+                  <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 className="text-2xl font-bold text-gray-800">
+                      Détails de la candidature
+                      <span className="text-blue-600 font-semibold">
+                        {" "}
+                        — {selectedCandidature.poste || "Poste"}
+                      </span>
+                      <span
+                        className={`ml-2 text-sm px-2 py-1 rounded-full ${
+                          selectedCandidature.type === "emploi"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {selectedCandidature.type === "emploi"
+                          ? "CDI/CDD"
+                          : "Stage/PFE"}
+                      </span>
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh] custom-scrollbar">
+                    <p>
+                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                    </p>
+                    <p>
+                      <strong>📧 Email :</strong> {selectedCandidature.email}
+                    </p>
+                    {selectedCandidature.telephone && (
+                      <p>
+                        <strong>📞 Téléphone :</strong>{" "}
+                        {selectedCandidature.telephone}
+                      </p>
+                    )}
+
+                    <p>
+                      <strong>📁 Type :</strong>
+                      <span
+                        className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                          selectedCandidature.type === "emploi"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {selectedCandidature.type === "emploi"
+                          ? "Emploi (CDI/CDD)"
+                          : "Stage/PFE"}
+                      </span>
+                    </p>
+
+                    {selectedCandidature.type === "emploi" &&
+                      selectedCandidature.experience && (
+                        <p>
+                          <strong>💼 Expérience :</strong>{" "}
+                          {selectedCandidature.experience}
+                        </p>
+                      )}
+
+                    {(selectedCandidature.type === "stage" ||
+                      selectedCandidature.type === "pfe") &&
+                      selectedCandidature.diplome && (
+                        <p>
+                          <strong>🎓 Diplôme/Niveau :</strong>{" "}
+                          {selectedCandidature.diplome}
+                        </p>
+                      )}
+
+                    {selectedCandidature.diplome &&
+                      selectedCandidature.type === "emploi" && (
+                        <p>
+                          <strong>🎓 Diplôme :</strong>{" "}
+                          {selectedCandidature.diplome}
+                        </p>
+                      )}
+
+                    {selectedCandidature.competenceScore && (
+                      <p>
+                        <strong>⭐ Score de compétences :</strong>{" "}
+                        {selectedCandidature.competenceScore}%
+                      </p>
+                    )}
+                    <p>
+                      <strong>📅 Date de soumission :</strong>{" "}
+                      {new Date(
+                        selectedCandidature.dateSoumission
+                      ).toLocaleDateString()}
+                    </p>
+
+                    {selectedCandidature.cvUrl && (
+                      <p>
+                        <strong>📎 CV :</strong>{" "}
+                        <a
+                          href={getFileUrl(selectedCandidature.cvUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center space-x-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Télécharger le CV (PDF)</span>
+                        </a>
+                      </p>
+                    )}
+
+                    {selectedCandidature.lettreMotivationUrl && (
+                      <p>
+                        <strong>📝 Lettre de motivation :</strong>{" "}
+                        <a
+                          href={getFileUrl(
+                            selectedCandidature.lettreMotivationUrl
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center space-x-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Télécharger la lettre de motivation (PDF)</span>
+                        </a>
+                      </p>
+                    )}
+
+                    {selectedCandidature.motivation &&
+                      !selectedCandidature.lettreMotivationUrl && (
+                        <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-700 max-h-40 overflow-y-auto">
+                          <strong>📝 Lettre de motivation :</strong>
+                          <p className="whitespace-pre-wrap mt-1">
+                            {selectedCandidature.motivation}
+                          </p>
+                        </div>
+                      )}
+
+                    {selectedCandidature.domaine && (
+                      <p>
+                        <strong>🌍 Domaine :</strong>{" "}
+                        {selectedCandidature.domaine}
+                      </p>
+                    )}
+
+                    {(selectedCandidature.type === "stage" ||
+                      selectedCandidature.type === "pfe") &&
+                      selectedCandidature.duree && (
+                        <p>
+                          <strong>⏱️ Durée :</strong>{" "}
+                          {selectedCandidature.duree}
+                        </p>
+                      )}
+
+                    <p>
+                      <strong>📋 Type de candidature :</strong>
+                      <span
+                        className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                          selectedCandidature.offreId
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-orange-100 text-orange-800"
+                        }`}
+                      >
+                        {selectedCandidature.offreId
+                          ? "Sur offre spécifique"
+                          : "Candidature spontanée"}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      onClick={() => supprimerCandidature(selectedCandidature)}
+                      className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Supprimer</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedCandidature(null)}
+                      className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "archives" && (
+          <section className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Archives des Candidatures
+              </h2>
+              <p className="text-gray-600 text-lg">
+                Consultation des candidatures déjà traitées (acceptées/refusées)
+              </p>
+            </div>
+
+            {/* Statistiques des archives */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                <Archive className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {statsArchives.total}
+                </h3>
+                <p className="text-gray-600">Total archivé</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {statsArchives.acceptees}
+                </h3>
+                <p className="text-gray-600">Candidatures acceptées</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {statsArchives.refusees}
+                </h3>
+                <p className="text-gray-600">Candidatures refusées</p>
+              </div>
+            </div>
+
+            {/* Filtres archives */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
+                <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full">
+                  <div className="flex items-center space-x-4 flex-1">
+                    <Filter className="h-5 w-5 text-gray-600" />
+                    <select
+                      value={archiveFilter}
+                      onChange={(e) =>
+                        setArchiveFilter(
+                          e.target.value as "tous" | "acceptees" | "refusees"
+                        )
+                      }
+                      className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm w-full md:w-auto"
+                    >
+                      <option value="tous">Toutes les archives</option>
+                      <option value="acceptees">Candidatures acceptées</option>
+                      <option value="refusees">Candidatures refusées</option>
+                    </select>
+                  </div>
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher par nom, email ou poste..."
+                      value={searchArchive}
+                      onChange={(e) => setSearchArchive(e.target.value)}
+                      className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
+                    />
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 whitespace-nowrap">
+                  {candidaturesRecherchees.length} candidature(s) trouvée(s)
+                </div>
+              </div>
+            </div>
+
+            {/* Tableau des archives */}
+            {loadingCandidatures ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Chargement des archives...</p>
+              </div>
+            ) : candidaturesRecherchees.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+                <Archive className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-gray-700 mb-2">
+                  {searchArchive
+                    ? "Aucun résultat trouvé"
+                    : "Aucune candidature archivée"}
+                </h4>
+                <p className="text-gray-500">
+                  {searchArchive
+                    ? "Aucune candidature ne correspond à votre recherche."
+                    : "Les candidatures acceptées ou refusées apparaîtront ici."}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                      <tr>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Nom
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Email
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Type
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Diplôme
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Score
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Date
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Statut
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {candidaturesRecherchees.map((cand) => (
+                        <tr
+                          key={`${cand.id}-${cand.type}`}
+                          className="hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <td className="px-6 py-4 text-gray-900">
+                            {cand.nom}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {cand.email}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                cand.type === "emploi"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : cand.type === "stage"
+                                  ? "bg-green-100 text-green-800"
+                                  : cand.type === "pfe"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : cand.type === "stage_spontane"
+                                  ? "bg-teal-100 text-teal-800"
+                                  : "bg-orange-100 text-orange-800"
+                              }`}
+                            >
+                              {cand.type === "spontanee"
+                                ? "Spontanée"
+                                : cand.type === "emploi"
+                                ? "CDI/CDD"
+                                : cand.type === "stage"
+                                ? "Stage"
+                                : cand.type === "pfe"
+                                ? "PFE"
+                                : cand.type === "stage_spontane"
+                                ? "Stage Spontané"
+                                : cand.type}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            <DisplayDiplome diplome={cand.diplome} />
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            <DisplayCompetenceScore
+                              score={cand.competenceScore}
+                            />
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {new Date(cand.dateSoumission).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                cand.statut === "acceptee"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {cand.statut === "acceptee"
+                                ? "Acceptée"
+                                : "Refusée"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 space-x-2">
+                            <button
+                              onClick={() => setSelectedCandidature(cand)}
+                              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              title="Voir détails"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => supprimerCandidature(cand)}
+                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                              title="Supprimer cette candidature"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Modal de détails pour les archives */}
+            {selectedCandidature && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+                  <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 className="text-2xl font-bold text-gray-800">
+                      Détails de la candidature archivée
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          selectedCandidature.statut === "acceptee"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {selectedCandidature.statut === "acceptee"
+                          ? "Acceptée"
+                          : "Refusée"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
+                    <p>
+                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                    </p>
+                    <p>
+                      <strong>📧 Email :</strong> {selectedCandidature.email}
+                    </p>
+                    {selectedCandidature.telephone && (
+                      <p>
+                        <strong>📞 Téléphone :</strong>{" "}
+                        {selectedCandidature.telephone}
+                      </p>
+                    )}
+                    {selectedCandidature.diplome && (
+                      <p>
+                        <strong>🎓 Diplôme :</strong>{" "}
+                        {selectedCandidature.diplome}
+                      </p>
+                    )}
+                    {selectedCandidature.experience && (
+                      <p>
+                        <strong>💼 Expérience :</strong>{" "}
+                        {selectedCandidature.experience}
+                      </p>
+                    )}
+                    {selectedCandidature.competenceScore && (
+                      <p>
+                        <strong>⭐ Score de compétences :</strong>{" "}
+                        {selectedCandidature.competenceScore}%
+                      </p>
+                    )}
+                    <p>
+                      <strong>📅 Date de soumission :</strong>{" "}
+                      {new Date(
+                        selectedCandidature.dateSoumission
+                      ).toLocaleDateString()}
+                    </p>
+                    <p>
+                      <strong>📋 Type :</strong>
+                      <span
+                        className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                          selectedCandidature.type === "emploi"
+                            ? "bg-blue-100 text-blue-800"
+                            : selectedCandidature.type === "stage"
+                            ? "bg-green-100 text-green-800"
+                            : selectedCandidature.type === "pfe"
+                            ? "bg-purple-100 text-purple-800"
+                            : selectedCandidature.type === "stage_spontane"
+                            ? "bg-teal-100 text-teal-800"
+                            : "bg-orange-100 text-orange-800"
+                        }`}
+                      >
+                        {selectedCandidature.type === "spontanee"
+                          ? "Spontanée"
+                          : selectedCandidature.type === "emploi"
+                          ? "CDI/CDD"
+                          : selectedCandidature.type === "stage"
+                          ? "Stage"
+                          : selectedCandidature.type === "pfe"
+                          ? "PFE"
+                          : selectedCandidature.type === "stage_spontane"
+                          ? "Stage Spontané"
+                          : selectedCandidature.type}
+                      </span>
+                    </p>
+
+                    {selectedCandidature.cvUrl && (
+                      <p>
+                        <strong>📎 CV :</strong>{" "}
+                        <a
+                          href={getFileUrl(selectedCandidature.cvUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center space-x-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Télécharger le CV</span>
+                        </a>
+                      </p>
+                    )}
+
+                    {selectedCandidature.lettreMotivationUrl && (
+                      <p>
+                        <strong>📝 Lettre de motivation :</strong>{" "}
+                        <a
+                          href={getFileUrl(
+                            selectedCandidature.lettreMotivationUrl
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center space-x-1"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span>Télécharger la lettre</span>
+                        </a>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => setSelectedCandidature(null)}
+                      className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "utilisateurs" && (
+          <section className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Gestion des Utilisateurs
+              </h2>
+              <p className="text-gray-600 text-lg">
+                Création et gestion des comptes administrateurs et gestionnaires
+              </p>
+            </div>
+
+            {/* Bouton pour ajouter un utilisateur */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAddUser(true)}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
+              >
+                <UserPlus className="h-5 w-5" />
+                <span>Ajouter un Utilisateur</span>
+              </button>
+            </div>
+
+            {errorUsers && (
+              <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+                {errorUsers}
+              </div>
+            )}
+
+            {loadingUsers ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Chargement des utilisateurs...</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+                <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-gray-700 mb-2">
+                  Aucun utilisateur trouvé
+                </h4>
+                <p className="text-gray-500">
+                  Commencez par créer votre premier utilisateur.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                      <tr>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Nom
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Email
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Rôle
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Date de création
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Statut
+                        </th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {users.map((user) => (
+                        <tr
+                          key={user.id}
+                          className="hover:bg-gray-50 transition-colors duration-200"
+                        >
+                          <td className="px-6 py-4 text-gray-900">
+                            {user.nom}
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {user.email}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                user.role === "admin"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-blue-100 text-blue-800"
+                              }`}
+                            >
+                              {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">
+                            {new Date(user.date_creation).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                user.statut === "actif"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {user.statut === "actif" ? "Actif" : "Inactif"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 space-x-2">
+                            <button
+                              onClick={() => handleToggleUserStatus(user.id, user.statut)}
+                              className={`p-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 ${
+                                user.statut === "actif"
+                                  ? "text-red-600 hover:text-red-800 hover:bg-red-50 focus:ring-red-500"
+                                  : "text-green-600 hover:text-green-800 hover:bg-green-50 focus:ring-green-500"
+                              }`}
+                              title={user.statut === "actif" ? "Désactiver" : "Activer"}
+                            >
+                              {user.statut === "actif" ? (
+                                <XCircle className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                              title="Supprimer cet utilisateur"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Modal pour ajouter un utilisateur */}
+            {showAddUser && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-2xl font-bold text-gray-800">
+                      Ajouter un Utilisateur
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setShowAddUser(false);
+                        setNewUser({
+                          nom: "",
+                          email: "",
+                          password: "",
+                          role: "gestionnaire",
+                        });
+                        setErrorUsers("");
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      <XCircle className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {errorUsers && (
+                      <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                        {errorUsers}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nom <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newUser.nom}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, nom: e.target.value })
+                        }
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Entrez le nom complet"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={newUser.email}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, email: e.target.value })
+                        }
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Entrez l'email"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Mot de passe <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newUser.password}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, password: e.target.value })
+                        }
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Entrez le mot de passe"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Rôle <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={newUser.role}
+                        onChange={(e) =>
+                          setNewUser({
+                            ...newUser,
+                            role: e.target.value as "admin" | "gestionnaire",
+                          })
+                        }
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="gestionnaire">Gestionnaire</option>
+                        <option value="admin">Administrateur</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowAddUser(false);
+                        setNewUser({
+                          nom: "",
+                          email: "",
+                          password: "",
+                          role: "gestionnaire",
+                        });
+                        setErrorUsers("");
+                      }}
+                      className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleAddUser}
+                      disabled={!newUser.nom || !newUser.email || !newUser.password}
+                      className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Créer l'utilisateur
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
       </div>
-
-      {/* Modal modification mot de passe */}
-      {showPasswordModal && <PasswordModal />}
     </div>
   );
 };
 
-export default AdminDashboard;
+export default DashboardAdmin;
