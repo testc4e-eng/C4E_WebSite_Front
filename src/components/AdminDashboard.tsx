@@ -334,28 +334,44 @@ const DashboardAdmin = () => {
     try {
       setLoadingUsers(true);
       setErrorUsers("");
+      console.log("🔄 Chargement des utilisateurs...");
+      
       const { res, data } = await api.get<User[]>("/api/users", token);
-      if (!res.ok) throw new Error("Erreur lors du chargement des utilisateurs.");
+      console.log("📨 Réponse API utilisateurs:", { status: res.status, data });
+      
+      if (!res.ok) {
+        throw new Error(data.message || `Erreur ${res.status} lors du chargement des utilisateurs`);
+      }
+      
       setUsers(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+      console.error("❌ Erreur chargement utilisateurs:", err);
       setErrorUsers(message);
     } finally {
       setLoadingUsers(false);
     }
   };
 
-  // Fonctions pour la gestion des utilisateurs
+  // Fonctions pour la gestion des utilisateurs - CORRIGÉES
   const handleAddUser = async () => {
     try {
       setErrorUsers("");
+      console.log("🔄 Création d'un nouvel utilisateur:", newUser);
+      
       const { res, data } = await api.post("/api/users", newUser, token);
-      if (!res.ok) throw new Error(data.message || "Erreur lors de la création de l'utilisateur.");
+      console.log("📨 Réponse création utilisateur:", { status: res.status, data });
+      
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Erreur lors de la création de l'utilisateur.");
+      }
+      
       setUsers(prev => [...prev, data.user]);
       setShowAddUser(false);
       setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur création utilisateur:", err);
       setErrorUsers(message);
     }
   };
@@ -363,11 +379,19 @@ const DashboardAdmin = () => {
   const handleDeleteUser = async (userId: number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
     try {
-      const { res } = await api.delete(`/api/users/${userId}`, token);
-      if (!res.ok) throw new Error("Erreur lors de la suppression de l'utilisateur.");
+      console.log("🔄 Suppression de l'utilisateur:", userId);
+      
+      const { res, data } = await api.delete(`/api/users/${userId}`, token);
+      console.log("📨 Réponse suppression utilisateur:", { status: res.status, data });
+      
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Erreur lors de la suppression de l'utilisateur.");
+      }
+      
       setUsers(prev => prev.filter(user => user.id !== userId));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur suppression utilisateur:", err);
       setErrorUsers(message);
     }
   };
@@ -375,17 +399,25 @@ const DashboardAdmin = () => {
   const handleToggleUserStatus = async (userId: number, currentStatus: string) => {
     try {
       const newStatus = currentStatus === "actif" ? "inactif" : "actif";
+      console.log("🔄 Changement de statut utilisateur:", { userId, newStatus });
+      
       const { res, data } = await api.put(
         `/api/users/${userId}/status`,
         { statut: newStatus },
         token
       );
-      if (!res.ok) throw new Error("Erreur lors de la modification du statut.");
+      console.log("📨 Réponse changement statut:", { status: res.status, data });
+      
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Erreur lors de la modification du statut.");
+      }
+      
       setUsers(prev => prev.map(user => 
         user.id === userId ? { ...user, statut: newStatus } : user
       ));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur changement statut:", err);
       setErrorUsers(message);
     }
   };
@@ -638,59 +670,59 @@ const DashboardAdmin = () => {
     navigate("/login");
   };
 
-const handleChangePassword = async () => {
-  setPasswordError("");
-  setPasswordSuccess("");
-  
-  try {
-    // Validation
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      setPasswordError("Tous les champs sont requis");
-      return;
-    }
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("Les nouveaux mots de passe ne correspondent pas");
-      return;
-    }
-
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError("Le mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
-
-    console.log("🔄 Tentative de changement de mot de passe...");
-
-    // Utilisation de votre utilitaire API
-    const { res, data } = await api.put(
-      "/api/auth/change-password",
-      {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-        confirmPassword: passwordData.confirmPassword
-      },
-      token
-    );
-
-    console.log("📨 Réponse du serveur:", data);
-
-    if (!res.ok) {
-      throw new Error(data.message || data.error || `Erreur HTTP ${res.status}`);
-    }
-
-    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    setPasswordSuccess("");
     
-    // Fermer le modal après 2 secondes
-    setTimeout(() => {
-      setShowChangePassword(false);
-    }, 2000);
+    try {
+      // Validation
+      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+        setPasswordError("Tous les champs sont requis");
+        return;
+      }
 
-  } catch (error: any) {
-    console.error("❌ Erreur changement mot de passe:", error);
-    setPasswordError(error.message || "Une erreur inconnue est survenue");
-  }
-};
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError("Les nouveaux mots de passe ne correspondent pas");
+        return;
+      }
+
+      if (passwordData.newPassword.length < 6) {
+        setPasswordError("Le mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
+
+      console.log("🔄 Tentative de changement de mot de passe...");
+
+      // Utilisation de votre utilitaire API
+      const { res, data } = await api.put(
+        "/api/auth/change-password",
+        {
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+          confirmPassword: passwordData.confirmPassword
+        },
+        token
+      );
+
+      console.log("📨 Réponse du serveur:", data);
+
+      if (!res.ok) {
+        throw new Error(data.message || data.error || `Erreur HTTP ${res.status}`);
+      }
+
+      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      
+      // Fermer le modal après 2 secondes
+      setTimeout(() => {
+        setShowChangePassword(false);
+      }, 2000);
+
+    } catch (error: any) {
+      console.error("❌ Erreur changement mot de passe:", error);
+      setPasswordError(error.message || "Une erreur inconnue est survenue");
+    }
+  };
 
   // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
@@ -1765,7 +1797,7 @@ const handleChangePassword = async () => {
     </div>
   );
 
-  // VUE GESTION DES UTILISATEURS
+  // VUE GESTION DES UTILISATEURS - CORRIGÉE
   const GestionUtilisateursView = () => (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -1878,13 +1910,19 @@ const handleChangePassword = async () => {
         </div>
       )}
 
-      {/* Modal pour ajouter un utilisateur */}
+      {/* Modal pour ajouter un utilisateur - CORRIGÉ */}
       {showAddUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
-              <button onClick={() => setShowAddUser(false)} className="text-gray-400 hover:text-gray-600">
+              <button 
+                onClick={() => {
+                  setShowAddUser(false);
+                  setErrorUsers("");
+                }} 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
@@ -1892,27 +1930,63 @@ const handleChangePassword = async () => {
               {errorUsers && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{errorUsers}</div>}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
-                <input type="text" value={newUser.nom} onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Entrez le nom complet" />
+                <input 
+                  type="text" 
+                  value={newUser.nom} 
+                  onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez le nom complet" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                <input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Entrez l'email" />
+                <input 
+                  type="email" 
+                  value={newUser.email} 
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez l'email" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe *</label>
-                <input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Entrez le mot de passe" />
+                <input 
+                  type="password" 
+                  value={newUser.password} 
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez le mot de passe" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Rôle *</label>
-                <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "gestionnaire" })} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                <select 
+                  value={newUser.role} 
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "gestionnaire" })} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                >
                   <option value="gestionnaire">Gestionnaire</option>
                   <option value="admin">Administrateur</option>
                 </select>
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
-              <button onClick={() => setShowAddUser(false)} className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium">Annuler</button>
-              <button onClick={handleAddUser} disabled={!newUser.nom || !newUser.email || !newUser.password} className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50">Créer l'utilisateur</button>
+              <button 
+                onClick={() => {
+                  setShowAddUser(false);
+                  setErrorUsers("");
+                }} 
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleAddUser} 
+                disabled={!newUser.nom || !newUser.email || !newUser.password}
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Créer l'utilisateur
+              </button>
             </div>
           </div>
         </div>
@@ -2732,15 +2806,33 @@ const handleChangePassword = async () => {
               {passwordSuccess && <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">{passwordSuccess}</div>}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe actuel</label>
-                <input type="password" value={passwordData.currentPassword} onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Entrez votre mot de passe actuel" />
+                <input 
+                  type="password" 
+                  value={passwordData.currentPassword} 
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez votre mot de passe actuel" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nouveau mot de passe</label>
-                <input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Entrez le nouveau mot de passe" />
+                <input 
+                  type="password" 
+                  value={passwordData.newPassword} 
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez le nouveau mot de passe" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Confirmer le nouveau mot de passe</label>
-                <input type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Confirmez le nouveau mot de passe" />
+                <input 
+                  type="password" 
+                  value={passwordData.confirmPassword} 
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Confirmez le nouveau mot de passe" 
+                />
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">

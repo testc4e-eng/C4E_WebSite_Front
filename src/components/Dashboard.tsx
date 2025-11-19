@@ -227,35 +227,41 @@ const Dashboard = () => {
   }, [token, navigate]);
 
   // Charger les données depuis localStorage au montage
-  useEffect(() => {
-    const savedCandidatures = localStorage.getItem('candidatures');
-    if (savedCandidatures) {
-      setCandidatures(JSON.parse(savedCandidatures));
+ // Charger les données depuis localStorage au montage
+useEffect(() => {
+  const savedCandidatures = localStorage.getItem('candidatures');
+  if (savedCandidatures) {
+    try {
+      const parsedCandidatures = JSON.parse(savedCandidatures);
+      setCandidatures(parsedCandidatures);
+    } catch (error) {
+      console.error('Erreur parsing localStorage:', error);
     }
-  }, []);
+  }
+}, []);
 
-  // Sauvegarder les candidatures dans localStorage à chaque modification
-  useEffect(() => {
-    localStorage.setItem('candidatures', JSON.stringify(candidatures));
-    
-    // Calculer les notifications
-    const candidaturesEnAttente = candidatures.filter(c => 
-      c.statut === "en_attente" && !c.ignored
-    );
-    
-    const candidaturesSpontaneesEnAttente = candidaturesEnAttente.filter(c => 
-      c.type === "spontanee" || c.type === "stage_spontane"
-    ).length;
-    
-    const candidaturesPostesEnAttente = candidaturesEnAttente.filter(c => 
-      c.type === "emploi" || c.type === "stage" || c.type === "pfe"
-    ).length;
+// Sauvegarder les candidatures dans localStorage à chaque modification
+useEffect(() => {
+  localStorage.setItem('candidatures', JSON.stringify(candidatures));
+  
+  // Calculer les notifications
+  const candidaturesEnAttente = candidatures.filter(c => 
+    c.statut === "en_attente" && !c.ignored
+  );
+  
+  const candidaturesSpontaneesEnAttente = candidaturesEnAttente.filter(c => 
+    c.type === "spontanee" || c.type === "stage_spontane"
+  ).length;
+  
+  const candidaturesPostesEnAttente = candidaturesEnAttente.filter(c => 
+    c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+  ).length;
 
-    setNotificationCounts({
-      candidatures: candidaturesSpontaneesEnAttente,
-      candidaturesPostes: candidaturesPostesEnAttente
-    });
-  }, [candidatures]);
+  setNotificationCounts({
+    candidatures: candidaturesSpontaneesEnAttente,
+    candidaturesPostes: candidaturesPostesEnAttente
+  });
+}, [candidatures]);
 
   useEffect(() => {
     const fetchOffres = async () => {
@@ -294,61 +300,69 @@ const Dashboard = () => {
   }, [activeTab, token]);
 
   useEffect(() => {
-    const fetchCandidatures = async () => {
-      try {
-        setLoadingCandidatures(true);
-        setErrorCandidatures("");
+const fetchCandidatures = async () => {
+  try {
+    setLoadingCandidatures(true);
+    setErrorCandidatures("");
 
-        if (activeTab === "candidatures") {
-          const { res, data } = await api.get<Candidature[]>("/api/candidatures/spontanees/toutes", token);
+    let url = "";
+    if (activeTab === "candidatures") {
+      url = "/api/candidatures/spontanees/toutes";
+    } else if (activeTab === "candidatures-postes" || activeTab === "archives") {
+      url = "/api/candidatures";
+    }
 
-          if (!res.ok)
-            throw new Error("Erreur lors du chargement des candidatures spontanées.");
+    const { res, data } = await api.get<Candidature[]>(url, token);
 
-          console.log("Données spontanées :", data);
-          // Fusionner avec les données existantes pour préserver l'état ignored
-          setCandidatures(prev => {
-            const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
-            const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-            return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
-          });
-        } else if (activeTab === "candidatures-postes") {
-          const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
+    if (!res.ok) throw new Error("Erreur lors du chargement des candidatures.");
 
-          if (!res.ok)
-            throw new Error("Erreur lors du chargement des candidatures par offres.");
+    // Fusion intelligente : préserver l'état ignored des candidatures existantes
+    setCandidatures(prevCandidatures => {
+      // Créer un Map des candidatures existantes pour recherche rapide
+      const existingCandidaturesMap = new Map();
+      prevCandidatures.forEach(c => {
+        const key = `${c.id}-${c.type}`;
+        existingCandidaturesMap.set(key, c);
+      });
 
-          const candidaturesSurOffres = data.filter(
-            (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
-          );
-
-          // Fusionner avec les données existantes pour préserver l'état ignored
-          setCandidatures(prev => {
-            const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
-            const newCandidatures = candidaturesSurOffres.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-            return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
-          });
-        } else if (activeTab === "archives") {
-          const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
-
-          if (!res.ok)
-            throw new Error("Erreur lors du chargement des archives.");
-
-          // Fusionner avec les données existantes pour préserver l'état ignored
-          setCandidatures(prev => {
-            const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
-            const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-            return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
-          });
+      // Fusionner les nouvelles données avec les existantes
+      const mergedCandidatures = data.map(newCand => {
+        const key = `${newCand.id}-${newCand.type}`;
+        const existingCand = existingCandidaturesMap.get(key);
+        
+        if (existingCand) {
+          // Si la candidature existe déjà, préserver l'état ignored
+          return {
+            ...newCand,
+            ignored: existingCand.ignored || false
+          };
+        } else {
+          // Nouvelle candidature
+          return {
+            ...newCand,
+            ignored: false
+          };
         }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-        console.error("Erreur fetch:", err);
-        setErrorCandidatures(message);
-      } finally {
-        setLoadingCandidatures(false);
-      }
-    };
+      });
+
+      // Ajouter les candidatures ignorées qui ne sont pas dans la réponse API
+      const ignoredCandidatures = prevCandidatures.filter(c => 
+        c.ignored && !data.some(newCand => 
+          newCand.id === c.id && newCand.type === c.type
+        )
+      );
+
+      return [...mergedCandidatures, ...ignoredCandidatures];
+    });
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+    console.error("Erreur fetch:", err);
+    setErrorCandidatures(message);
+  } finally {
+    setLoadingCandidatures(false);
+  }
+};
 
     if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
       fetchCandidatures();
@@ -804,11 +818,12 @@ const changerStatut = async (
     );
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("candidatures");
-    navigate("/login");
-  };
+const handleLogout = () => {
+  // Ne pas supprimer les candidatures pour les préserver
+  // localStorage.removeItem("candidatures");
+  localStorage.removeItem("token");
+  navigate("/login");
+};
 
   const handleChangePassword = async () => {
     setPasswordError("");
@@ -2250,6 +2265,18 @@ const changerStatut = async (
               </span>
             )}
           </button>
+                    <button
+            onClick={() => setActiveTab("reponses-candidatures")}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "reponses-candidatures"
+                ? "bg-gray-500 text-white shadow-lg"
+                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+            }`}
+          >
+            
+            <Ban className="h-5 w-5" />
+            <span>Réponses Candidatures</span>
+          </button>
           <button
             onClick={() => setActiveTab("archives")}
             className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
@@ -2260,17 +2287,6 @@ const changerStatut = async (
           >
             <Archive className="h-5 w-5" />
             <span>Archives</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("reponses-candidatures")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeTab === "reponses-candidatures"
-                ? "bg-gray-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
-            }`}
-          >
-            <Ban className="h-5 w-5" />
-            <span>Réponses Candidatures</span>
           </button>
         </div>
 
