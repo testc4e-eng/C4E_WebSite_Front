@@ -3,7 +3,7 @@
 // Description : Composant principal du Dashboard de gestion RH/Offres.
 // Rôle :
 // - Affiche les statistiques globales des candidatures et offres.
-// - Gère les onglets : Offres, Candidatures spontanées, Candidatures par postes, Archives, Ignorées.
+// - Gère les onglets : Offres, Candidatures spontanées, Candidatures par postes, Archives, Réponses Candidatures.
 // - Permet l'ajout, la modification et la suppression des offres d'emploi.
 // - Permet la consultation, le tri et la gestion du statut des candidatures.
 // - Supporte plusieurs types de candidatures : emploi, stage, PFE, spontanee, stage_spontane.
@@ -166,7 +166,7 @@ const Dashboard = () => {
   const token = localStorage.getItem("token");
 
   const [activeTab, setActiveTab] = useState<
-    "offres" | "candidatures" | "candidatures-postes" | "archives" | "ignorees"
+    "offres" | "candidatures" | "candidatures-postes" | "archives" | "reponses-candidatures"
   >("offres");
   const [offres, setOffres] = useState<OffreEmploi[]>([]);
   const [loadingOffres, setLoadingOffres] = useState(true);
@@ -216,9 +216,46 @@ const Dashboard = () => {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
 
+  // États pour les notifications
+  const [notificationCounts, setNotificationCounts] = useState({
+    candidatures: 0,
+    candidaturesPostes: 0
+  });
+
   useEffect(() => {
     if (!token) navigate("/login");
   }, [token, navigate]);
+
+  // Charger les données depuis localStorage au montage
+  useEffect(() => {
+    const savedCandidatures = localStorage.getItem('candidatures');
+    if (savedCandidatures) {
+      setCandidatures(JSON.parse(savedCandidatures));
+    }
+  }, []);
+
+  // Sauvegarder les candidatures dans localStorage à chaque modification
+  useEffect(() => {
+    localStorage.setItem('candidatures', JSON.stringify(candidatures));
+    
+    // Calculer les notifications
+    const candidaturesEnAttente = candidatures.filter(c => 
+      c.statut === "en_attente" && !c.ignored
+    );
+    
+    const candidaturesSpontaneesEnAttente = candidaturesEnAttente.filter(c => 
+      c.type === "spontanee" || c.type === "stage_spontane"
+    ).length;
+    
+    const candidaturesPostesEnAttente = candidaturesEnAttente.filter(c => 
+      c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+    ).length;
+
+    setNotificationCounts({
+      candidatures: candidaturesSpontaneesEnAttente,
+      candidaturesPostes: candidaturesPostesEnAttente
+    });
+  }, [candidatures]);
 
   useEffect(() => {
     const fetchOffres = async () => {
@@ -269,7 +306,12 @@ const Dashboard = () => {
             throw new Error("Erreur lors du chargement des candidatures spontanées.");
 
           console.log("Données spontanées :", data);
-          setCandidatures(data);
+          // Fusionner avec les données existantes pour préserver l'état ignored
+          setCandidatures(prev => {
+            const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
+            const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
+            return [...prev, ...newCandidatures];
+          });
         } else if (activeTab === "candidatures-postes") {
           const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
 
@@ -280,14 +322,24 @@ const Dashboard = () => {
             (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
           );
 
-          setCandidatures(candidaturesSurOffres);
+          // Fusionner avec les données existantes pour préserver l'état ignored
+          setCandidatures(prev => {
+            const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
+            const newCandidatures = candidaturesSurOffres.filter(c => !existingIds.has(`${c.id}-${c.type}`));
+            return [...prev, ...newCandidatures];
+          });
         } else if (activeTab === "archives") {
           const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
 
           if (!res.ok)
             throw new Error("Erreur lors du chargement des archives.");
 
-          setCandidatures(data);
+          // Fusionner avec les données existantes pour préserver l'état ignored
+          setCandidatures(prev => {
+            const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
+            const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
+            return [...prev, ...newCandidatures];
+          });
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erreur connexion backend.";
@@ -703,6 +755,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("candidatures");
     navigate("/login");
   };
 
@@ -1274,33 +1327,17 @@ const Dashboard = () => {
         ) : (
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Nom
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Email
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Diplôme
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Score Compétences
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Expérience
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Date Soumission
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Statut
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Actions
-                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score Compétences</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expérience</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date Soumission</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1309,23 +1346,23 @@ const Dashboard = () => {
                       key={cand.id}
                       className="hover:bg-gray-50 transition-colors duration-200"
                     >
-                      <td className="px-6 py-4 text-gray-900">{cand.nom}</td>
-                      <td className="px-6 py-4 text-gray-600">{cand.email}</td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">{cand.nom}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                         <DisplayDiplome diplome={cand.diplome} />
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                         <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                         <DisplayExperience experience={cand.experience} />
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                         {new Date(cand.dateSoumission).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                             cand.statut === "en_attente"
                               ? "bg-yellow-100 text-yellow-800"
                               : cand.statut === "acceptee"
@@ -1344,7 +1381,7 @@ const Dashboard = () => {
                             : "Ignorée"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 space-x-2">
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <ActionsSelect candidature={cand} />
                       </td>
                     </tr>
@@ -1358,11 +1395,11 @@ const Dashboard = () => {
     );
   };
 
-  const IgnoreesList = () => {
+  const ReponsesCandidaturesList = () => {
     return (
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-gray-900 text-center">
-          Candidatures Ignorées
+          Réponses Candidatures
         </h2>
 
         <div className="text-center mb-8">
@@ -1396,33 +1433,17 @@ const Dashboard = () => {
         ) : (
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Nom
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Email
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Type
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Diplôme
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Score
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Date
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Statut
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                      Actions
-                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1431,15 +1452,11 @@ const Dashboard = () => {
                       key={`${cand.id}-${cand.type}`}
                       className="hover:bg-gray-50 transition-colors duration-200"
                     >
-                      <td className="px-6 py-4 text-gray-900">
-                        {cand.nom}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {cand.email}
-                      </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">{cand.nom}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                             cand.type === "emploi"
                               ? "bg-blue-100 text-blue-800"
                               : cand.type === "stage"
@@ -1464,44 +1481,44 @@ const Dashboard = () => {
                             : cand.type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                         <DisplayDiplome diplome={cand.diplome} />
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        <DisplayCompetenceScore
-                          score={cand.competenceScore}
-                        />
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                        <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                         {new Date(cand.dateSoumission).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           Ignorée
                         </span>
                       </td>
-                      <td className="px-6 py-4 space-x-2">
-                        <button
-                          onClick={() => restaurerCandidature(cand)}
-                          className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          <span>Restaurer</span>
-                        </button>
-                        <button
-                          onClick={() => setSelectedCandidature(cand)}
-                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
-                          title="Voir détails"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => supprimerCandidature(cand)}
-                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => restaurerCandidature(cand)}
+                            className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            <span>Restaurer</span>
+                          </button>
+                          <button
+                            onClick={() => setSelectedCandidature(cand)}
+                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
+                            title="Voir détails"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => supprimerCandidature(cand)}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1877,7 +1894,7 @@ const Dashboard = () => {
           </button>
           <button
             onClick={() => setActiveTab("candidatures")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
               activeTab === "candidatures"
                 ? "bg-yellow-500 text-white shadow-lg"
                 : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
@@ -1885,10 +1902,15 @@ const Dashboard = () => {
           >
             <Users className="h-5 w-5" />
             <span>Candidatures Spontanées - Stage/PFE</span>
+            {notificationCounts.candidatures > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                {notificationCounts.candidatures}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("candidatures-postes")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
               activeTab === "candidatures-postes"
                 ? "bg-yellow-500 text-white shadow-lg"
                 : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
@@ -1896,6 +1918,11 @@ const Dashboard = () => {
           >
             <Briefcase className="h-5 w-5" />
             <span>Candidatures par Postes</span>
+            {notificationCounts.candidaturesPostes > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                {notificationCounts.candidaturesPostes}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("archives")}
@@ -1909,20 +1936,15 @@ const Dashboard = () => {
             <span>Archives</span>
           </button>
           <button
-            onClick={() => setActiveTab("ignorees")}
+            onClick={() => setActiveTab("reponses-candidatures")}
             className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-              activeTab === "ignorees"
+              activeTab === "reponses-candidatures"
                 ? "bg-gray-500 text-white shadow-lg"
                 : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
             }`}
           >
             <Ban className="h-5 w-5" />
-            <span>Ignorées</span>
-            {candidaturesIgnorees.length > 0 && (
-              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                {candidaturesIgnorees.length}
-              </span>
-            )}
+            <span>Réponses Candidatures</span>
           </button>
         </div>
 
@@ -2243,30 +2265,16 @@ const Dashboard = () => {
 
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                        Titre
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                        Type
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                        Localisation
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                        Salaire
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                        Expiration
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                        Statut
-                      </th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                        Actions
-                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Titre</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Localisation</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Salaire</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expiration</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -2275,24 +2283,16 @@ const Dashboard = () => {
                         key={offre.id}
                         className="hover:bg-gray-50 transition-colors duration-200"
                       >
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          {offre.titre}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {offre.type}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {offre.localisation}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {offre.salaire || "N/A"}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap">{offre.titre}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.type}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                           {new Date(offre.dateExpiration).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3 text-sm whitespace-nowrap">
                           <span
-                            className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                            className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                               offre.statut === "active"
                                 ? "bg-green-100 text-green-800"
                                 : "bg-red-100 text-red-800"
@@ -2301,21 +2301,23 @@ const Dashboard = () => {
                             {offre.statut}
                           </span>
                         </td>
-                        <td className="px-6 py-4 space-x-2">
-                          <button
-                            onClick={() => handleEditClick(offre)}
-                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            title="Modifier"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => supprimerOffre(offre.id)}
-                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditClick(offre)}
+                              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              title="Modifier"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => supprimerOffre(offre.id)}
+                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2413,7 +2415,7 @@ const Dashboard = () => {
               return (
                 <div
                   key={type}
-                  className="bg-white rounded-xl shadow-lg overflow-hidden mb-6 w-full max-w-[98vw] mx-auto"
+                  className="bg-white rounded-xl shadow-lg overflow-hidden mb-6 w-full"
                 >
                   <h3 className="text-lg font-semibold text-gray-700 bg-gray-100 px-6 py-3 capitalize">
                     {type === "stage_spontane"
@@ -2441,36 +2443,18 @@ const Dashboard = () => {
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
                         <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                           <tr>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Type
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Nom
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Email
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Diplôme
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Score Compétences
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Expérience
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Date Soumission
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Statut
-                            </th>
-                            <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                              Actions
-                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score Compétences</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expérience</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date Soumission</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
                           </tr>
                         </thead>
 
@@ -2480,7 +2464,7 @@ const Dashboard = () => {
                               key={cand.id}
                               className="hover:bg-gray-50 transition-colors duration-200"
                             >
-                              <td className="px-6 py-4 font-medium text-gray-900 capitalize flex items-center space-x-2">
+                              <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap capitalize flex items-center space-x-2">
                                 {cand.type === "stage_spontane" && (
                                   <Book className="h-4 w-4" />
                                 )}
@@ -2495,33 +2479,23 @@ const Dashboard = () => {
                                     : cand.type}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-gray-900">
-                                {cand.nom}
-                              </td>
-                              <td className="px-6 py-4 text-gray-600">
-                                {cand.email}
-                              </td>
-                              <td className="px-6 py-4 text-gray-600">
+                              <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">{cand.nom}</td>
+                              <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
+                              <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                                 <DisplayDiplome diplome={cand.diplome} />
                               </td>
-                              <td className="px-6 py-4 text-gray-600">
-                                <DisplayCompetenceScore
-                                  score={cand.competenceScore}
-                                />
+                              <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                                <DisplayCompetenceScore score={cand.competenceScore} />
                               </td>
-                              <td className="px-4 py-2 text-gray-600 w-[100px] text-sm truncate">
-                                <DisplayExperience
-                                  experience={cand.experience}
-                                />
+                              <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                                <DisplayExperience experience={cand.experience} />
                               </td>
-                              <td className="px-6 py-4 text-gray-600">
-                                {new Date(
-                                  cand.dateSoumission
-                                ).toLocaleDateString()}
+                              <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                                {new Date(cand.dateSoumission).toLocaleDateString()}
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-3 text-sm whitespace-nowrap">
                                 <span
-                                  className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                  className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                                     cand.statut === "en_attente"
                                       ? "bg-yellow-100 text-yellow-800"
                                       : cand.statut === "acceptee"
@@ -2540,7 +2514,7 @@ const Dashboard = () => {
                                     : "Ignorée"}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 space-x-2">
+                              <td className="px-4 py-3 text-sm whitespace-nowrap">
                                 <ActionsSelect candidature={cand} />
                               </td>
                             </tr>
@@ -3012,33 +2986,17 @@ const Dashboard = () => {
             ) : (
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                       <tr>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Nom
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Email
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Type
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Diplôme
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Score
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Date
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Statut
-                        </th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-700">
-                          Actions
-                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -3047,15 +3005,11 @@ const Dashboard = () => {
                           key={`${cand.id}-${cand.type}`}
                           className="hover:bg-gray-50 transition-colors duration-200"
                         >
-                          <td className="px-6 py-4 text-gray-900">
-                            {cand.nom}
-                          </td>
-                          <td className="px-6 py-4 text-gray-600">
-                            {cand.email}
-                          </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">{cand.nom}</td>
+                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
                             <span
-                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                                 cand.type === "emploi"
                                   ? "bg-blue-100 text-blue-800"
                                   : cand.type === "stage"
@@ -3080,20 +3034,18 @@ const Dashboard = () => {
                                 : cand.type}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-gray-600">
+                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                             <DisplayDiplome diplome={cand.diplome} />
                           </td>
-                          <td className="px-6 py-4 text-gray-600">
-                            <DisplayCompetenceScore
-                              score={cand.competenceScore}
-                            />
+                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                            <DisplayCompetenceScore score={cand.competenceScore} />
                           </td>
-                          <td className="px-6 py-4 text-gray-600">
+                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                             {new Date(cand.dateSoumission).toLocaleDateString()}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
                             <span
-                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
                                 cand.statut === "acceptee"
                                   ? "bg-green-100 text-green-800"
                                   : cand.statut === "refusee"
@@ -3108,21 +3060,23 @@ const Dashboard = () => {
                                 : "Ignorée"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 space-x-2">
-                            <button
-                              onClick={() => setSelectedCandidature(cand)}
-                              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              title="Voir détails"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => supprimerCandidature(cand)}
-                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                              title="Supprimer cette candidature"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => setSelectedCandidature(cand)}
+                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                title="Voir détails"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => supprimerCandidature(cand)}
+                                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                title="Supprimer cette candidature"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -3271,7 +3225,7 @@ const Dashboard = () => {
           </section>
         )}
 
-        {activeTab === "ignorees" && <IgnoreesList />}
+        {activeTab === "reponses-candidatures" && <ReponsesCandidaturesList />}
       </div>
     </div>
   );
