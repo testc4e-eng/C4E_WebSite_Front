@@ -638,30 +638,59 @@ const DashboardAdmin = () => {
     navigate("/login");
   };
 
-  const handleChangePassword = async () => {
-    setPasswordError("");
-    setPasswordSuccess("");
-    try {
-      const response = await fetch(getApiUrl("/api/auth/change-password"), {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-          confirmPassword: passwordData.confirmPassword
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || `Erreur HTTP ${response.status}`);
-      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    } catch (error: any) {
-      setPasswordError(error.message || "Une erreur inconnue est survenue");
+const handleChangePassword = async () => {
+  setPasswordError("");
+  setPasswordSuccess("");
+  
+  try {
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError("Tous les champs sont requis");
+      return;
     }
-  };
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Les nouveaux mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
+    console.log("🔄 Tentative de changement de mot de passe...");
+
+    // Utilisation de votre utilitaire API
+    const { res, data } = await api.put(
+      "/api/auth/change-password",
+      {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword
+      },
+      token
+    );
+
+    console.log("📨 Réponse du serveur:", data);
+
+    if (!res.ok) {
+      throw new Error(data.message || data.error || `Erreur HTTP ${res.status}`);
+    }
+
+    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    
+    // Fermer le modal après 2 secondes
+    setTimeout(() => {
+      setShowChangePassword(false);
+    }, 2000);
+
+  } catch (error: any) {
+    console.error("❌ Erreur changement mot de passe:", error);
+    setPasswordError(error.message || "Une erreur inconnue est survenue");
+  }
+};
 
   // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
