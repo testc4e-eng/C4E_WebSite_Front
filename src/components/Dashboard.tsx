@@ -3,7 +3,7 @@
 // Description : Composant principal du Dashboard de gestion RH/Offres.
 // Rôle :
 // - Affiche les statistiques globales des candidatures et offres.
-// - Gère les onglets : Offres, Candidatures spontanées, Candidatures par postes, Archives.
+// - Gère les onglets : Offres, Candidatures spontanées, Candidatures par postes, Archives, Ignorées.
 // - Permet l'ajout, la modification et la suppression des offres d'emploi.
 // - Permet la consultation, le tri et la gestion du statut des candidatures.
 // - Supporte plusieurs types de candidatures : emploi, stage, PFE, spontanee, stage_spontane.
@@ -166,7 +166,7 @@ const Dashboard = () => {
   const token = localStorage.getItem("token");
 
   const [activeTab, setActiveTab] = useState<
-    "offres" | "candidatures" | "candidatures-postes" | "archives"
+    "offres" | "candidatures" | "candidatures-postes" | "archives" | "ignorees"
   >("offres");
   const [offres, setOffres] = useState<OffreEmploi[]>([]);
   const [loadingOffres, setLoadingOffres] = useState(true);
@@ -774,6 +774,8 @@ const Dashboard = () => {
       (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
   );
 
+  const candidaturesIgnorees = candidatures.filter((c) => c.ignored);
+
   const statsArchives = {
     total: candidaturesArchivees.length,
     acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee")
@@ -1356,6 +1358,293 @@ const Dashboard = () => {
     );
   };
 
+  const IgnoreesList = () => {
+    return (
+      <section className="space-y-6">
+        <h2 className="text-3xl font-bold text-gray-900 text-center">
+          Candidatures Ignorées
+        </h2>
+
+        <div className="text-center mb-8">
+          <p className="text-gray-600 text-lg">
+            Liste des candidatures que vous avez choisies d'ignorer
+          </p>
+          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 inline-block">
+            <p className="text-yellow-800 text-sm">
+              <strong>💡 Information :</strong> Ces candidatures ne sont plus visibles dans les autres onglets.
+              Vous pouvez les restaurer ou les supprimer définitivement.
+            </p>
+          </div>
+        </div>
+
+        {errorCandidatures && (
+          <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+            {errorCandidatures}
+          </div>
+        )}
+
+        {candidaturesIgnorees.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+            <Ban className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">
+              Aucune candidature ignorée
+            </h4>
+            <p className="text-gray-500">
+              Les candidatures que vous ignorez apparaîtront ici.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Nom
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Email
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Type
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Diplôme
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Score
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Date
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Statut
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {candidaturesIgnorees.map((cand) => (
+                    <tr
+                      key={`${cand.id}-${cand.type}`}
+                      className="hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <td className="px-6 py-4 text-gray-900">
+                        {cand.nom}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {cand.email}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                            cand.type === "emploi"
+                              ? "bg-blue-100 text-blue-800"
+                              : cand.type === "stage"
+                              ? "bg-green-100 text-green-800"
+                              : cand.type === "pfe"
+                              ? "bg-purple-100 text-purple-800"
+                              : cand.type === "stage_spontane"
+                              ? "bg-teal-100 text-teal-800"
+                              : "bg-orange-100 text-orange-800"
+                          }`}
+                        >
+                          {cand.type === "spontanee"
+                            ? "Spontanée"
+                            : cand.type === "emploi"
+                            ? "CDI/CDD"
+                            : cand.type === "stage"
+                            ? "Stage"
+                            : cand.type === "pfe"
+                            ? "PFE"
+                            : cand.type === "stage_spontane"
+                            ? "Stage Spontané"
+                            : cand.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        <DisplayDiplome diplome={cand.diplome} />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        <DisplayCompetenceScore
+                          score={cand.competenceScore}
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Ignorée
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 space-x-2">
+                        <button
+                          onClick={() => restaurerCandidature(cand)}
+                          className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          <span>Restaurer</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedCandidature(cand)}
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
+                          title="Voir détails"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => supprimerCandidature(cand)}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {selectedCandidature && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+              <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  Détails de la candidature ignorée
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    Ignorée
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
+                <p>
+                  <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                </p>
+                <p>
+                  <strong>📧 Email :</strong> {selectedCandidature.email}
+                </p>
+                {selectedCandidature.telephone && (
+                  <p>
+                    <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
+                  </p>
+                )}
+                {selectedCandidature.diplome && (
+                  <p>
+                    <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
+                  </p>
+                )}
+                {selectedCandidature.experience && (
+                  <p>
+                    <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+                  </p>
+                )}
+                {selectedCandidature.competenceScore && (
+                  <p>
+                    <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+                  </p>
+                )}
+                <p>
+                  <strong>📅 Date de soumission :</strong>{" "}
+                  {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
+                </p>
+                <p>
+                  <strong>📋 Type :</strong>
+                  <span
+                    className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                      selectedCandidature.type === "emploi"
+                        ? "bg-blue-100 text-blue-800"
+                        : selectedCandidature.type === "stage"
+                        ? "bg-green-100 text-green-800"
+                        : selectedCandidature.type === "pfe"
+                        ? "bg-purple-100 text-purple-800"
+                        : selectedCandidature.type === "stage_spontane"
+                        ? "bg-teal-100 text-teal-800"
+                        : "bg-orange-100 text-orange-800"
+                    }`}
+                  >
+                    {selectedCandidature.type === "spontanee"
+                      ? "Spontanée"
+                      : selectedCandidature.type === "emploi"
+                      ? "CDI/CDD"
+                      : selectedCandidature.type === "stage"
+                      ? "Stage"
+                      : selectedCandidature.type === "pfe"
+                      ? "PFE"
+                      : selectedCandidature.type === "stage_spontane"
+                      ? "Stage Spontané"
+                      : selectedCandidature.type}
+                  </span>
+                </p>
+
+                {selectedCandidature.cvUrl && (
+                  <p>
+                    <strong>📎 CV :</strong>{" "}
+                    <a
+                      href={getFileUrl(selectedCandidature.cvUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger le CV</span>
+                    </a>
+                  </p>
+                )}
+
+                {selectedCandidature.lettreMotivationUrl && (
+                  <p>
+                    <strong>📝 Lettre de motivation :</strong>{" "}
+                    <a
+                      href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger la lettre</span>
+                    </a>
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => restaurerCandidature(selectedCandidature)}
+                  className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Restaurer</span>
+                </button>
+                <button
+                  onClick={() => supprimerCandidature(selectedCandidature)}
+                  className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Supprimer</span>
+                </button>
+                <button
+                  onClick={() => setSelectedCandidature(null)}
+                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
+
   const getCandidatureStats = (offreId: number) => {
     const candidaturesOffre = candidatures.filter((c) => {
       return c.offre_id === offreId;
@@ -1618,6 +1907,22 @@ const Dashboard = () => {
           >
             <Archive className="h-5 w-5" />
             <span>Archives</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("ignorees")}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeTab === "ignorees"
+                ? "bg-gray-500 text-white shadow-lg"
+                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+            }`}
+          >
+            <Ban className="h-5 w-5" />
+            <span>Ignorées</span>
+            {candidaturesIgnorees.length > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                {candidaturesIgnorees.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -2965,6 +3270,8 @@ const Dashboard = () => {
             )}
           </section>
         )}
+
+        {activeTab === "ignorees" && <IgnoreesList />}
       </div>
     </div>
   );
