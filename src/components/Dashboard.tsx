@@ -560,38 +560,69 @@ const Dashboard = () => {
     }
   };
 
-  const envoyerEmailCandidature = async (
-    candidature: Candidature,
-    statut: "acceptee" | "refusee"
-  ) => {
-    try {
-      const response = await fetch(getApiUrl("/api/candidatures/envoyer-email"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          candidatureId: candidature.id,
-          type: candidature.type,
-          statut: statut,
-          email: candidature.email,
-          nom: candidature.nom,
-          poste: candidature.poste || "Non spécifié",
-        }),
-      });
+const envoyerEmailCandidature = async (
+  candidature: Candidature,
+  statut: "acceptee" | "refusee"
+) => {
+  try {
+    console.log("📧 Tentative d'envoi d'email pour:", { 
+      candidatureId: candidature.id, 
+      type: candidature.type, 
+      statut 
+    });
 
-      if (!response.ok) {
-        throw new Error("Erreur lors de l'envoi de l'email");
+    // Essayer différents endpoints pour l'email
+    const emailEndpoints = [
+      `/api/candidatures/${candidature.id}/envoyer-email`,
+      `/api/candidatures/spontanees/${candidature.id}/envoyer-email`,
+      `/api/candidatures/envoyer-email`, // Endpoint générique
+    ];
+
+    let emailSent = false;
+
+    for (const endpoint of emailEndpoints) {
+      try {
+        console.log(`📧 Essai endpoint email: ${endpoint}`);
+
+        const response = await fetch(getApiUrl(endpoint), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            statut: statut,
+            email: candidature.email,
+            nom: candidature.nom,
+            poste: candidature.poste || "Non spécifié",
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ Email envoyé avec succès via ${endpoint}`, result);
+          setErrorCandidatures(`✅ Email ${statut === 'acceptee' ? 'd\'acceptation' : 'de refus'} envoyé à ${candidature.email}`);
+          emailSent = true;
+          break;
+        } else {
+          console.warn(`❌ Échec email avec ${endpoint}:`, response.status);
+        }
+      } catch (emailError) {
+        console.warn(`❌ Erreur email avec ${endpoint}:`, emailError);
       }
-
-      const result = await response.json();
-      console.log(`✅ Email ${statut} envoyé à ${candidature.email}`, result);
-    } catch (error) {
-      console.error("❌ Erreur envoi email:", error);
     }
-  };
 
+    if (!emailSent) {
+      console.warn("⚠️ Aucun endpoint email n'a fonctionné, mais le statut a été mis à jour");
+      setErrorCandidatures(`✅ Statut mis à jour mais email non envoyé (problème technique)`);
+    }
+
+  } catch (error: any) {
+    console.error("❌ Erreur générale envoi email:", error);
+    // Ne pas bloquer l'UI pour les erreurs d'email
+    setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${error.message}`);
+  }
+};
   const restaurerCandidature = (candidature: Candidature) => {
     setCandidatures((prev) =>
       prev.map((c) =>
@@ -603,110 +634,112 @@ const Dashboard = () => {
     console.log(`✅ Candidature de ${candidature.nom} restaurée`);
   };
 
-  const changerStatut = async (
-    candidature: Candidature,
-    nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
-  ) => {
-    try {
-      const { id, type } = candidature;
+const changerStatut = async (
+  candidature: Candidature,
+  nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
+) => {
+  try {
+    const { id, type } = candidature;
 
-      console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
+    console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
 
-      if (nouveauStatut === "ignorer") {
-        // Marquer comme ignorée et mettre à jour l'UI immédiatement
-        const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" };
-        setCandidatures((prev) =>
-          prev.map((c) =>
-            c.id === id && c.type === type ? updatedCandidature : c
-          )
-        );
-        console.log(`✅ Candidature ${id} ignorée localement`);
-        return;
-      }
-
-      // Mettre à jour le statut dans l'UI immédiatement
-      const updatedCandidature = { ...candidature, statut: nouveauStatut, ignored: false };
+    if (nouveauStatut === "ignorer") {
+      // Marquer comme ignorée et mettre à jour l'UI immédiatement
+      const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" };
       setCandidatures((prev) =>
         prev.map((c) =>
           c.id === id && c.type === type ? updatedCandidature : c
         )
       );
-
-      // Déterminer le type d'API correct
-      let typeAPI = type;
-      if (type === "stage_spontane") {
-        typeAPI = "spontanee"; // Correction: stage_spontane utilise l'endpoint spontanee
-      }
-
-      const endpoint = typeAPI === "spontanee" 
-        ? `/api/candidatures/spontanees/${id}`
-        : `/api/candidatures/${typeAPI}/${id}`;
-
-      console.log(`📡 Appel API: ${endpoint}`);
-
-      const res = await fetch(
-        getApiUrl(endpoint),
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ 
-            statut: nouveauStatut
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error(`❌ Erreur ${res.status}:`, errorText);
-        throw new Error(`Erreur ${res.status}: ${errorText}`);
-      }
-
-      const result = await res.json();
-      console.log("✅ Statut mis à jour avec succès:", result);
-
-      // Envoyer l'email si acceptée ou refusée
-      if (nouveauStatut === "acceptee" || nouveauStatut === "refusee") {
-        await envoyerEmailCandidature(candidature, nouveauStatut);
-      }
-
-    } catch (err: unknown) {
-      console.error("❌ Erreur détaillée:", err);
-      
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      setErrorCandidatures(`Échec mise à jour statut: ${message}`);
-
-      // Recharger les candidatures en cas d'erreur
-      const fetchCandidatures = async () => {
-        try {
-          console.log("🔄 Rechargement des candidatures après erreur...");
-          let url = "/api/candidatures";
-          if (activeTab === "candidatures") {
-            url = "/api/candidatures/spontanees/toutes";
-          }
-          
-          const res = await fetch(getApiUrl(url), {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data: Candidature[] = await res.json();
-            const normalizedData = data.map((cand) => ({
-              ...cand,
-              offreId: cand.offreId || cand.offre_id,
-              ignored: false
-            }));
-            setCandidatures(normalizedData);
-            console.log("✅ Candidatures rechargées après erreur");
-          }
-        } catch (reloadErr) {
-          console.error("❌ Erreur rechargement:", reloadErr);
-        }
-      };
-      fetchCandidatures();
+      console.log(`✅ Candidature ${id} ignorée localement`);
+      return;
     }
-  };
+
+    // Mettre à jour le statut dans l'UI immédiatement
+    const updatedCandidature = { ...candidature, statut: nouveauStatut, ignored: false };
+    setCandidatures((prev) =>
+      prev.map((c) =>
+        c.id === id && c.type === type ? updatedCandidature : c
+      )
+    );
+
+    // Déterminer le bon endpoint API
+    let endpoint = "";
+    let method = "PUT";
+
+    if (type === "spontanee" || type === "stage_spontane") {
+      // Pour les candidatures spontanées, utiliser l'endpoint correct
+      endpoint = `/api/candidatures/spontanees/${id}/statut`;
+    } else {
+      // Pour les candidatures par postes
+      endpoint = `/api/candidatures/${id}/statut`;
+    }
+
+    console.log(`📡 Appel API: ${endpoint}`, { method, statut: nouveauStatut });
+
+    const res = await fetch(
+      getApiUrl(endpoint),
+      {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          statut: nouveauStatut
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`❌ Erreur ${res.status}:`, errorText);
+      throw new Error(`Erreur ${res.status}: ${errorText}`);
+    }
+
+    const result = await res.json();
+    console.log("✅ Statut mis à jour avec succès:", result);
+
+    // Envoyer l'email si acceptée ou refusée
+    if (nouveauStatut === "acceptee" || nouveauStatut === "refusee") {
+      await envoyerEmailCandidature(candidature, nouveauStatut);
+    }
+
+  } catch (err: unknown) {
+    console.error("❌ Erreur détaillée:", err);
+    
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    setErrorCandidatures(`Échec mise à jour statut: ${message}`);
+
+    // Recharger les candidatures en cas d'erreur
+    const fetchCandidatures = async () => {
+      try {
+        console.log("🔄 Rechargement des candidatures après erreur...");
+        let url = "/api/candidatures";
+        if (activeTab === "candidatures") {
+          url = "/api/candidatures/spontanees/toutes";
+        }
+        
+        const res = await fetch(getApiUrl(url), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data: Candidature[] = await res.json();
+          const normalizedData = data.map((cand) => ({
+            ...cand,
+            offreId: cand.offreId || cand.offre_id,
+            ignored: false
+          }));
+          setCandidatures(normalizedData);
+          console.log("✅ Candidatures rechargées après erreur");
+        }
+      } catch (reloadErr) {
+        console.error("❌ Erreur rechargement:", reloadErr);
+      }
+    };
+    fetchCandidatures();
+  }
+};
 
   const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
     if (candidature.ignored) {
@@ -2762,7 +2795,7 @@ const Dashboard = () => {
                                   {cand.type === "stage_spontane"
                                     ? "Stage"
                                     : cand.type === "spontanee"
-                                    ? "Candidature Spontanée"
+                                    ? "Candidature"
                                     : cand.type}
                                 </span>
                               </td>
