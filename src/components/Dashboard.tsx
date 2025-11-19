@@ -310,7 +310,7 @@ const Dashboard = () => {
           setCandidatures(prev => {
             const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
             const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-            return [...prev, ...newCandidatures];
+            return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
           });
         } else if (activeTab === "candidatures-postes") {
           const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
@@ -326,7 +326,7 @@ const Dashboard = () => {
           setCandidatures(prev => {
             const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
             const newCandidatures = candidaturesSurOffres.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-            return [...prev, ...newCandidatures];
+            return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
           });
         } else if (activeTab === "archives") {
           const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
@@ -338,7 +338,7 @@ const Dashboard = () => {
           setCandidatures(prev => {
             const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
             const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-            return [...prev, ...newCandidatures];
+            return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
           });
         }
       } catch (err: unknown) {
@@ -613,32 +613,39 @@ const Dashboard = () => {
       console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
 
       if (nouveauStatut === "ignorer") {
+        // Marquer comme ignorée et mettre à jour l'UI immédiatement
+        const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" };
         setCandidatures((prev) =>
           prev.map((c) =>
-            c.id === id && c.type === type
-              ? { ...c, ignored: true }
-              : c
+            c.id === id && c.type === type ? updatedCandidature : c
           )
         );
         console.log(`✅ Candidature ${id} ignorée localement`);
         return;
       }
 
+      // Mettre à jour le statut dans l'UI immédiatement
+      const updatedCandidature = { ...candidature, statut: nouveauStatut, ignored: false };
       setCandidatures((prev) =>
         prev.map((c) =>
-          c.id === id && c.type === type
-            ? { ...c, statut: nouveauStatut, ignored: false }
-            : c
+          c.id === id && c.type === type ? updatedCandidature : c
         )
       );
 
+      // Déterminer le type d'API correct
       let typeAPI = type;
       if (type === "stage_spontane") {
-        typeAPI = "stage";
+        typeAPI = "spontanee"; // Correction: stage_spontane utilise l'endpoint spontanee
       }
 
+      const endpoint = typeAPI === "spontanee" 
+        ? `/api/candidatures/spontanees/${id}`
+        : `/api/candidatures/${typeAPI}/${id}`;
+
+      console.log(`📡 Appel API: ${endpoint}`);
+
       const res = await fetch(
-        getApiUrl(`/api/candidatures/statut/${typeAPI}/${id}`),
+        getApiUrl(endpoint),
         {
           method: "PUT",
           headers: {
@@ -660,16 +667,27 @@ const Dashboard = () => {
       const result = await res.json();
       console.log("✅ Statut mis à jour avec succès:", result);
 
+      // Envoyer l'email si acceptée ou refusée
+      if (nouveauStatut === "acceptee" || nouveauStatut === "refusee") {
+        await envoyerEmailCandidature(candidature, nouveauStatut);
+      }
+
     } catch (err: unknown) {
       console.error("❌ Erreur détaillée:", err);
       
       const message = err instanceof Error ? err.message : "Erreur inconnue";
       setErrorCandidatures(`Échec mise à jour statut: ${message}`);
 
+      // Recharger les candidatures en cas d'erreur
       const fetchCandidatures = async () => {
         try {
           console.log("🔄 Rechargement des candidatures après erreur...");
-          const res = await fetch(getApiUrl("/api/candidatures"), {
+          let url = "/api/candidatures";
+          if (activeTab === "candidatures") {
+            url = "/api/candidatures/spontanees/toutes";
+          }
+          
+          const res = await fetch(getApiUrl(url), {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {
@@ -805,9 +823,25 @@ const Dashboard = () => {
     }
   };
 
-  const candidaturesArchivees = candidatures.filter(
-    (c) => c.statut === "acceptee" || c.statut === "refusee" || c.ignored
+  // Candidatures actives (non ignorées)
+  const candidaturesActives = candidatures.filter(c => !c.ignored);
+
+  // Candidatures pour les onglets principaux
+  const candidaturesSpontanees = candidaturesActives.filter(c => 
+    c.type === "spontanee" || c.type === "stage_spontane"
   );
+
+  const candidaturesParPostes = candidaturesActives.filter(c => 
+    c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+  );
+
+  // Candidatures archivées (acceptées/refusées) pour "Réponses Candidatures"
+  const candidaturesArchivees = candidaturesActives.filter(
+    (c) => c.statut === "acceptee" || c.statut === "refusee"
+  );
+
+  // Candidatures ignorées pour "Archives"
+  const candidaturesIgnorees = candidatures.filter((c) => c.ignored);
 
   const candidaturesFiltreesArchive =
     archiveFilter === "tous"
@@ -827,15 +861,16 @@ const Dashboard = () => {
       (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
   );
 
-  const candidaturesIgnorees = candidatures.filter((c) => c.ignored);
-
   const statsArchives = {
     total: candidaturesArchivees.length,
     acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee")
       .length,
     refusees: candidaturesArchivees.filter((c) => c.statut === "refusee")
       .length,
-    ignorees: candidaturesArchivees.filter((c) => c.ignored).length,
+  };
+
+  const statsIgnorees = {
+    total: candidaturesIgnorees.length,
   };
 
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
@@ -883,11 +918,11 @@ const Dashboard = () => {
 
   const StatsOverview = () => {
     const stats = {
-      total: candidatures.length,
-      enAttente: candidatures.filter((c) => c.statut === "en_attente").length,
-      acceptees: candidatures.filter((c) => c.statut === "acceptee").length,
-      refusees: candidatures.filter((c) => c.statut === "refusee").length,
-      ignorees: candidatures.filter((c) => c.ignored).length,
+      total: candidaturesActives.length,
+      enAttente: candidaturesActives.filter((c) => c.statut === "en_attente").length,
+      acceptees: candidaturesActives.filter((c) => c.statut === "acceptee").length,
+      refusees: candidaturesActives.filter((c) => c.statut === "refusee").length,
+      ignorees: candidaturesIgnorees.length,
       offresActives: offres.filter((o) => o.statut === "active").length,
     };
 
@@ -904,7 +939,7 @@ const Dashboard = () => {
               </p>
               <div className="flex items-center space-x-1">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <p className="text-xs text-gray-500">Candidatures</p>
+                <p className="text-xs text-gray-500">Candidatures actives</p>
               </div>
             </div>
             <div className="p-3 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors duration-300">
@@ -1153,46 +1188,9 @@ const Dashboard = () => {
     if (!selectedOffre) return null;
 
     const getCandidaturesPourOffre = () => {
-      console.log("🔍 DEBUG - Offre sélectionnée:", {
-        id: selectedOffre.id,
-        titre: selectedOffre.titre,
-        type: selectedOffre.type,
+      return candidaturesParPostes.filter((cand) => {
+        return cand.offre_id === selectedOffre.id;
       });
-
-      const candidaturesFiltreesParType = candidatures.filter((cand) => {
-        if (filtreType === "emploi") {
-          return cand.type === "emploi";
-        } else {
-          return cand.type === "stage" || cand.type === "pfe";
-        }
-      });
-
-      console.log(
-        `🔍 DEBUG - Candidatures après filtrage type (${filtreType}):`,
-        candidaturesFiltreesParType.length
-      );
-
-      const candidaturesPourOffre = candidaturesFiltreesParType.filter(
-        (cand) => {
-          if (cand.offre_id === selectedOffre.id) {
-            console.log(
-              `✅ Match direct: ${cand.nom} (offre_id: ${cand.offre_id})`
-            );
-            return true;
-          }
-
-          console.log(
-            `❌ Non match: ${cand.nom} | offre_id:${cand.offre_id} vs selected:${selectedOffre.id} | type:${cand.type} vs selected:${selectedOffre.type}`
-          );
-          return false;
-        }
-      );
-
-      console.log(
-        "🔍 DEBUG - Candidatures finales pour offre:",
-        candidaturesPourOffre
-      );
-      return candidaturesPourOffre;
     };
 
     const candidaturesPourOffre = getSortedCandidatures(
@@ -1209,7 +1207,6 @@ const Dashboard = () => {
         .length,
       refusees: candidaturesPourOffre.filter((c) => c.statut === "refusee")
         .length,
-      ignorees: candidaturesPourOffre.filter((c) => c.ignored).length,
     };
 
     return (
@@ -1239,7 +1236,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-5 gap-4 mt-4">
+          <div className="grid grid-cols-4 gap-4 mt-4">
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
               <div className="text-2xl font-bold text-yellow-600">
                 {stats.enAttente}
@@ -1257,12 +1254,6 @@ const Dashboard = () => {
                 {stats.refusees}
               </div>
               <div className="text-sm text-red-700">Refusées</div>
-            </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">
-                {stats.ignorees}
-              </div>
-              <div className="text-sm text-gray-700">Ignorées</div>
             </div>
             <div className="text-center p-3 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
@@ -1395,11 +1386,11 @@ const Dashboard = () => {
     );
   };
 
-  const ReponsesCandidaturesList = () => {
+  const ArchivesList = () => {
     return (
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-gray-900 text-center">
-          Réponses Candidatures
+          Archives
         </h2>
 
         <div className="text-center mb-8">
@@ -1662,19 +1653,343 @@ const Dashboard = () => {
     );
   };
 
-  const getCandidatureStats = (offreId: number) => {
-    const candidaturesOffre = candidatures.filter((c) => {
-      return c.offre_id === offreId;
-    });
+  const ReponsesCandidaturesList = () => {
+    return (
+      <section className="space-y-6">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            Réponses Candidatures
+          </h2>
+          <p className="text-gray-600 text-lg">
+            Consultation des candidatures déjà traitées (acceptées/refusées)
+          </p>
+        </div>
 
-    console.log(`📊 Stats pour offre ${offreId}:`, {
-      total: candidaturesOffre.length,
-      candidatures: candidaturesOffre.map((c) => ({
-        id: c.id,
-        type: c.type,
-        offre_id: c.offre_id,
-        nom: c.nom,
-      })),
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+            <Archive className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <h3 className="text-2xl font-bold text-gray-900">
+              {statsArchives.total}
+            </h3>
+            <p className="text-gray-600">Total traité</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+            <h3 className="text-2xl font-bold text-gray-900">
+              {statsArchives.acceptees}
+            </h3>
+            <p className="text-gray-600">Candidatures acceptées</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
+            <h3 className="text-2xl font-bold text-gray-900">
+              {statsArchives.refusees}
+            </h3>
+            <p className="text-gray-600">Candidatures refusées</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
+            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full">
+              <div className="flex items-center space-x-4 flex-1">
+                <Filter className="h-5 w-5 text-gray-600" />
+                <select
+                  value={archiveFilter}
+                  onChange={(e) =>
+                    setArchiveFilter(
+                      e.target.value as "tous" | "acceptees" | "refusees"
+                    )
+                  }
+                  className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm w-full md:w-auto"
+                >
+                  <option value="tous">Toutes les réponses</option>
+                  <option value="acceptees">Candidatures acceptées</option>
+                  <option value="refusees">Candidatures refusées</option>
+                </select>
+              </div>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, email ou poste..."
+                  value={searchArchive}
+                  onChange={(e) => setSearchArchive(e.target.value)}
+                  className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
+                />
+              </div>
+            </div>
+            <div className="text-sm text-gray-600 whitespace-nowrap">
+              {candidaturesRecherchees.length} candidature(s) trouvée(s)
+            </div>
+          </div>
+        </div>
+
+        {loadingCandidatures ? (
+          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Chargement des réponses...</p>
+          </div>
+        ) : candidaturesRecherchees.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+            <Archive className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">
+              {searchArchive
+                ? "Aucun résultat trouvé"
+                : "Aucune réponse de candidature"}
+            </h4>
+            <p className="text-gray-500">
+              {searchArchive
+                ? "Aucune candidature ne correspond à votre recherche."
+                : "Les candidatures acceptées ou refusées apparaîtront ici."}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {candidaturesRecherchees.map((cand) => (
+                    <tr
+                      key={`${cand.id}-${cand.type}`}
+                      className="hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">{cand.nom}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        <span
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                            cand.type === "emploi"
+                              ? "bg-blue-100 text-blue-800"
+                              : cand.type === "stage"
+                              ? "bg-green-100 text-green-800"
+                              : cand.type === "pfe"
+                              ? "bg-purple-100 text-purple-800"
+                              : cand.type === "stage_spontane"
+                              ? "bg-teal-100 text-teal-800"
+                              : "bg-orange-100 text-orange-800"
+                          }`}
+                        >
+                          {cand.type === "spontanee"
+                            ? "Spontanée"
+                            : cand.type === "emploi"
+                            ? "CDI/CDD"
+                            : cand.type === "stage"
+                            ? "Stage"
+                            : cand.type === "pfe"
+                            ? "PFE"
+                            : cand.type === "stage_spontane"
+                            ? "Stage Spontané"
+                            : cand.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                        <DisplayDiplome diplome={cand.diplome} />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                        <DisplayCompetenceScore score={cand.competenceScore} />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        <span
+                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                            cand.statut === "acceptee"
+                              ? "bg-green-100 text-green-800"
+                              : cand.statut === "refusee"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {cand.statut === "acceptee"
+                            ? "Acceptée"
+                            : cand.statut === "refusee"
+                            ? "Refusée"
+                            : "Ignorée"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => setSelectedCandidature(cand)}
+                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            title="Voir détails"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => supprimerCandidature(cand)}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            title="Supprimer cette candidature"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {selectedCandidature && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+              <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  Détails de la candidature traitée
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      selectedCandidature.statut === "acceptee"
+                        ? "bg-green-100 text-green-800"
+                        : selectedCandidature.statut === "refusee"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {selectedCandidature.statut === "acceptee"
+                      ? "Acceptée"
+                      : selectedCandidature.statut === "refusee"
+                      ? "Refusée"
+                      : "Ignorée"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
+                <p>
+                  <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                </p>
+                <p>
+                  <strong>📧 Email :</strong> {selectedCandidature.email}
+                </p>
+                {selectedCandidature.telephone && (
+                  <p>
+                    <strong>📞 Téléphone :</strong>{" "}
+                    {selectedCandidature.telephone}
+                  </p>
+                )}
+                {selectedCandidature.diplome && (
+                  <p>
+                    <strong>🎓 Diplôme :</strong>{" "}
+                    {selectedCandidature.diplome}
+                  </p>
+                )}
+                {selectedCandidature.experience && (
+                  <p>
+                    <strong>💼 Expérience :</strong>{" "}
+                    {selectedCandidature.experience}
+                  </p>
+                )}
+                {selectedCandidature.competenceScore && (
+                  <p>
+                    <strong>⭐ Score de compétences :</strong>{" "}
+                    {selectedCandidature.competenceScore}%
+                  </p>
+                )}
+                <p>
+                  <strong>📅 Date de soumission :</strong>{" "}
+                  {new Date(
+                    selectedCandidature.dateSoumission
+                  ).toLocaleDateString()}
+                </p>
+                <p>
+                  <strong>📋 Type :</strong>
+                  <span
+                    className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                      selectedCandidature.type === "emploi"
+                        ? "bg-blue-100 text-blue-800"
+                        : selectedCandidature.type === "stage"
+                        ? "bg-green-100 text-green-800"
+                        : selectedCandidature.type === "pfe"
+                        ? "bg-purple-100 text-purple-800"
+                        : selectedCandidature.type === "stage_spontane"
+                        ? "bg-teal-100 text-teal-800"
+                        : "bg-orange-100 text-orange-800"
+                    }`}
+                  >
+                    {selectedCandidature.type === "spontanee"
+                      ? "Spontanée"
+                      : selectedCandidature.type === "emploi"
+                      ? "CDI/CDD"
+                      : selectedCandidature.type === "stage"
+                      ? "Stage"
+                      : selectedCandidature.type === "pfe"
+                      ? "PFE"
+                      : selectedCandidature.type === "stage_spontane"
+                      ? "Stage Spontané"
+                      : selectedCandidature.type}
+                  </span>
+                </p>
+
+                {selectedCandidature.cvUrl && (
+                  <p>
+                    <strong>📎 CV :</strong>{" "}
+                    <a
+                      href={getFileUrl(selectedCandidature.cvUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger le CV</span>
+                    </a>
+                  </p>
+                )}
+
+                {selectedCandidature.lettreMotivationUrl && (
+                  <p>
+                    <strong>📝 Lettre de motivation :</strong>{" "}
+                    <a
+                      href={getFileUrl(
+                        selectedCandidature.lettreMotivationUrl
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger la lettre</span>
+                    </a>
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setSelectedCandidature(null)}
+                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
+
+  const getCandidatureStats = (offreId: number) => {
+    const candidaturesOffre = candidaturesParPostes.filter((c) => {
+      return c.offre_id === offreId;
     });
 
     return {
@@ -1684,29 +1999,7 @@ const Dashboard = () => {
       acceptees: candidaturesOffre.filter((c) => c.statut === "acceptee")
         .length,
       refusees: candidaturesOffre.filter((c) => c.statut === "refusee").length,
-      ignorees: candidaturesOffre.filter((c) => c.ignored).length,
     };
-  };
-
-  const getCandidaturesForOffre = (offreId: number) => {
-    return getSortedCandidatures(
-      candidatures.filter((c) => {
-        if (c.offreId === offreId) return true;
-
-        if ((c.type === "stage" || c.type === "pfe") && selectedOffre) {
-          const posteCandidat = c.poste?.toLowerCase();
-          const titreOffre = selectedOffre.titre.toLowerCase();
-          return (
-            posteCandidat?.includes(titreOffre) ||
-            titreOffre.includes(posteCandidat || "")
-          );
-        }
-
-        return false;
-      }),
-      sortBy,
-      sortOrder
-    );
   };
 
   if (!token)
@@ -2396,14 +2689,8 @@ const Dashboard = () => {
             {["stage_spontane", "spontanee"].map((type) => {
               if (filterType !== "tous" && filterType !== type) return null;
 
-              const candidaturesByType =
-                type === "stage_spontane"
-                  ? candidatures.filter((c) => c.type === "stage_spontane")
-                  : candidatures.filter((c) => c.type === "spontanee");
-
-              console.log(
-                `🔍 DEBUG - Candidatures pour ${type}:`,
-                candidaturesByType
+              const candidaturesByType = candidaturesSpontanees.filter((c) => 
+                type === "stage_spontane" ? c.type === "stage_spontane" : c.type === "spontanee"
               );
 
               const sortedCandidatures = getSortedCandidatures(
@@ -2885,345 +3172,7 @@ const Dashboard = () => {
           </section>
         )}
 
-        {activeTab === "archives" && (
-          <section className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Archives des Candidatures
-              </h2>
-              <p className="text-gray-600 text-lg">
-                Consultation des candidatures déjà traitées (acceptées/refusées/ignorées)
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                <Archive className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {statsArchives.total}
-                </h3>
-                <p className="text-gray-600">Total archivé</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {statsArchives.acceptees}
-                </h3>
-                <p className="text-gray-600">Candidatures acceptées</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {statsArchives.refusees}
-                </h3>
-                <p className="text-gray-600">Candidatures refusées</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                <Ban className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {statsArchives.ignorees}
-                </h3>
-                <p className="text-gray-600">Candidatures ignorées</p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
-                <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full">
-                  <div className="flex items-center space-x-4 flex-1">
-                    <Filter className="h-5 w-5 text-gray-600" />
-                    <select
-                      value={archiveFilter}
-                      onChange={(e) =>
-                        setArchiveFilter(
-                          e.target.value as "tous" | "acceptees" | "refusees" | "ignorees"
-                        )
-                      }
-                      className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm w-full md:w-auto"
-                    >
-                      <option value="tous">Toutes les archives</option>
-                      <option value="acceptees">Candidatures acceptées</option>
-                      <option value="refusees">Candidatures refusées</option>
-                      <option value="ignorees">Candidatures ignorées</option>
-                    </select>
-                  </div>
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <input
-                      type="text"
-                      placeholder="Rechercher par nom, email ou poste..."
-                      value={searchArchive}
-                      onChange={(e) => setSearchArchive(e.target.value)}
-                      className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
-                    />
-                  </div>
-                </div>
-                <div className="text-sm text-gray-600 whitespace-nowrap">
-                  {candidaturesRecherchees.length} candidature(s) trouvée(s)
-                </div>
-              </div>
-            </div>
-
-            {loadingCandidatures ? (
-              <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Chargement des archives...</p>
-              </div>
-            ) : candidaturesRecherchees.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-                <Archive className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h4 className="text-lg font-semibold text-gray-700 mb-2">
-                  {searchArchive
-                    ? "Aucun résultat trouvé"
-                    : "Aucune candidature archivée"}
-                </h4>
-                <p className="text-gray-500">
-                  {searchArchive
-                    ? "Aucune candidature ne correspond à votre recherche."
-                    : "Les candidatures acceptées, refusées ou ignorées apparaîtront ici."}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
-                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {candidaturesRecherchees.map((cand) => (
-                        <tr
-                          key={`${cand.id}-${cand.type}`}
-                          className="hover:bg-gray-50 transition-colors duration-200"
-                        >
-                          <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">{cand.nom}</td>
-                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
-                          <td className="px-4 py-3 text-sm whitespace-nowrap">
-                            <span
-                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                cand.type === "emploi"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : cand.type === "stage"
-                                  ? "bg-green-100 text-green-800"
-                                  : cand.type === "pfe"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : cand.type === "stage_spontane"
-                                  ? "bg-teal-100 text-teal-800"
-                                  : "bg-orange-100 text-orange-800"
-                              }`}
-                            >
-                              {cand.type === "spontanee"
-                                ? "Spontanée"
-                                : cand.type === "emploi"
-                                ? "CDI/CDD"
-                                : cand.type === "stage"
-                                ? "Stage"
-                                : cand.type === "pfe"
-                                ? "PFE"
-                                : cand.type === "stage_spontane"
-                                ? "Stage Spontané"
-                                : cand.type}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                            <DisplayDiplome diplome={cand.diplome} />
-                          </td>
-                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                            <DisplayCompetenceScore score={cand.competenceScore} />
-                          </td>
-                          <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                            {new Date(cand.dateSoumission).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 text-sm whitespace-nowrap">
-                            <span
-                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                cand.statut === "acceptee"
-                                  ? "bg-green-100 text-green-800"
-                                  : cand.statut === "refusee"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {cand.statut === "acceptee"
-                                ? "Acceptée"
-                                : cand.statut === "refusee"
-                                ? "Refusée"
-                                : "Ignorée"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm whitespace-nowrap">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => setSelectedCandidature(cand)}
-                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                title="Voir détails"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => supprimerCandidature(cand)}
-                                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                title="Supprimer cette candidature"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {selectedCandidature && (
-              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-                  <div className="flex justify-between items-center mb-4 border-b pb-2">
-                    <h3 className="text-2xl font-bold text-gray-800">
-                      Détails de la candidature archivée
-                    </h3>
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          selectedCandidature.statut === "acceptee"
-                            ? "bg-green-100 text-green-800"
-                            : selectedCandidature.statut === "refusee"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {selectedCandidature.statut === "acceptee"
-                          ? "Acceptée"
-                          : selectedCandidature.statut === "refusee"
-                          ? "Refusée"
-                          : "Ignorée"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-                    <p>
-                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
-                    </p>
-                    <p>
-                      <strong>📧 Email :</strong> {selectedCandidature.email}
-                    </p>
-                    {selectedCandidature.telephone && (
-                      <p>
-                        <strong>📞 Téléphone :</strong>{" "}
-                        {selectedCandidature.telephone}
-                      </p>
-                    )}
-                    {selectedCandidature.diplome && (
-                      <p>
-                        <strong>🎓 Diplôme :</strong>{" "}
-                        {selectedCandidature.diplome}
-                      </p>
-                    )}
-                    {selectedCandidature.experience && (
-                      <p>
-                        <strong>💼 Expérience :</strong>{" "}
-                        {selectedCandidature.experience}
-                      </p>
-                    )}
-                    {selectedCandidature.competenceScore && (
-                      <p>
-                        <strong>⭐ Score de compétences :</strong>{" "}
-                        {selectedCandidature.competenceScore}%
-                      </p>
-                    )}
-                    <p>
-                      <strong>📅 Date de soumission :</strong>{" "}
-                      {new Date(
-                        selectedCandidature.dateSoumission
-                      ).toLocaleDateString()}
-                    </p>
-                    <p>
-                      <strong>📋 Type :</strong>
-                      <span
-                        className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                          selectedCandidature.type === "emploi"
-                            ? "bg-blue-100 text-blue-800"
-                            : selectedCandidature.type === "stage"
-                            ? "bg-green-100 text-green-800"
-                            : selectedCandidature.type === "pfe"
-                            ? "bg-purple-100 text-purple-800"
-                            : selectedCandidature.type === "stage_spontane"
-                            ? "bg-teal-100 text-teal-800"
-                            : "bg-orange-100 text-orange-800"
-                        }`}
-                      >
-                        {selectedCandidature.type === "spontanee"
-                          ? "Spontanée"
-                          : selectedCandidature.type === "emploi"
-                          ? "CDI/CDD"
-                          : selectedCandidature.type === "stage"
-                          ? "Stage"
-                          : selectedCandidature.type === "pfe"
-                          ? "PFE"
-                          : selectedCandidature.type === "stage_spontane"
-                          ? "Stage Spontané"
-                          : selectedCandidature.type}
-                      </span>
-                    </p>
-
-                    {selectedCandidature.cvUrl && (
-                      <p>
-                        <strong>📎 CV :</strong>{" "}
-                        <a
-                          href={getFileUrl(selectedCandidature.cvUrl)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline flex items-center space-x-1"
-                        >
-                          <FileText className="h-4 w-4" />
-                          <span>Télécharger le CV</span>
-                        </a>
-                      </p>
-                    )}
-
-                    {selectedCandidature.lettreMotivationUrl && (
-                      <p>
-                        <strong>📝 Lettre de motivation :</strong>{" "}
-                        <a
-                          href={getFileUrl(
-                            selectedCandidature.lettreMotivationUrl
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline flex items-center space-x-1"
-                        >
-                          <FileText className="h-4 w-4" />
-                          <span>Télécharger la lettre</span>
-                        </a>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      onClick={() => setSelectedCandidature(null)}
-                      className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-                    >
-                      Fermer
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
+        {activeTab === "archives" && <ArchivesList />}
 
         {activeTab === "reponses-candidatures" && <ReponsesCandidaturesList />}
       </div>
