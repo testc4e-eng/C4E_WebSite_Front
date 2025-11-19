@@ -38,6 +38,7 @@ import {
   Search,
   Key,
   Ban,
+  RotateCcw,
 } from "lucide-react";
 import api from "../lib/api";
 
@@ -71,7 +72,6 @@ interface ApiOffre {
   exigences: string[];
 }
 
-// MODIFICATION : Ajout du statut 'ignoree'
 interface Candidature {
   id: number;
   type: "emploi" | "stage" | "pfe" | "spontanee" | "stage_spontane";
@@ -85,7 +85,7 @@ interface Candidature {
   motivation?: string;
   telephone?: string;
   dateSoumission: string;
-  statut: "en_attente" | "acceptee" | "refusee"; // ✅ Backend compatible
+  statut: "en_attente" | "acceptee" | "refusee";
   competenceScore?: number;
   poste?: string;
   diplome?: string;
@@ -96,7 +96,7 @@ interface Candidature {
   source?: "offre" | "spontanee";
   universite?: string;
   type_etablissement?: string;
-  ignored?: boolean; // ✅ Géré localement
+  ignored?: boolean;
 }
 
 const diplomeOrder: Record<string, number> = {
@@ -116,10 +116,8 @@ const diplomeOrder: Record<string, number> = {
 const getFileUrl = (filePath?: string) => {
   if (!filePath) return null;
 
-  // Si déjà une URL complète (cas Render ou lien absolu)
   if (filePath.startsWith("http")) return filePath;
 
-  // Construction correcte de l'URL finale
   return `${API_BASE_URL}${
     filePath.startsWith("/") ? filePath : "/" + filePath
   }`;
@@ -195,24 +193,20 @@ const Dashboard = () => {
   >("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // NOUVEAUX STATES pour la gestion par postes
   const [viewMode, setViewMode] = useState<"postes" | "candidatures">("postes");
   const [selectedOffre, setSelectedOffre] = useState<OffreEmploi | null>(null);
   const [ongletCandidatures, setOngletCandidatures] = useState<
     "emploi" | "stage"
   >("emploi");
 
-  // États pour gérer les exigences dynamiques
   const [exigencesFields, setExigencesFields] = useState<string[]>([""]);
   const [editingExigences, setEditingExigences] = useState<string[]>([""]);
 
-  // MODIFICATION : États pour les archives avec filtre "ignorees"
   const [archiveFilter, setArchiveFilter] = useState<
     "tous" | "acceptees" | "refusees" | "ignorees"
   >("tous");
   const [searchArchive, setSearchArchive] = useState("");
 
-  // État pour la modale de changement de mot de passe
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -309,7 +303,6 @@ const Dashboard = () => {
     }
   }, [activeTab, token]);
 
-  // Fonctions pour gérer les exigences dynamiques
   const ajouterChampExigence = () => {
     setExigencesFields([...exigencesFields, ""]);
   };
@@ -515,7 +508,6 @@ const Dashboard = () => {
     }
   };
 
-  // NOUVELLE FONCTION : Envoyer un email selon le statut
   const envoyerEmailCandidature = async (
     candidature: Candidature,
     statut: "acceptee" | "refusee"
@@ -545,120 +537,152 @@ const Dashboard = () => {
       console.log(`✅ Email ${statut} envoyé à ${candidature.email}`, result);
     } catch (error) {
       console.error("❌ Erreur envoi email:", error);
-      // Ne pas bloquer l'interface en cas d'erreur d'envoi d'email
     }
   };
 
-
-
-
-  // MODIFICATION : Fonction changerStatut avec envoi d'email pour accepter/refuser
-const changerStatut = async (
-  candidature: Candidature,
-  nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
-) => {
-  try {
-    const { id, type } = candidature;
-
-    console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
-
-    // ✅ CAS 1: "Ignorer" -> Gestion locale uniquement
-    if (nouveauStatut === "ignorer") {
-      setCandidatures((prev) =>
-        prev.map((c) =>
-          c.id === id && c.type === type
-            ? { ...c, ignored: true } // Marquer comme ignoré
-            : c
-        )
-      );
-      console.log(`✅ Candidature ${id} ignorée localement`);
-      return;
-    }
-
-    // ✅ CAS 2: Les 3 autres statuts -> Appel API backend
-    // Mettre à jour localement immédiatement
+  const restaurerCandidature = (candidature: Candidature) => {
     setCandidatures((prev) =>
       prev.map((c) =>
-        c.id === id && c.type === type
-          ? { ...c, statut: nouveauStatut, ignored: false }
+        c.id === candidature.id && c.type === candidature.type
+          ? { ...c, ignored: false }
           : c
       )
     );
+    console.log(`✅ Candidature de ${candidature.nom} restaurée`);
+  };
 
-    // Mapping pour l'API
-    let typeAPI = type;
-    if (type === "stage_spontane") {
-      typeAPI = "stage";
-    }
+  const changerStatut = async (
+    candidature: Candidature,
+    nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
+  ) => {
+    try {
+      const { id, type } = candidature;
 
-    // Appeler le backend avec UNIQUEMENT les statuts valides
-    const res = await fetch(
-      getApiUrl(`/api/candidatures/statut/${typeAPI}/${id}`),
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          statut: nouveauStatut // ✅ Seulement "en_attente", "acceptee", "refusee"
-        }),
+      console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
+
+      if (nouveauStatut === "ignorer") {
+        setCandidatures((prev) =>
+          prev.map((c) =>
+            c.id === id && c.type === type
+              ? { ...c, ignored: true }
+              : c
+          )
+        );
+        console.log(`✅ Candidature ${id} ignorée localement`);
+        return;
       }
-    );
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`❌ Erreur ${res.status}:`, errorText);
-      throw new Error(`Erreur ${res.status}: ${errorText}`);
-    }
+      setCandidatures((prev) =>
+        prev.map((c) =>
+          c.id === id && c.type === type
+            ? { ...c, statut: nouveauStatut, ignored: false }
+            : c
+        )
+      );
 
-    const result = await res.json();
-    console.log("✅ Statut mis à jour avec succès:", result);
+      let typeAPI = type;
+      if (type === "stage_spontane") {
+        typeAPI = "stage";
+      }
 
-    // ✅ Le backend envoie automatiquement l'email pour acceptee/refusee
-
-  } catch (err: unknown) {
-    console.error("❌ Erreur détaillée:", err);
-    
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    setErrorCandidatures(`Échec mise à jour statut: ${message}`);
-
-    // Recharger les données pour récupérer l'état correct
-    const fetchCandidatures = async () => {
-      try {
-        console.log("🔄 Rechargement des candidatures après erreur...");
-        const res = await fetch(getApiUrl("/api/candidatures"), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data: Candidature[] = await res.json();
-          const normalizedData = data.map((cand) => ({
-            ...cand,
-            offreId: cand.offreId || cand.offre_id,
-            ignored: false // Réinitialiser
-          }));
-          setCandidatures(normalizedData);
-          console.log("✅ Candidatures rechargées après erreur");
+      const res = await fetch(
+        getApiUrl(`/api/candidatures/statut/${typeAPI}/${id}`),
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ 
+            statut: nouveauStatut
+          }),
         }
-      } catch (reloadErr) {
-        console.error("❌ Erreur rechargement:", reloadErr);
-      }
-    };
-    fetchCandidatures();
-  }
-};
+      );
 
-const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
-  if (candidature.ignored) {
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`❌ Erreur ${res.status}:`, errorText);
+        throw new Error(`Erreur ${res.status}: ${errorText}`);
+      }
+
+      const result = await res.json();
+      console.log("✅ Statut mis à jour avec succès:", result);
+
+    } catch (err: unknown) {
+      console.error("❌ Erreur détaillée:", err);
+      
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setErrorCandidatures(`Échec mise à jour statut: ${message}`);
+
+      const fetchCandidatures = async () => {
+        try {
+          console.log("🔄 Rechargement des candidatures après erreur...");
+          const res = await fetch(getApiUrl("/api/candidatures"), {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data: Candidature[] = await res.json();
+            const normalizedData = data.map((cand) => ({
+              ...cand,
+              offreId: cand.offreId || cand.offre_id,
+              ignored: false
+            }));
+            setCandidatures(normalizedData);
+            console.log("✅ Candidatures rechargées après erreur");
+          }
+        } catch (reloadErr) {
+          console.error("❌ Erreur rechargement:", reloadErr);
+        }
+      };
+      fetchCandidatures();
+    }
+  };
+
+  const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
+    if (candidature.ignored) {
+      return (
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => restaurerCandidature(candidature)}
+            className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
+          >
+            <RotateCcw className="h-3 w-3" />
+            <span>Restaurer</span>
+          </button>
+          <button
+            onClick={() => setSelectedCandidature(candidature)}
+            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
+            title="Voir détails"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => supprimerCandidature(candidature)}
+            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
+            title="Supprimer"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center space-x-2">
-        <button
-          onClick={() => restaurerCandidature(candidature)}
-          className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
+        <select
+          value={candidature.statut}
+          onChange={(e) => {
+            const selectedValue = e.target.value as "en_attente" | "acceptee" | "refusee" | "ignorer";
+            console.log("🎯 Sélection:", selectedValue);
+            changerStatut(candidature, selectedValue);
+          }}
+          className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
         >
-          <RotateCcw className="h-3 w-3" />
-          <span>Restaurer</span>
-        </button>
+          <option value="en_attente">En attente</option>
+          <option value="acceptee">Accepter</option>
+          <option value="refusee">Refuser</option>
+          <option value="ignorer">Ignorer</option>
+        </select>
         <button
           onClick={() => setSelectedCandidature(candidature)}
           className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
@@ -675,52 +699,7 @@ const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
         </button>
       </div>
     );
-  }
-
-  return (
-    <div className="flex items-center space-x-2">
-      <select
-        value={candidature.statut}
-        onChange={(e) => {
-          const selectedValue = e.target.value as "en_attente" | "acceptee" | "refusee" | "ignorer";
-          console.log("🎯 Sélection:", selectedValue);
-          changerStatut(candidature, selectedValue);
-        }}
-        className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
-      >
-        <option value="en_attente">En attente</option>
-        <option value="acceptee">Accepter</option>
-        <option value="refusee">Refuser</option>
-        <option value="ignorer">Ignorer</option>
-      </select>
-      <button
-        onClick={() => setSelectedCandidature(candidature)}
-        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
-        title="Voir détails"
-      >
-        <Eye className="h-4 w-4" />
-      </button>
-      <button
-        onClick={() => supprimerCandidature(candidature)}
-        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
-        title="Supprimer"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-    </div>
-  );
-};
-// Fonction pour restaurer une candidature ignorée
-const restaurerCandidature = (candidature: Candidature) => {
-  setCandidatures((prev) =>
-    prev.map((c) =>
-      c.id === candidature.id && c.type === candidature.type
-        ? { ...c, ignored: false }
-        : c
-    )
-  );
-  console.log(`✅ Candidature de ${candidature.nom} restaurée`);
-};
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -759,25 +738,22 @@ const restaurerCandidature = (candidature: Candidature) => {
         throw new Error(data.message || `Erreur HTTP ${response.status}`);
       }
 
-      // Succès
       setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
       
-      // Réinitialiser le formulaire
       setPasswordData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Erreur détaillée:", error);
       setPasswordError(error.message || "Une erreur inconnue est survenue");
     }
   };
 
-  // MODIFICATION : Fonctions pour les archives avec statut "ignoree"
   const candidaturesArchivees = candidatures.filter(
-    (c) => c.statut === "acceptee" || c.statut === "refusee" || c.statut === "ignoree"
+    (c) => c.statut === "acceptee" || c.statut === "refusee" || c.ignored
   );
 
   const candidaturesFiltreesArchive =
@@ -788,7 +764,7 @@ const restaurerCandidature = (candidature: Candidature) => {
             ? c.statut === "acceptee"
             : archiveFilter === "refusees"
             ? c.statut === "refusee"
-            : c.statut === "ignoree"
+            : c.ignored
         );
 
   const candidaturesRecherchees = candidaturesFiltreesArchive.filter(
@@ -798,18 +774,15 @@ const restaurerCandidature = (candidature: Candidature) => {
       (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
   );
 
-  // MODIFICATION : Stats archives avec "ignorees"
   const statsArchives = {
     total: candidaturesArchivees.length,
     acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee")
       .length,
     refusees: candidaturesArchivees.filter((c) => c.statut === "refusee")
       .length,
-    ignorees: candidaturesArchivees.filter((c) => c.statut === "ignoree")
-      .length,
+    ignorees: candidaturesArchivees.filter((c) => c.ignored).length,
   };
 
-  // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
     if (!diplome) {
       return <span className="text-gray-400 italic">Non renseigné</span>;
@@ -853,21 +826,18 @@ const restaurerCandidature = (candidature: Candidature) => {
     );
   };
 
-  // Composant pour les statistiques globales
   const StatsOverview = () => {
-    // MODIFICATION : Stats avec statut "ignoree"
     const stats = {
       total: candidatures.length,
       enAttente: candidatures.filter((c) => c.statut === "en_attente").length,
       acceptees: candidatures.filter((c) => c.statut === "acceptee").length,
       refusees: candidatures.filter((c) => c.statut === "refusee").length,
-      ignorees: candidatures.filter((c) => c.statut === "ignoree").length,
+      ignorees: candidatures.filter((c) => c.ignored).length,
       offresActives: offres.filter((o) => o.statut === "active").length,
     };
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-        {/* Total Candidatures */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
@@ -888,7 +858,6 @@ const restaurerCandidature = (candidature: Candidature) => {
           </div>
         </div>
 
-        {/* En Attente */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-amber-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
@@ -909,7 +878,6 @@ const restaurerCandidature = (candidature: Candidature) => {
           </div>
         </div>
 
-        {/* Acceptées */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-emerald-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
@@ -930,7 +898,6 @@ const restaurerCandidature = (candidature: Candidature) => {
           </div>
         </div>
 
-        {/* Refusées */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-rose-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
@@ -951,7 +918,6 @@ const restaurerCandidature = (candidature: Candidature) => {
           </div>
         </div>
 
-        {/* Ignorées */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-gray-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center justify-between">
             <div>
@@ -975,7 +941,6 @@ const restaurerCandidature = (candidature: Candidature) => {
     );
   };
 
-  // Composant PostesList
   const PostesList = ({
     filtreType = "emploi",
   }: {
@@ -1125,7 +1090,6 @@ const restaurerCandidature = (candidature: Candidature) => {
     );
   };
 
-  // Composant CandidaturesForPoste
   const CandidaturesForPoste = ({
     filtreType = "emploi",
   }: {
@@ -1140,12 +1104,10 @@ const restaurerCandidature = (candidature: Candidature) => {
         type: selectedOffre.type,
       });
 
-      // Filtrer d'abord par type
       const candidaturesFiltreesParType = candidatures.filter((cand) => {
         if (filtreType === "emploi") {
           return cand.type === "emploi";
         } else {
-          // Pour Stage/PFE, inclure les deux types
           return cand.type === "stage" || cand.type === "pfe";
         }
       });
@@ -1155,10 +1117,8 @@ const restaurerCandidature = (candidature: Candidature) => {
         candidaturesFiltreesParType.length
       );
 
-      // CORRECTION : Utiliser offre_id au lieu de offreId
       const candidaturesPourOffre = candidaturesFiltreesParType.filter(
         (cand) => {
-          // MATCHING DIRECT par offre_id
           if (cand.offre_id === selectedOffre.id) {
             console.log(
               `✅ Match direct: ${cand.nom} (offre_id: ${cand.offre_id})`
@@ -1194,13 +1154,11 @@ const restaurerCandidature = (candidature: Candidature) => {
         .length,
       refusees: candidaturesPourOffre.filter((c) => c.statut === "refusee")
         .length,
-      ignorees: candidaturesPourOffre.filter((c) => c.statut === "ignoree")
-        .length,
+      ignorees: candidaturesPourOffre.filter((c) => c.ignored).length,
     };
 
     return (
       <div className="space-y-6">
-        {/* Header avec stats */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -1226,7 +1184,6 @@ const restaurerCandidature = (candidature: Candidature) => {
             </div>
           </div>
 
-          {/* Stats cards */}
           <div className="grid grid-cols-5 gap-4 mt-4">
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
               <div className="text-2xl font-bold text-yellow-600">
@@ -1261,7 +1218,6 @@ const restaurerCandidature = (candidature: Candidature) => {
           </div>
         </div>
 
-        {/* Filtres et tri */}
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4 bg-white p-4 rounded-xl shadow-lg">
           <div className="flex items-center space-x-2">
             <Filter className="h-5 w-5 text-gray-600" />
@@ -1296,7 +1252,6 @@ const restaurerCandidature = (candidature: Candidature) => {
           </div>
         </div>
 
-        {/* Tableau des candidatures */}
         {candidaturesPourOffre.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-lg">
             <UserCheck className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -1388,36 +1343,7 @@ const restaurerCandidature = (candidature: Candidature) => {
                         </span>
                       </td>
                       <td className="px-6 py-4 space-x-2">
-                        {/* MODIFICATION : Select avec 4 options */}
-                        <select
-                          value={cand.statut}
-                          onChange={(e) =>
-                            changerStatut(
-                              cand,
-                              e.target.value as Candidature["statut"]
-                            )
-                          }
-                          className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                        >
-                          <option value="en_attente">En attente</option>
-                          <option value="acceptee">Accepter</option>
-                          <option value="refusee">Refuser</option>
-                          <option value="ignoree">Ignorer</option>
-                        </select>
-                        <button
-                          onClick={() => setSelectedCandidature(cand)}
-                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          title="Voir détails"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => supprimerCandidature(cand)}
-                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                          title="Supprimer cette candidature"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <ActionsSelect candidature={cand} />
                       </td>
                     </tr>
                   ))}
@@ -1430,10 +1356,8 @@ const restaurerCandidature = (candidature: Candidature) => {
     );
   };
 
-  // Fonctions utilitaires pour les statistiques
   const getCandidatureStats = (offreId: number) => {
     const candidaturesOffre = candidatures.filter((c) => {
-      // Vérifier offre_id au lieu de offreId
       return c.offre_id === offreId;
     });
 
@@ -1454,7 +1378,7 @@ const restaurerCandidature = (candidature: Candidature) => {
       acceptees: candidaturesOffre.filter((c) => c.statut === "acceptee")
         .length,
       refusees: candidaturesOffre.filter((c) => c.statut === "refusee").length,
-      ignorees: candidaturesOffre.filter((c) => c.statut === "ignoree").length,
+      ignorees: candidaturesOffre.filter((c) => c.ignored).length,
     };
   };
 
@@ -1463,7 +1387,6 @@ const restaurerCandidature = (candidature: Candidature) => {
       candidatures.filter((c) => {
         if (c.offreId === offreId) return true;
 
-        // Fallback: matching par titre pour stages/PFE sans offreId
         if ((c.type === "stage" || c.type === "pfe") && selectedOffre) {
           const posteCandidat = c.poste?.toLowerCase();
           const titreOffre = selectedOffre.titre.toLowerCase();
@@ -1492,7 +1415,6 @@ const restaurerCandidature = (candidature: Candidature) => {
       <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200 sticky top-0 z-40">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            {/* Logo cliquable */}
             <Link to="/">
               <img
                 src="/logo.png"
@@ -1506,7 +1428,6 @@ const restaurerCandidature = (candidature: Candidature) => {
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Bouton Changer Mot de Passe */}
             <button
               onClick={() => setShowChangePassword(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium shadow-sm"
@@ -1515,7 +1436,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               <span>Changer Mot de Passe</span>
             </button>
 
-            {/* Bouton Accueil */}
             <Link
               to="/"
               className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
@@ -1523,7 +1443,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               Accueil
             </Link>
 
-            {/* Bouton Déconnexion */}
             <button
               onClick={handleLogout}
               className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
@@ -1535,7 +1454,6 @@ const restaurerCandidature = (candidature: Candidature) => {
         </div>
       </header>
 
-      {/* Modale de changement de mot de passe */}
       {showChangePassword && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
@@ -1656,7 +1574,6 @@ const restaurerCandidature = (candidature: Candidature) => {
       )}
 
       <div className="container mx-auto px-6 py-8">
-        {/* Navigation principale */}
         <div className="flex justify-center mb-8 space-x-1 bg-white/50 rounded-xl p-1 shadow-md">
           <button
             onClick={() => setActiveTab("offres")}
@@ -1704,11 +1621,9 @@ const restaurerCandidature = (candidature: Candidature) => {
           </button>
         </div>
 
-        {/* Statistiques globales */}
         {(activeTab === "candidatures" ||
           activeTab === "candidatures-postes") && <StatsOverview />}
 
-        {/* Contenu des onglets */}
         {activeTab === "offres" && (
           <section className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-900 text-center">
@@ -1888,14 +1803,12 @@ const restaurerCandidature = (candidature: Candidature) => {
                   />
                 </div>
 
-                {/* Section des exigences dynamiques */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Exigences du poste
                   </label>
 
                   {editingOffre ? (
-                    // Mode édition
                     <div className="space-y-3">
                       {editingExigences.map((exigence, index) => (
                         <div
@@ -1939,7 +1852,6 @@ const restaurerCandidature = (candidature: Candidature) => {
                       </button>
                     </div>
                   ) : (
-                    // Mode création
                     <div className="space-y-3">
                       {exigencesFields.map((exigence, index) => (
                         <div
@@ -2182,7 +2094,6 @@ const restaurerCandidature = (candidature: Candidature) => {
                   ? candidatures.filter((c) => c.type === "stage_spontane")
                   : candidatures.filter((c) => c.type === "spontanee");
 
-              // DEBUG: Vérifier le filtrage
               console.log(
                 `🔍 DEBUG - Candidatures pour ${type}:`,
                 candidaturesByType
@@ -2194,7 +2105,6 @@ const restaurerCandidature = (candidature: Candidature) => {
                 sortOrder
               );
 
-              // Afficher même si vide pour voir le message
               return (
                 <div
                   key={type}
@@ -2326,36 +2236,7 @@ const restaurerCandidature = (candidature: Candidature) => {
                                 </span>
                               </td>
                               <td className="px-6 py-4 space-x-2">
-                                {/* MODIFICATION : Select avec 4 options */}
-                                <select
-                                  value={cand.statut}
-                                  onChange={(e) =>
-                                    changerStatut(
-                                      cand,
-                                      e.target.value as Candidature["statut"]
-                                    )
-                                  }
-                                  className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                                >
-                                  <option value="en_attente">En attente</option>
-                                  <option value="acceptee">Accepter</option>
-                                  <option value="refusee">Refuser</option>
-                                  <option value="ignoree">Ignorer</option>
-                                </select>
-                                <button
-                                  onClick={() => setSelectedCandidature(cand)}
-                                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  title="Voir détails"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => supprimerCandidature(cand)}
-                                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                  title="Supprimer cette candidature"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                                <ActionsSelect candidature={cand} />
                               </td>
                             </tr>
                           ))}
@@ -2414,7 +2295,6 @@ const restaurerCandidature = (candidature: Candidature) => {
                       ).toLocaleDateString()}
                     </p>
 
-                    {/* Ajout du type spécifique dans les détails */}
                     <p>
                       <strong>📋 Type de candidature :</strong>
                       <span
@@ -2500,7 +2380,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               Gestion des Candidatures par Postes
             </h2>
 
-            {/* Onglets pour filtrer par type d'offre */}
             <div className="flex justify-center mb-8">
               <div className="bg-white rounded-full p-2 shadow-lg border border-gray-200">
                 <button
@@ -2534,7 +2413,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               </div>
             </div>
 
-            {/* Affichage conditionnel */}
             {viewMode === "postes" && (
               <PostesList filtreType={ongletCandidatures} />
             )}
@@ -2542,7 +2420,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               <CandidaturesForPoste filtreType={ongletCandidatures} />
             )}
 
-            {/* Modal de détails de candidature */}
             {selectedCandidature && (
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
@@ -2740,7 +2617,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               </p>
             </div>
 
-            {/* MODIFICATION : Statistiques des archives avec "ignorees" */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-lg p-6 text-center">
                 <Archive className="h-12 w-12 text-gray-500 mx-auto mb-3" />
@@ -2772,7 +2648,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               </div>
             </div>
 
-            {/* MODIFICATION : Filtres archives avec option "ignorees" */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
                 <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full">
@@ -2810,7 +2685,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               </div>
             </div>
 
-            {/* Tableau des archives */}
             {loadingCandidatures ? (
               <div className="text-center py-12 bg-white rounded-xl shadow-lg">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
@@ -2953,7 +2827,6 @@ const restaurerCandidature = (candidature: Candidature) => {
               </div>
             )}
 
-            {/* Modal de détails pour les archives */}
             {selectedCandidature && (
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
