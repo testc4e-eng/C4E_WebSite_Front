@@ -1947,7 +1947,6 @@ const handleToggleUserStatus = async (user: User) => {
 
       {/* Modal pour ajouter un utilisateur - CORRIGÉ */}
 
-// CORRECTION COMPLÈTE DU MODAL D'AJOUT - VERSION FINALE
 {showAddUser && (
   <div 
     className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
