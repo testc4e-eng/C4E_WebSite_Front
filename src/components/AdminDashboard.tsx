@@ -10,7 +10,7 @@
 // ============================================================
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import {
   LogOut,
   Plus,
@@ -94,7 +94,7 @@ interface Candidature {
 }
 
 // === Configuration API ===
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://c4e-website-back.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
 const getApiUrl = (path: string) => `${API_BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
 
 // === Fonctions utilitaires ===
@@ -124,22 +124,20 @@ const useAuth = () => {
 
   useEffect(() => {
     const checkAuth = () => {
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('token');
-        const userData = localStorage.getItem('user');
-        
-        if (token && userData) {
-          try {
-            const userObj = JSON.parse(userData);
-            if (userObj.role === 'admin') {
-              setUser(userObj);
-            }
-          } catch (error) {
-            console.error('Error parsing user data:', error);
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      
+      if (token && userData) {
+        try {
+          const userObj = JSON.parse(userData);
+          if (userObj.role === 'admin') {
+            setUser(userObj);
           }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
         }
-        setLoading(false);
       }
+      setLoading(false);
     };
 
     checkAuth();
@@ -150,7 +148,7 @@ const useAuth = () => {
 
 // === Composant Principal AdminDashboard ===
 const AdminDashboard = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { user, loading } = useAuth();
   
   // États de navigation
@@ -186,9 +184,9 @@ const AdminDashboard = () => {
   // Redirection si non admin
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
-      router.push('/dashboard');
+      navigate('/dashboard');
     }
-  }, [user, loading, router]);
+  }, [user, loading, navigate]);
 
   // Chargement des données
   useEffect(() => {
@@ -1012,7 +1010,7 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    router.push('/login');
+    navigate('/login');
   };
 
   return (
@@ -1034,7 +1032,7 @@ const AdminDashboard = () => {
 
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => navigate('/dashboard')}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
             >
               <Home className="h-5 w-5" />
