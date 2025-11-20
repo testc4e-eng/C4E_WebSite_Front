@@ -344,62 +344,66 @@ const DashboardAdmin = () => {
   };
 
   // Fonction pour ajouter un utilisateur - CORRIGÉE ET SÉCURISÉE
-  const handleAddUser = async () => {
-    try {
-      setErrorUsers("");
+const handleAddUser = async () => {
+  try {
+    setErrorUsers("");
 
-      // Validation robuste
-      if (!newUser.nom?.trim()) {
-        setErrorUsers("Le nom est requis");
-        return;
-      }
-      if (!newUser.email?.trim()) {
-        setErrorUsers("L'email est requis");
-        return;
-      }
-      if (!newUser.password) {
-        setErrorUsers("Le mot de passe est requis");
-        return;
-      }
-      if (newUser.password.length < 6) {
-        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
-        return;
-      }
-
-      // Validation email basique
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(newUser.email)) {
-        setErrorUsers("Veuillez entrer un email valide");
-        return;
-      }
-
-      const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
-      
-      const userData = {
-        nom: newUser.nom.trim(),
-        email: newUser.email.trim(),
-        motDePasse: newUser.password
-      };
-
-      const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
-      
-      if (!res.ok) {
-        const errorData = data as any;
-        throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
-      }
-
-      // Réinitialiser et fermer
-      setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-      setShowAddUser(false);
-      
-      // Recharger la liste
-      fetchUsers();
-
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-      setErrorUsers(message);
+    // Validation robuste
+    if (!newUser.nom?.trim()) {
+      setErrorUsers("Le nom est requis");
+      return;
     }
-  }; 
+    if (!newUser.email?.trim()) {
+      setErrorUsers("L'email est requis");
+      return;
+    }
+    if (!newUser.password) {
+      setErrorUsers("Le mot de passe est requis");
+      return;
+    }
+    if (newUser.password.length < 6) {
+      setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
+    // Validation email basique
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUser.email)) {
+      setErrorUsers("Veuillez entrer un email valide");
+      return;
+    }
+
+    const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
+    
+    // CORRECTION : Utiliser le format attendu par le backend
+    const userData = {
+      nom: newUser.nom.trim(),
+      email: newUser.email.trim(),
+      motDePasse: newUser.password // ← Changé de 'password' à 'motDePasse'
+    };
+
+    console.log("🔄 Envoi des données:", { userType, userData });
+
+    const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
+    
+    if (!res.ok) {
+      const errorData = data as any;
+      throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
+    }
+
+    // Réinitialiser et fermer
+    setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+    setShowAddUser(false);
+    
+    // Recharger la liste
+    fetchUsers();
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
+    console.error("❌ Erreur création utilisateur:", err);
+    setErrorUsers(message);
+  }
+};
 
   // Fonction pour supprimer un utilisateur - CORRIGÉE
   const handleDeleteUser = async (user: User) => {
@@ -2839,8 +2843,7 @@ const DashboardAdmin = () => {
       {/* Modale de changement de mot de passe - CORRIGÉE */}
       {showChangePassword && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">            <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold text-gray-800">Changer le mot de passe</h3>
               <button 
                 onClick={() => {
