@@ -330,30 +330,21 @@ const DashboardAdmin = () => {
     }
   };
 
+// Dans fetchUsers - VERSION SIMPLIFIÉE
 const fetchUsers = async () => {
   try {
     setLoadingUsers(true);
     setErrorUsers("");
     console.log("🔄 Chargement des utilisateurs...");
     
-    // Récupérer les gestionnaires ET les administrateurs
-    const [gestionnairesRes, administrateursRes] = await Promise.all([
-      api.get<User[]>("/api/admin/gestionnaires", token),
-      api.get<User[]>("/api/admin/administrateurs", token)
-    ]);
+    const { res, data } = await api.get<User[]>("/api/admin/utilisateurs", token);
+    console.log("📨 Réponse API utilisateurs:", { status: res.status, data });
     
-    console.log("📨 Réponses API:", {
-      gestionnaires: gestionnairesRes.data,
-      administrateurs: administrateursRes.data
-    });
-    
-    if (!gestionnairesRes.res.ok || !administrateursRes.res.ok) {
-      throw new Error("Erreur lors du chargement des utilisateurs");
+    if (!res.ok) {
+      throw new Error(data.message || `Erreur ${res.status} lors du chargement des utilisateurs`);
     }
     
-    // Fusionner les deux listes
-    const allUsers = [...gestionnairesRes.data, ...administrateursRes.data];
-    setUsers(allUsers);
+    setUsers(data);
     
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur connexion backend.";
@@ -364,6 +355,7 @@ const fetchUsers = async () => {
   }
 };
   // Fonctions pour la gestion des utilisateurs - CORRIGÉES
+// Dans handleAddUser - CORRIGÉ
 const handleAddUser = async () => {
   try {
     setErrorUsers("");
@@ -372,7 +364,16 @@ const handleAddUser = async () => {
     // Déterminer le type pour l'URL
     const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
     
-    const { res, data } = await api.post(`/api/admin/${userType}`, newUser, token);
+    // Préparer les données pour le backend
+    const userData = {
+      nom: newUser.nom,
+      email: newUser.email,
+      motDePasse: newUser.password // ← Corriger le nom du champ
+    };
+    
+    console.log("📤 Données envoyées au backend:", userData);
+    
+    const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
     console.log("📨 Réponse création utilisateur:", { status: res.status, data });
     
     if (!res.ok) {
@@ -382,6 +383,10 @@ const handleAddUser = async () => {
     setUsers(prev => [...prev, data.user]);
     setShowAddUser(false);
     setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+    
+    // Recharger la liste des utilisateurs
+    fetchUsers();
+    
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
     console.error("❌ Erreur création utilisateur:", err);
@@ -1903,17 +1908,6 @@ const handleToggleUserStatus = async (user: User) => {
                       </span>
                     </td>
 <td className="px-6 py-4 space-x-2">
-  <button
-    onClick={() => handleToggleUserStatus(user)}
-    className={`p-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 ${
-      user.statut === "actif"
-        ? "text-red-600 hover:text-red-800 hover:bg-red-50 focus:ring-red-500"
-        : "text-green-600 hover:text-green-800 hover:bg-green-50 focus:ring-green-500"
-    }`}
-    title={user.statut === "actif" ? "Désactiver" : "Activer"}
-  >
-    {user.statut === "actif" ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-  </button>
   <button
     onClick={() => handleDeleteUser(user)}
     className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
