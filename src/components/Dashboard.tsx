@@ -228,17 +228,73 @@ const Dashboard = () => {
 
   // Charger les données depuis localStorage au montage
  // Charger les données depuis localStorage au montage
+// Charger les données depuis localStorage au montage
 useEffect(() => {
   const savedCandidatures = localStorage.getItem('candidatures');
   if (savedCandidatures) {
     try {
       const parsedCandidatures = JSON.parse(savedCandidatures);
-      setCandidatures(parsedCandidatures);
+      // Filtrer pour ne garder que les candidatures ignorées valides
+      const candidaturesIgnoreesValides = parsedCandidatures.filter((c: Candidature) => 
+        c.ignored === true && c.id && c.type
+      );
+      
+      if (candidaturesIgnoreesValides.length > 0) {
+        console.log('🔄 Restauration des candidatures ignorées:', candidaturesIgnoreesValides.length);
+        setCandidatures(prev => {
+          // Fusionner les candidatures ignorées avec les nouvelles
+          const merged = [...prev];
+          candidaturesIgnoreesValides.forEach(candIgnoree => {
+            const index = merged.findIndex(c => 
+              c.id === candIgnoree.id && c.type === candIgnoree.type
+            );
+            if (index !== -1) {
+              // Mettre à jour la candidature existante avec le statut ignoré
+              merged[index] = { ...merged[index], ignored: true };
+            } else {
+              // Ajouter la candidature ignorée si elle n'existe pas
+              merged.push(candIgnoree);
+            }
+          });
+          return merged;
+        });
+      }
     } catch (error) {
       console.error('Erreur parsing localStorage:', error);
     }
   }
 }, []);
+
+// Sauvegarder les candidatures dans localStorage à chaque modification
+useEffect(() => {
+  // Ne sauvegarder que les candidatures ignorées pour économiser l'espace
+  const candidaturesASauvegarder = candidatures.filter(c => c.ignored);
+  
+  if (candidaturesASauvegarder.length > 0) {
+    localStorage.setItem('candidatures', JSON.stringify(candidaturesASauvegarder));
+    console.log('💾 Sauvegarde des candidatures ignorées:', candidaturesASauvegarder.length);
+  } else {
+    localStorage.removeItem('candidatures');
+  }
+  
+  // Calculer les notifications
+  const candidaturesEnAttente = candidatures.filter(c => 
+    c.statut === "en_attente" && !c.ignored
+  );
+  
+  const candidaturesSpontaneesEnAttente = candidaturesEnAttente.filter(c => 
+    c.type === "spontanee" || c.type === "stage_spontane"
+  ).length;
+  
+  const candidaturesPostesEnAttente = candidaturesEnAttente.filter(c => 
+    c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+  ).length;
+
+  setNotificationCounts({
+    candidatures: candidaturesSpontaneesEnAttente,
+    candidaturesPostes: candidaturesPostesEnAttente
+  });
+}, [candidatures]);
 
 // Sauvegarder les candidatures dans localStorage à chaque modification
 useEffect(() => {
@@ -316,44 +372,36 @@ const fetchCandidatures = async () => {
 
     if (!res.ok) throw new Error("Erreur lors du chargement des candidatures.");
 
-    // Fusion intelligente : préserver l'état ignored des candidatures existantes
-    setCandidatures(prevCandidatures => {
-      // Créer un Map des candidatures existantes pour recherche rapide
-      const existingCandidaturesMap = new Map();
-      prevCandidatures.forEach(c => {
-        const key = `${c.id}-${c.type}`;
-        existingCandidaturesMap.set(key, c);
-      });
+    // Récupérer les candidatures ignorées du localStorage
+    const savedCandidatures = localStorage.getItem('candidatures');
+    let candidaturesIgnorees: Candidature[] = [];
+    
+    if (savedCandidatures) {
+      try {
+        candidaturesIgnorees = JSON.parse(savedCandidatures);
+      } catch (error) {
+        console.error('Erreur parsing localStorage:', error);
+      }
+    }
 
-      // Fusionner les nouvelles données avec les existantes
-      const mergedCandidatures = data.map(newCand => {
-        const key = `${newCand.id}-${newCand.type}`;
-        const existingCand = existingCandidaturesMap.get(key);
-        
-        if (existingCand) {
-          // Si la candidature existe déjà, préserver l'état ignored
-          return {
-            ...newCand,
-            ignored: existingCand.ignored || false
-          };
-        } else {
-          // Nouvelle candidature
-          return {
-            ...newCand,
-            ignored: false
-          };
-        }
-      });
-
-      // Ajouter les candidatures ignorées qui ne sont pas dans la réponse API
-      const ignoredCandidatures = prevCandidatures.filter(c => 
-        c.ignored && !data.some(newCand => 
-          newCand.id === c.id && newCand.type === c.type
-        )
+    // Fusionner les données de l'API avec les candidatures ignorées
+    const mergedCandidatures = data.map(newCand => {
+      const candIgnoree = candidaturesIgnorees.find(c => 
+        c.id === newCand.id && c.type === newCand.type
       );
-
-      return [...mergedCandidatures, ...ignoredCandidatures];
+      
+      return {
+        ...newCand,
+        ignored: candIgnoree ? true : false
+      };
     });
+
+    // Ajouter les candidatures ignorées qui ne sont pas dans la réponse API
+    const candidaturesIgnoreesManquantes = candidaturesIgnorees.filter(ignoree => 
+      !data.some(newCand => newCand.id === ignoree.id && newCand.type === ignoree.type)
+    );
+
+    setCandidatures([...mergedCandidatures, ...candidaturesIgnoreesManquantes]);
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur connexion backend.";
