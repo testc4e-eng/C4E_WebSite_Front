@@ -679,19 +679,20 @@ const changerStatut = async (
       )
     );
 
-    // Déterminer le bon endpoint API
+    // DÉTERMINER LE BON ENDPOINT API - VERSION CORRECTE
     let endpoint = "";
     let method = "PUT";
 
+    // CORRECTION : Utiliser les routes existantes de votre backend
     if (type === "spontanee" || type === "stage_spontane") {
-      // Pour les candidatures spontanées
-      endpoint = `/api/candidatures/spontanees/${id}`;
+      // Pour les candidatures spontanées - utiliser la route existante
+      endpoint = `/api/candidatures/statut/spontanee/${id}`;
     } else {
-      // Pour les candidatures par postes
-      endpoint = `/api/candidatures/${id}`;
+      // Pour les candidatures par postes (emploi, stage, pfe)
+      endpoint = `/api/candidatures/statut/${type}/${id}`;
     }
 
-    console.log(`📡 Appel API: ${endpoint}`, { method, statut: nouveauStatut });
+    console.log(`📡 Appel API CORRECT: ${endpoint}`, { method, statut: nouveauStatut });
 
     const res = await fetch(
       getApiUrl(endpoint),

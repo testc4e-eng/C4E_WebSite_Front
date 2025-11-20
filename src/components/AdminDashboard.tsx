@@ -778,7 +778,6 @@ const handleChangePassword = async () => {
   }
 };
 
-
   // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
     if (!diplome) return <span className="text-gray-400 italic">Non renseigné</span>;
