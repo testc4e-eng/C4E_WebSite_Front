@@ -683,10 +683,13 @@ const changerStatut = async (
     let endpoint = "";
     let method = "PUT";
 
-    // CORRECTION : Utiliser les routes existantes de votre backend
-    if (type === "spontanee" || type === "stage_spontane") {
-      // Pour les candidatures spontanées - utiliser la route existante
-      endpoint = `/api/candidatures/statut/spontanee/${id}`;
+    // CORRECTION : Utiliser les bonnes routes selon le type
+    if (type === "spontanee") {
+      // Pour les candidatures spontanées générales - utiliser la route dédiée
+      endpoint = `/api/candidatures/spontanees/${id}/statut`;
+    } else if (type === "stage_spontane") {
+      // Pour les stages spontanés - utiliser la route principale
+      endpoint = `/api/candidatures/statut/stage_spontane/${id}`;
     } else {
       // Pour les candidatures par postes (emploi, stage, pfe)
       endpoint = `/api/candidatures/statut/${type}/${id}`;
