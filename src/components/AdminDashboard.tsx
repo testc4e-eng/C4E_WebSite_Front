@@ -357,55 +357,79 @@ const fetchUsers = async () => {
   // Fonctions pour la gestion des utilisateurs - CORRIGÉES
 // Dans handleAddUser - CORRIGÉ
 // Dans handleAddUser - VERSION AVEC LOGGING COMPLET
+// handleAddUser - VERSION AMÉLIORÉE
 const handleAddUser = async () => {
   try {
     setErrorUsers("");
-    console.log("🔄 Création d'un nouvel utilisateur - Données:", newUser);
-    
-    // Validation frontend
-    if (!newUser.nom || !newUser.email || !newUser.password) {
-      setErrorUsers("Veuillez remplir tous les champs obligatoires");
+    console.log("🔄 Données avant envoi:", newUser);
+
+    // Validation robuste
+    if (!newUser.nom?.trim()) {
+      setErrorUsers("Le nom est requis");
+      return;
+    }
+    if (!newUser.email?.trim()) {
+      setErrorUsers("L'email est requis");
+      return;
+    }
+    if (!newUser.password) {
+      setErrorUsers("Le mot de passe est requis");
+      return;
+    }
+    if (newUser.password.length < 6) {
+      setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
-    // Déterminer le type pour l'URL
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUser.email)) {
+      setErrorUsers("Format d'email invalide");
+      return;
+    }
+
     const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
     
-    // Préparer les données pour le backend
     const userData = {
       nom: newUser.nom.trim(),
       email: newUser.email.trim(),
-      motDePasse: newUser.password // ← Important: motDePasse au lieu de password
+      motDePasse: newUser.password
     };
-    
-    console.log("📤 Payload envoyé au backend:", userData);
-    console.log("🌐 URL appelée:", `/api/admin/${userType}`);
-    
+
+    console.log("📤 Données finales envoyées:", userData);
+    console.log("🌐 Endpoint:", `/api/admin/${userType}`);
+
     const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
-    console.log("📨 Réponse du serveur:", { status: res.status, data });
     
+    console.log("📨 Réponse complète:", { status: res.status, data });
+
     if (!res.ok) {
-      // Afficher le message d'erreur du backend
-      const errorMsg = data.message || data.error || `Erreur ${res.status}`;
-      console.error("❌ Erreur backend:", errorMsg);
-      throw new Error(errorMsg);
+      // Essayer de récupérer le message d'erreur du backend
+      const backendError = data?.message || data?.error || `Erreur HTTP ${res.status}`;
+      console.error("❌ Erreur détaillée du backend:", data);
+      throw new Error(backendError);
     }
-    
-    console.log("✅ Utilisateur créé avec succès:", data.user);
-    
-    // Réinitialiser le formulaire
+
+    console.log("✅ Succès - Utilisateur créé:", data.user);
+
+    // Réinitialiser et fermer
     setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
     setShowAddUser(false);
     
-    // Recharger la liste
+    // Recharger après un délai
     setTimeout(() => {
       fetchUsers();
-    }, 500);
-    
+    }, 1000);
+
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-    console.error("❌ Erreur création utilisateur:", err);
-    setErrorUsers(message);
+    console.error("❌ Erreur complète:", err);
+    
+    let errorMessage = "Erreur lors de la création";
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    }
+    
+    setErrorUsers(errorMessage);
   }
 };
 
@@ -1940,94 +1964,119 @@ const handleToggleUserStatus = async (user: User) => {
       )}
 
       {/* Modal pour ajouter un utilisateur - CORRIGÉ */}
+// CORRECTION COMPLÈTE DU MODAL D'AJOUT
 {showAddUser && (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
-      {/* REMPLACER le form par un div */}
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
-          <button 
-            onClick={() => {
-              setShowAddUser(false);
-              setErrorUsers("");
+    <div 
+      className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn"
+      onClick={(e) => e.stopPropagation()} // Empêche la fermeture en cliquant sur le modal
+    >
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
+        <button 
+          onClick={() => {
+            setShowAddUser(false);
+            setErrorUsers("");
+            setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" }); // Reset
+          }} 
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+          type="button"
+        >
+          <XCircle className="h-6 w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4">
+        {errorUsers && (
+          <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+            {errorUsers}
+          </div>
+        )}
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Nom *
+          </label>
+          <input 
+            type="text" 
+            value={newUser.nom} 
+            onChange={(e) => {
+              // Utiliser une fonction de mise à jour pour éviter les problèmes de closure
+              setNewUser(prev => ({ ...prev, nom: e.target.value }));
             }} 
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            type="button" // Important
-          >
-            <XCircle className="h-6 w-6" />
-          </button>
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+            placeholder="Entrez le nom complet" 
+          />
         </div>
         
-        <div className="space-y-4">
-          {errorUsers && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{errorUsers}</div>}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
-            <input 
-              type="text" 
-              value={newUser.nom} 
-              onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })} 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-              placeholder="Entrez le nom complet" 
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-            <input 
-              type="email" 
-              value={newUser.email} 
-              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-              placeholder="Entrez l'email" 
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe *</label>
-            <input 
-              type="password" 
-              value={newUser.password} 
-              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-              placeholder="Entrez le mot de passe" 
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Rôle *</label>
-            <select 
-              value={newUser.role} 
-              onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "gestionnaire" })} 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-            >
-              <option value="gestionnaire">Gestionnaire</option>
-              <option value="admin">Administrateur</option>
-            </select>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email *
+          </label>
+          <input 
+            type="email" 
+            value={newUser.email} 
+            onChange={(e) => {
+              setNewUser(prev => ({ ...prev, email: e.target.value }));
+            }} 
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+            placeholder="Entrez l'email" 
+          />
         </div>
         
-        <div className="mt-6 flex justify-end space-x-3">
-          <button 
-            onClick={() => {
-              setShowAddUser(false);
-              setErrorUsers("");
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Mot de passe *
+          </label>
+          <input 
+            type="password" 
+            value={newUser.password} 
+            onChange={(e) => {
+              setNewUser(prev => ({ ...prev, password: e.target.value }));
             }} 
-            className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
-            type="button" // Important
-          >
-            Annuler
-          </button>
-          <button 
-            onClick={handleAddUser} 
-            disabled={!newUser.nom || !newUser.email || !newUser.password}
-            className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            type="button" // Important
-          >
-            Créer l'utilisateur
-          </button>
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+            placeholder="Entrez le mot de passe" 
+            minLength={6}
+          />
         </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Rôle *
+          </label>
+          <select 
+            value={newUser.role} 
+            onChange={(e) => {
+              setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "gestionnaire" }));
+            }} 
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+          >
+            <option value="gestionnaire">Gestionnaire</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+      </div>
+      
+      <div className="mt-6 flex justify-end space-x-3">
+        <button 
+          onClick={() => {
+            setShowAddUser(false);
+            setErrorUsers("");
+            setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+          }} 
+          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+          type="button"
+        >
+          Annuler
+        </button>
+        <button 
+          onClick={handleAddUser} 
+          disabled={!newUser.nom.trim() || !newUser.email.trim() || !newUser.password}
+          className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          type="button"
+        >
+          Créer l'utilisateur
+        </button>
       </div>
     </div>
   </div>
