@@ -633,11 +633,6 @@ const envoyerEmailCandidature = async (
 
 } catch (error: unknown) {
   console.error("❌ Erreur générale envoi email:", error);
-
-  // Vérification sécurisée
-  const message = error instanceof Error ? error.message : String(error);
-
-  setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${message}`);
 }
 };
 
