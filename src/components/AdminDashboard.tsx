@@ -741,61 +741,43 @@ const DashboardAdmin = () => {
   };
 
   // Fonction de changement de mot de passe - CORRIGÉE
-  const handleChangePassword = async () => {
+const handleChangePassword = async () => {
+  try {
     setPasswordError("");
     setPasswordSuccess("");
-    
-    try {
-      // Validation
-      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-        setPasswordError("Tous les champs sont requis");
-        return;
-      }
 
-      if (passwordData.newPassword !== passwordData.confirmPassword) {
-        setPasswordError("Les nouveaux mots de passe ne correspondent pas");
-        return;
-      }
-
-      if (passwordData.newPassword.length < 6) {
-        setPasswordError("Le mot de passe doit contenir au moins 6 caractères");
-        return;
-      }
-
-      console.log("🔄 Tentative de changement de mot de passe...");
-
-      // Utilisation de votre utilitaire API
-      const { res, data } = await api.put(
-        "/api/auth/change-password",
-        {
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-          confirmPassword: passwordData.confirmPassword
-        },
-        token
-      );
-
-      console.log("📨 Réponse du serveur:", data);
-
-      if (!res.ok) {
-        const errorData = data as any;
-        throw new Error(errorData?.message || errorData?.error || `Erreur HTTP ${res.status}`);
-      }
-
-      const successData = data as any;
-      setPasswordSuccess(successData?.message || "Mot de passe changé avec succès !");
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      
-      // Fermer le modal après 2 secondes
-      setTimeout(() => {
-        setShowChangePassword(false);
-      }, 2000);
-
-    } catch (error: any) {
-      console.error("❌ Erreur changement mot de passe:", error);
-      setPasswordError(error.message || "Une erreur inconnue est survenue");
+    // Validation simple côté front
+    if (!passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError("Veuillez remplir tous les champs.");
+      return;
     }
-  };
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+
+    // Préparer le body avec les clés attendues par le backend
+    const body = {
+      nouveauMotDePasse: passwordData.newPassword,
+      confirmationMotDePasse: passwordData.confirmPassword,
+    };
+
+    // Appel à l'API (remplace /gestionnaires/1 par la route correcte)
+    const { data } = await api.put(`/gestionnaires/${userId}/password`, body);
+
+    if (data.success) {
+      setPasswordSuccess("Mot de passe mis à jour avec succès !");
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } else {
+      setPasswordError(data.message || "Erreur lors de la mise à jour.");
+    }
+
+  } catch (err: any) {
+    console.error(err);
+    setPasswordError(err.message || "Erreur serveur.");
+  }
+};
+
 
   // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {

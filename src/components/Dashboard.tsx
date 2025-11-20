@@ -85,7 +85,7 @@ interface Candidature {
   motivation?: string;
   telephone?: string;
   dateSoumission: string;
-  statut: "en_attente" | "acceptee" | "refusee";
+  statut: "en_attente" | "acceptee" | "refusee" | "ignorer";
   competenceScore?: number;
   poste?: string;
   diplome?: string;
@@ -631,12 +631,16 @@ const envoyerEmailCandidature = async (
       setErrorCandidatures(`✅ Statut mis à jour mais email non envoyé (problème technique)`);
     }
 
-  } catch (error: any) {
-    console.error("❌ Erreur générale envoi email:", error);
-    // Ne pas bloquer l'UI pour les erreurs d'email
-    setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${error.message}`);
-  }
+} catch (error: unknown) {
+  console.error("❌ Erreur générale envoi email:", error);
+
+  // Vérification sécurisée
+  const message = error instanceof Error ? error.message : String(error);
+
+  setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${message}`);
+}
 };
+
   const restaurerCandidature = (candidature: Candidature) => {
     setCandidatures((prev) =>
       prev.map((c) =>
@@ -657,17 +661,15 @@ const changerStatut = async (
 
     console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
 
-    if (nouveauStatut === "ignorer") {
-      // Marquer comme ignorée et mettre à jour l'UI immédiatement
-      const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" };
-      setCandidatures((prev) =>
-        prev.map((c) =>
-          c.id === id && c.type === type ? updatedCandidature : c
-        )
-      );
-      console.log(`✅ Candidature ${id} ignorée localement`);
-      return;
-    }
+if (nouveauStatut === "ignorer") {
+  const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" as StatutCandidature };
+  setCandidatures((prev) =>
+    prev.map((c) =>
+      c.id === id && c.type === type ? updatedCandidature : c
+    )
+  );
+  return;
+}
 
     // Mettre à jour le statut dans l'UI immédiatement
     const updatedCandidature = { ...candidature, statut: nouveauStatut, ignored: false };

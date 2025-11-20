@@ -14,9 +14,9 @@ interface ImportMeta {
 }
 
 // Interface pour les headers avec Authorization
-interface CustomHeadersInit extends HeadersInit {
+type CustomHeadersInit = HeadersInit & {
   Authorization?: string;
-}
+};
 
 /**
  * Base URL de l'API : priorise VITE (build-time), sinon fallback Render.
