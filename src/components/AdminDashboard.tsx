@@ -1823,7 +1823,15 @@ const handleAddUser = async () => {
   );
 
   // VUE GESTION DES UTILISATEURS - CORRIGÉE
-  const GestionUtilisateursView = () => (
+const GestionUtilisateursView = () => {
+
+  const handleCloseModal = () => {
+    setShowAddUser(false);
+    setErrorUsers("");
+    setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+  };
+
+  return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
@@ -1840,7 +1848,9 @@ const handleAddUser = async () => {
             <span>Retour au tableau de bord</span>
           </button>
         </div>
+
         <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
+
         <button
           onClick={() => setShowAddUser(true)}
           className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
@@ -1887,13 +1897,17 @@ const handleAddUser = async () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <tr key={user.id} className="hover:bg-gray-50 transition duration-200">
                     <td className="px-6 py-4 text-gray-900">{user.nom}</td>
                     <td className="px-6 py-4 text-gray-600">{user.email}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                        user.role === "admin" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
-                      }`}>
+                      <span
+                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          user.role === "admin"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
                         {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
                       </span>
                     </td>
@@ -1901,17 +1915,20 @@ const handleAddUser = async () => {
                       {new Date(user.date_creation).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                        user.statut === "actif" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                      }`}>
+                      <span
+                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          user.statut === "actif"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
                         {user.statut === "actif" ? "Actif" : "Inactif"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 space-x-2">
+                    <td className="px-6 py-4">
                       <button
                         onClick={() => handleDeleteUser(user)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        title="Supprimer cet utilisateur"
+                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition duration-200"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -1924,115 +1941,98 @@ const handleAddUser = async () => {
         </div>
       )}
 
-      {/* Modal pour ajouter un utilisateur - CORRIGÉ */}
+      {/* Modal Ajouter un Utilisateur – Version corrigée */}
       {showAddUser && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => {
-            setShowAddUser(false);
-            setErrorUsers("");
-            setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-          }}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
-              <button 
-                onClick={() => {
-                  setShowAddUser(false);
-                  setErrorUsers("");
-                  setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-                }} 
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-                type="button"
+
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-600 transition"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               {errorUsers && (
                 <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
                   {errorUsers}
                 </div>
               )}
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom *
-                </label>
-                <input 
-                  type="text" 
-                  value={newUser.nom} 
-                  onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))} 
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-                  placeholder="Entrez le nom complet" 
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                <input
+                  type="text"
+                  value={newUser.nom}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Entrez le nom complet"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
-                </label>
-                <input 
-                  type="email" 
-                  value={newUser.email} 
-                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))} 
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-                  placeholder="Entrez l'email" 
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Entrez l'email"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mot de passe *
-                </label>
-                <input 
-                  type="password" 
-                  value={newUser.password} 
-                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))} 
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-                  placeholder="Entrez le mot de passe" 
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe *</label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                  placeholder="Entrez le mot de passe"
                   minLength={6}
                 />
                 <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rôle *
-                </label>
-                <select 
-                  value={newUser.role} 
-                  onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "gestionnaire" }))} 
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                <label className="block text-sm font-medium text-gray-700 mb-2">Rôle *</label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) =>
+                    setNewUser(prev => ({
+                      ...prev,
+                      role: e.target.value as "admin" | "gestionnaire"
+                    }))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
                 >
                   <option value="gestionnaire">Gestionnaire</option>
                   <option value="admin">Administrateur</option>
                 </select>
               </div>
             </div>
-            
+
             <div className="mt-6 flex justify-end space-x-3">
-              <button 
-                onClick={() => {
-                  setShowAddUser(false);
-                  setErrorUsers("");
-                  setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-                }} 
-                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
-                type="button"
+              <button
+                onClick={handleCloseModal}
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
               >
                 Annuler
               </button>
-              <button 
-                onClick={handleAddUser} 
-                disabled={!newUser.nom.trim() || !newUser.email.trim() || !newUser.password || newUser.password.length < 6}
-                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                type="button"
+
+              <button
+                onClick={handleAddUser}
+                disabled={
+                  !newUser.nom.trim() ||
+                  !newUser.email.trim() ||
+                  !newUser.password ||
+                  newUser.password.length < 6
+                }
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
               >
                 Créer l'utilisateur
               </button>
@@ -2042,6 +2042,8 @@ const handleAddUser = async () => {
       )}
     </motion.div>
   );
+};
+
 
   // VUE GESTION DES CANDIDATURES
   const GestionCandidaturesView = () => (
