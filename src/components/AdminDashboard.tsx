@@ -358,12 +358,14 @@ const fetchUsers = async () => {
 // Dans handleAddUser - CORRIGÉ
 // Dans handleAddUser - VERSION AVEC LOGGING COMPLET
 // handleAddUser - VERSION AMÉLIORÉE
+// handleAddUser - VERSION CORRIGÉE
+// handleAddUser - VERSION CORRIGÉE
 const handleAddUser = async () => {
   try {
     setErrorUsers("");
     console.log("🔄 Données avant envoi:", newUser);
 
-    // Validation robuste
+    // Validation
     if (!newUser.nom?.trim()) {
       setErrorUsers("Le nom est requis");
       return;
@@ -376,17 +378,6 @@ const handleAddUser = async () => {
       setErrorUsers("Le mot de passe est requis");
       return;
     }
-    if (newUser.password.length < 6) {
-      setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newUser.email)) {
-      setErrorUsers("Format d'email invalide");
-      return;
-    }
 
     const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
     
@@ -396,42 +387,33 @@ const handleAddUser = async () => {
       motDePasse: newUser.password
     };
 
-    console.log("📤 Données finales envoyées:", userData);
-    console.log("🌐 Endpoint:", `/api/admin/${userType}`);
+    console.log("📤 Données envoyées:", userData);
 
     const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
     
-    console.log("📨 Réponse complète:", { status: res.status, data });
+    console.log("📨 Réponse:", { status: res.status, data });
 
     if (!res.ok) {
-      // Essayer de récupérer le message d'erreur du backend
-      const backendError = data?.message || data?.error || `Erreur HTTP ${res.status}`;
-      console.error("❌ Erreur détaillée du backend:", data);
-      throw new Error(backendError);
+      throw new Error(data.message || data.error || `Erreur ${res.status}`);
     }
 
-    console.log("✅ Succès - Utilisateur créé:", data.user);
+    console.log("✅ Utilisateur créé:", data.user);
 
     // Réinitialiser et fermer
     setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
     setShowAddUser(false);
     
-    // Recharger après un délai
+    // Recharger la liste
     setTimeout(() => {
       fetchUsers();
-    }, 1000);
+    }, 500);
 
   } catch (err: unknown) {
-    console.error("❌ Erreur complète:", err);
-    
-    let errorMessage = "Erreur lors de la création";
-    if (err instanceof Error) {
-      errorMessage = err.message;
-    }
-    
-    setErrorUsers(errorMessage);
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("❌ Erreur création:", err);
+    setErrorUsers(message);
   }
-};
+}; 
 
 // Dans handleDeleteUser - CORRIGÉ
 const handleDeleteUser = async (user: User) => {
@@ -1964,9 +1946,17 @@ const handleToggleUserStatus = async (user: User) => {
       )}
 
       {/* Modal pour ajouter un utilisateur - CORRIGÉ */}
-// CORRECTION COMPLÈTE DU MODAL D'AJOUT
+
+// CORRECTION COMPLÈTE DU MODAL D'AJOUT - VERSION FINALE
 {showAddUser && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div 
+    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    onClick={() => {
+      setShowAddUser(false);
+      setErrorUsers("");
+      setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+    }}
+  >
     <div 
       className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn"
       onClick={(e) => e.stopPropagation()} // Empêche la fermeture en cliquant sur le modal
@@ -1977,7 +1967,7 @@ const handleToggleUserStatus = async (user: User) => {
           onClick={() => {
             setShowAddUser(false);
             setErrorUsers("");
-            setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" }); // Reset
+            setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
           }} 
           className="text-gray-400 hover:text-gray-600 transition-colors"
           type="button"
@@ -2000,10 +1990,7 @@ const handleToggleUserStatus = async (user: User) => {
           <input 
             type="text" 
             value={newUser.nom} 
-            onChange={(e) => {
-              // Utiliser une fonction de mise à jour pour éviter les problèmes de closure
-              setNewUser(prev => ({ ...prev, nom: e.target.value }));
-            }} 
+            onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))} 
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
             placeholder="Entrez le nom complet" 
           />
@@ -2016,9 +2003,7 @@ const handleToggleUserStatus = async (user: User) => {
           <input 
             type="email" 
             value={newUser.email} 
-            onChange={(e) => {
-              setNewUser(prev => ({ ...prev, email: e.target.value }));
-            }} 
+            onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))} 
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
             placeholder="Entrez l'email" 
           />
@@ -2031,9 +2016,7 @@ const handleToggleUserStatus = async (user: User) => {
           <input 
             type="password" 
             value={newUser.password} 
-            onChange={(e) => {
-              setNewUser(prev => ({ ...prev, password: e.target.value }));
-            }} 
+            onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))} 
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
             placeholder="Entrez le mot de passe" 
             minLength={6}
@@ -2046,9 +2029,7 @@ const handleToggleUserStatus = async (user: User) => {
           </label>
           <select 
             value={newUser.role} 
-            onChange={(e) => {
-              setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "gestionnaire" }));
-            }} 
+            onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "gestionnaire" }))} 
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
           >
             <option value="gestionnaire">Gestionnaire</option>
