@@ -330,97 +330,117 @@ const DashboardAdmin = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      setLoadingUsers(true);
-      setErrorUsers("");
-      console.log("🔄 Chargement des utilisateurs...");
-      
-      const { res, data } = await api.get<User[]>("/api/users", token);
-      console.log("📨 Réponse API utilisateurs:", { status: res.status, data });
-      
-      if (!res.ok) {
-        throw new Error(data.message || `Erreur ${res.status} lors du chargement des utilisateurs`);
-      }
-      
-      setUsers(data);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-      console.error("❌ Erreur chargement utilisateurs:", err);
-      setErrorUsers(message);
-    } finally {
-      setLoadingUsers(false);
+const fetchUsers = async () => {
+  try {
+    setLoadingUsers(true);
+    setErrorUsers("");
+    console.log("🔄 Chargement des utilisateurs...");
+    
+    // Récupérer les gestionnaires ET les administrateurs
+    const [gestionnairesRes, administrateursRes] = await Promise.all([
+      api.get<User[]>("/api/admin/gestionnaires", token),
+      api.get<User[]>("/api/admin/administrateurs", token)
+    ]);
+    
+    console.log("📨 Réponses API:", {
+      gestionnaires: gestionnairesRes.data,
+      administrateurs: administrateursRes.data
+    });
+    
+    if (!gestionnairesRes.res.ok || !administrateursRes.res.ok) {
+      throw new Error("Erreur lors du chargement des utilisateurs");
     }
-  };
-
+    
+    // Fusionner les deux listes
+    const allUsers = [...gestionnairesRes.data, ...administrateursRes.data];
+    setUsers(allUsers);
+    
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+    console.error("❌ Erreur chargement utilisateurs:", err);
+    setErrorUsers(message);
+  } finally {
+    setLoadingUsers(false);
+  }
+};
   // Fonctions pour la gestion des utilisateurs - CORRIGÉES
-  const handleAddUser = async () => {
-    try {
-      setErrorUsers("");
-      console.log("🔄 Création d'un nouvel utilisateur:", newUser);
-      
-      const { res, data } = await api.post("/api/users", newUser, token);
-      console.log("📨 Réponse création utilisateur:", { status: res.status, data });
-      
-      if (!res.ok) {
-        throw new Error(data.message || data.error || "Erreur lors de la création de l'utilisateur.");
-      }
-      
-      setUsers(prev => [...prev, data.user]);
-      setShowAddUser(false);
-      setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur création utilisateur:", err);
-      setErrorUsers(message);
+const handleAddUser = async () => {
+  try {
+    setErrorUsers("");
+    console.log("🔄 Création d'un nouvel utilisateur:", newUser);
+    
+    // Déterminer le type pour l'URL
+    const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
+    
+    const { res, data } = await api.post(`/api/admin/${userType}`, newUser, token);
+    console.log("📨 Réponse création utilisateur:", { status: res.status, data });
+    
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Erreur lors de la création de l'utilisateur.");
     }
-  };
+    
+    setUsers(prev => [...prev, data.user]);
+    setShowAddUser(false);
+    setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("❌ Erreur création utilisateur:", err);
+    setErrorUsers(message);
+  }
+};
 
-  const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
-    try {
-      console.log("🔄 Suppression de l'utilisateur:", userId);
-      
-      const { res, data } = await api.delete(`/api/users/${userId}`, token);
-      console.log("📨 Réponse suppression utilisateur:", { status: res.status, data });
-      
-      if (!res.ok) {
-        throw new Error(data.message || data.error || "Erreur lors de la suppression de l'utilisateur.");
-      }
-      
-      setUsers(prev => prev.filter(user => user.id !== userId));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur suppression utilisateur:", err);
-      setErrorUsers(message);
+// Dans handleDeleteUser - CORRIGÉ
+const handleDeleteUser = async (user: User) => {
+  if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
+  try {
+    console.log("🔄 Suppression de l'utilisateur:", user);
+    
+    // Déterminer le type pour l'URL
+    const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
+    
+    const { res, data } = await api.delete(`/api/admin/${userType}/${user.id}`, token);
+    console.log("📨 Réponse suppression utilisateur:", { status: res.status, data });
+    
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Erreur lors de la suppression de l'utilisateur.");
     }
-  };
+    
+    setUsers(prev => prev.filter(u => u.id !== user.id));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("❌ Erreur suppression utilisateur:", err);
+    setErrorUsers(message);
+  }
+};
 
-  const handleToggleUserStatus = async (userId: number, currentStatus: string) => {
-    try {
-      const newStatus = currentStatus === "actif" ? "inactif" : "actif";
-      console.log("🔄 Changement de statut utilisateur:", { userId, newStatus });
-      
-      const { res, data } = await api.put(
-        `/api/users/${userId}/status`,
-        { statut: newStatus },
-        token
-      );
-      console.log("📨 Réponse changement statut:", { status: res.status, data });
-      
-      if (!res.ok) {
-        throw new Error(data.message || data.error || "Erreur lors de la modification du statut.");
-      }
-      
-      setUsers(prev => prev.map(user => 
-        user.id === userId ? { ...user, statut: newStatus } : user
-      ));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur changement statut:", err);
-      setErrorUsers(message);
+const handleToggleUserStatus = async (user: User) => {
+  try {
+    const newStatus = user.statut === "actif" ? "inactif" : "actif";
+    console.log("🔄 Changement de statut utilisateur:", { user, newStatus });
+    
+    // Déterminer le type pour l'URL
+    const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
+    
+    const { res, data } = await api.put(
+      `/api/admin/${userType}/${user.id}/status`,
+      { statut: newStatus },
+      token
+    );
+    console.log("📨 Réponse changement statut:", { status: res.status, data });
+    
+    if (!res.ok) {
+      throw new Error(data.message || data.error || "Erreur lors de la modification du statut.");
     }
-  };
+    
+    setUsers(prev => prev.map(u => 
+      u.id === user.id ? { ...u, statut: newStatus } : u
+    ));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("❌ Erreur changement statut:", err);
+    setErrorUsers(message);
+  }
+};
 
   // Fonctions pour la gestion des offres et candidatures
   const ajouterChampExigence = () => setExigencesFields([...exigencesFields, ""]);
@@ -1882,26 +1902,26 @@ const DashboardAdmin = () => {
                         {user.statut === "actif" ? "Actif" : "Inactif"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 space-x-2">
-                      <button
-                        onClick={() => handleToggleUserStatus(user.id, user.statut)}
-                        className={`p-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 ${
-                          user.statut === "actif"
-                            ? "text-red-600 hover:text-red-800 hover:bg-red-50 focus:ring-red-500"
-                            : "text-green-600 hover:text-green-800 hover:bg-green-50 focus:ring-green-500"
-                        }`}
-                        title={user.statut === "actif" ? "Désactiver" : "Activer"}
-                      >
-                        {user.statut === "actif" ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        title="Supprimer cet utilisateur"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
+<td className="px-6 py-4 space-x-2">
+  <button
+    onClick={() => handleToggleUserStatus(user)}
+    className={`p-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 ${
+      user.statut === "actif"
+        ? "text-red-600 hover:text-red-800 hover:bg-red-50 focus:ring-red-500"
+        : "text-green-600 hover:text-green-800 hover:bg-green-50 focus:ring-green-500"
+    }`}
+    title={user.statut === "actif" ? "Désactiver" : "Activer"}
+  >
+    {user.statut === "actif" ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+  </button>
+  <button
+    onClick={() => handleDeleteUser(user)}
+    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+    title="Supprimer cet utilisateur"
+  >
+    <Trash2 className="h-4 w-4" />
+  </button>
+</td>
                   </tr>
                 ))}
               </tbody>
