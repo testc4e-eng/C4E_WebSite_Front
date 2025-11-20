@@ -661,15 +661,15 @@ const changerStatut = async (
 
     console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
 
-if (nouveauStatut === "ignorer") {
-  const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" as StatutCandidature };
-  setCandidatures((prev) =>
-    prev.map((c) =>
-      c.id === id && c.type === type ? updatedCandidature : c
-    )
-  );
-  return;
-}
+    if (nouveauStatut === "ignorer") {
+      const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" as "en_attente" };
+      setCandidatures((prev) =>
+        prev.map((c) =>
+          c.id === id && c.type === type ? updatedCandidature : c
+        )
+      );
+      return;
+    }
 
     // Mettre à jour le statut dans l'UI immédiatement
     const updatedCandidature = { ...candidature, statut: nouveauStatut, ignored: false };
@@ -684,11 +684,11 @@ if (nouveauStatut === "ignorer") {
     let method = "PUT";
 
     if (type === "spontanee" || type === "stage_spontane") {
-      // Pour les candidatures spontanées, utiliser l'endpoint correct
-      endpoint = `/api/candidatures/spontanees/${id}/statut`;
+      // Pour les candidatures spontanées
+      endpoint = `/api/candidatures/spontanees/${id}`;
     } else {
       // Pour les candidatures par postes
-      endpoint = `/api/candidatures/${id}/statut`;
+      endpoint = `/api/candidatures/${id}`;
     }
 
     console.log(`📡 Appel API: ${endpoint}`, { method, statut: nouveauStatut });
