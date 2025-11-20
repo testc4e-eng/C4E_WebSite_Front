@@ -94,29 +94,6 @@ interface User {
   statut: "actif" | "inactif";
 }
 
-// Interfaces pour les réponses API
-interface ApiResponse<T> {
-  message?: string;
-  error?: string;
-  user?: T;
-  users?: T[];
-  data?: T;
-  offre?: T;
-}
-
-interface UserResponse extends ApiResponse<User> {
-  users?: User[];
-  user?: User;
-}
-
-interface CandidatureResponse extends ApiResponse<Candidature> {
-  candidatures?: Candidature[];
-}
-
-interface OffreResponse extends ApiResponse<OffreEmploi> {
-  offres?: OffreEmploi[];
-}
-
 const diplomeOrder: Record<string, number> = {
   technicien: 1,
   licence: 2,
@@ -244,6 +221,7 @@ const DashboardAdmin = () => {
   });
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!token) navigate("/login");
@@ -253,7 +231,11 @@ const DashboardAdmin = () => {
   useEffect(() => {
     const savedCandidatures = localStorage.getItem('candidatures');
     if (savedCandidatures) {
-      setCandidatures(JSON.parse(savedCandidatures));
+      try {
+        setCandidatures(JSON.parse(savedCandidatures));
+      } catch (error) {
+        console.error('Erreur parsing localStorage:', error);
+      }
     }
   }, []);
 
@@ -315,37 +297,22 @@ const DashboardAdmin = () => {
       setLoadingCandidatures(true);
       setErrorCandidatures("");
 
+      let url = "";
       if (activeTab === "candidatures") {
-        const { res, data } = await api.get<Candidature[]>("/api/candidatures/spontanees/toutes", token);
-        if (!res.ok) throw new Error("Erreur lors du chargement des candidatures spontanées.");
-        // Fusionner avec les données existantes pour préserver l'état ignored
-        setCandidatures(prev => {
-          const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
-          const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-          return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
-        });
-      } else if (activeTab === "candidatures-postes") {
-        const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
-        if (!res.ok) throw new Error("Erreur lors du chargement des candidatures par offres.");
-        const candidaturesSurOffres = data.filter(
-          (c) => c.type === "emploi" || c.type === "stage" || c.type === "pfe"
-        );
-        // Fusionner avec les données existantes pour préserver l'état ignored
-        setCandidatures(prev => {
-          const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
-          const newCandidatures = candidaturesSurOffres.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-          return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
-        });
-      } else if (activeTab === "archives" || activeTab === "reponses-candidatures") {
-        const { res, data } = await api.get<Candidature[]>("/api/candidatures", token);
-        if (!res.ok) throw new Error("Erreur lors du chargement des archives.");
-        // Fusionner avec les données existantes pour préserver l'état ignored
-        setCandidatures(prev => {
-          const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
-          const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
-          return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
-        });
+        url = "/api/candidatures/spontanees/toutes";
+      } else if (activeTab === "candidatures-postes" || activeTab === "archives" || activeTab === "reponses-candidatures") {
+        url = "/api/candidatures";
       }
+
+      const { res, data } = await api.get<Candidature[]>(url, token);
+      if (!res.ok) throw new Error("Erreur lors du chargement des candidatures.");
+
+      // Fusionner avec les données existantes pour préserver l'état ignored
+      setCandidatures(prev => {
+        const existingIds = new Set(prev.map(c => `${c.id}-${c.type}`));
+        const newCandidatures = data.filter(c => !existingIds.has(`${c.id}-${c.type}`));
+        return [...prev.filter(c => c.ignored), ...newCandidatures.map(c => ({ ...c, ignored: false }))];
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur connexion backend.";
       setErrorCandidatures(message);
@@ -358,35 +325,30 @@ const DashboardAdmin = () => {
     try {
       setLoadingUsers(true);
       setErrorUsers("");
-      console.log("🔄 Chargement des utilisateurs...");
       
       const { res, data } = await api.get<User[]>("/api/admin/utilisateurs", token);
-      console.log("📨 Réponse API utilisateurs:", { status: res.status, data });
       
       if (!res.ok) {
-        // Gestion sécurisée des erreurs
-        const errorData = data as any;
-        throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status} lors du chargement des utilisateurs`);
+        throw new Error(`Erreur ${res.status} lors du chargement des utilisateurs`);
       }
       
       setUsers(data as User[]);
       
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-      console.error("❌ Erreur chargement utilisateurs:", err);
+      console.error("Erreur chargement utilisateurs:", err);
       setErrorUsers(message);
     } finally {
       setLoadingUsers(false);
     }
   };
 
-  // Fonction pour ajouter un utilisateur - CORRIGÉE
+  // Fonction pour ajouter un utilisateur - CORRIGÉE ET SÉCURISÉE
   const handleAddUser = async () => {
     try {
       setErrorUsers("");
-      console.log("🔄 Données avant envoi:", newUser);
 
-      // Validation
+      // Validation robuste
       if (!newUser.nom?.trim()) {
         setErrorUsers("Le nom est requis");
         return;
@@ -399,6 +361,17 @@ const DashboardAdmin = () => {
         setErrorUsers("Le mot de passe est requis");
         return;
       }
+      if (newUser.password.length < 6) {
+        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
+
+      // Validation email basique
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newUser.email)) {
+        setErrorUsers("Veuillez entrer un email valide");
+        return;
+      }
 
       const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
       
@@ -408,86 +381,42 @@ const DashboardAdmin = () => {
         motDePasse: newUser.password
       };
 
-      console.log("📤 Données envoyées:", userData);
-
       const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
       
-      console.log("📨 Réponse:", { status: res.status, data });
-
       if (!res.ok) {
         const errorData = data as any;
         throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
       }
-
-      console.log("✅ Utilisateur créé:", data);
 
       // Réinitialiser et fermer
       setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
       setShowAddUser(false);
       
       // Recharger la liste
-      setTimeout(() => {
-        fetchUsers();
-      }, 500);
+      fetchUsers();
 
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur création:", err);
+      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
       setErrorUsers(message);
     }
   }; 
 
   // Fonction pour supprimer un utilisateur - CORRIGÉE
   const handleDeleteUser = async (user: User) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.nom} ?`)) return;
     try {
-      console.log("🔄 Suppression de l'utilisateur:", user);
-      
-      // Déterminer le type pour l'URL
       const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
       
       const { res, data } = await api.delete(`/api/admin/${userType}/${user.id}`, token);
-      console.log("📨 Réponse suppression utilisateur:", { status: res.status, data });
       
       if (!res.ok) {
         const errorData = data as any;
-        throw new Error(errorData?.message || errorData?.error || "Erreur lors de la suppression de l'utilisateur.");
+        throw new Error(errorData?.message || errorData?.error || "Erreur lors de la suppression.");
       }
       
       setUsers(prev => prev.filter(u => u.id !== user.id));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur suppression utilisateur:", err);
-      setErrorUsers(message);
-    }
-  };
-
-  const handleToggleUserStatus = async (user: User) => {
-    try {
-      const newStatus = user.statut === "actif" ? "inactif" : "actif";
-      console.log("🔄 Changement de statut utilisateur:", { user, newStatus });
-      
-      // Déterminer le type pour l'URL
-      const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
-      
-      const { res, data } = await api.put(
-        `/api/admin/${userType}/${user.id}/status`,
-        { statut: newStatus },
-        token
-      );
-      console.log("📨 Réponse changement statut:", { status: res.status, data });
-      
-      if (!res.ok) {
-        const errorData = data as any;
-        throw new Error(errorData?.message || errorData?.error || "Erreur lors de la modification du statut.");
-      }
-      
-      setUsers(prev => prev.map(u => 
-        u.id === user.id ? { ...u, statut: newStatus } : u
-      ));
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur changement statut:", err);
       setErrorUsers(message);
     }
   };
@@ -523,7 +452,7 @@ const DashboardAdmin = () => {
   };
 
   const ajouterOffre = async () => {
-    if (!nouvelleOffre.titre || !nouvelleOffre.description || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation) {
+    if (!nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()) {
       setErrorOffres("Veuillez remplir tous les champs obligatoires.");
       return;
     }
@@ -554,7 +483,7 @@ const DashboardAdmin = () => {
   };
 
   const modifierOffre = async (offre: OffreEmploi) => {
-    if (!offre.titre || !offre.description || !offre.dateExpiration || !offre.localisation) {
+    if (!offre.titre.trim() || !offre.description.trim() || !offre.dateExpiration || !offre.localisation.trim()) {
       setErrorOffres("Veuillez remplir tous les champs obligatoires.");
       return;
     }
@@ -740,43 +669,81 @@ const DashboardAdmin = () => {
     navigate("/login");
   };
 
-  // Fonction de changement de mot de passe - CORRIGÉE
-const handleChangePassword = async () => {
-  try {
-    setPasswordError("");
-    setPasswordSuccess("");
+  // Fonction de changement de mot de passe - COMPLÈTEMENT CORRIGÉE
+  const handleChangePassword = async () => {
+    try {
+      setIsChangingPassword(true);
+      setPasswordError("");
+      setPasswordSuccess("");
 
-    // Validation simple côté front
-    if (!passwordData.newPassword || !passwordData.confirmPassword) {
-      setPasswordError("Veuillez remplir tous les champs.");
-      return;
+      // Validation robuste
+      if (!passwordData.currentPassword) {
+        setPasswordError("Le mot de passe actuel est requis");
+        return;
+      }
+      if (!passwordData.newPassword) {
+        setPasswordError("Le nouveau mot de passe est requis");
+        return;
+      }
+      if (!passwordData.confirmPassword) {
+        setPasswordError("La confirmation du mot de passe est requise");
+        return;
+      }
+      if (passwordData.newPassword.length < 6) {
+        setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError("Les mots de passe ne correspondent pas");
+        return;
+      }
+
+      // Préparer les données pour l'API
+      const requestBody = {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword
+      };
+
+      console.log("🔄 Envoi demande changement mot de passe...");
+
+      const response = await fetch(getApiUrl("/api/auth/change-password"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Erreur ${response.status}`);
+      }
+
+      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+      
+      // Réinitialiser le formulaire
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      // Fermer automatiquement après 2 secondes
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess("");
+      }, 2000);
+
+    } catch (err: any) {
+      console.error("❌ Erreur changement mot de passe:", err);
+      setPasswordError(err.message || "Une erreur est survenue lors du changement de mot de passe");
+    } finally {
+      setIsChangingPassword(false);
     }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("Les mots de passe ne correspondent pas.");
-      return;
-    }
-
-    // Préparer le body avec les clés attendues par le backend
-    const body = {
-      nouveauMotDePasse: passwordData.newPassword,
-      confirmationMotDePasse: passwordData.confirmPassword,
-    };
-
-    // Appel à l'API (remplace /gestionnaires/1 par la route correcte)
-    const { data } = await api.put(`/gestionnaires/${userId}/password`, body);
-
-    if (data.success) {
-      setPasswordSuccess("Mot de passe mis à jour avec succès !");
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    } else {
-      setPasswordError(data.message || "Erreur lors de la mise à jour.");
-    }
-
-  } catch (err: any) {
-    console.error(err);
-    setPasswordError(err.message || "Erreur serveur.");
-  }
-};
+  };
 
   // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
@@ -2027,6 +1994,7 @@ const handleChangePassword = async () => {
                   placeholder="Entrez le mot de passe" 
                   minLength={6}
                 />
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
               </div>
               
               <div>
@@ -2058,7 +2026,7 @@ const handleChangePassword = async () => {
               </button>
               <button 
                 onClick={handleAddUser} 
-                disabled={!newUser.nom.trim() || !newUser.email.trim() || !newUser.password}
+                disabled={!newUser.nom.trim() || !newUser.email.trim() || !newUser.password || newUser.password.length < 6}
                 className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 type="button"
               >
@@ -2344,8 +2312,8 @@ const handleChangePassword = async () => {
                 onClick={editingOffre ? () => modifierOffre(editingOffre) : ajouterOffre}
                 disabled={
                   editingOffre
-                    ? !editingOffre.titre || !editingOffre.description || !editingOffre.dateExpiration || !editingOffre.localisation
-                    : !nouvelleOffre.titre || !nouvelleOffre.description || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation
+                    ? !editingOffre.titre.trim() || !editingOffre.description.trim() || !editingOffre.dateExpiration || !editingOffre.localisation.trim()
+                    : !nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()
                 }
                 className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 shadow-md transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -2868,21 +2836,43 @@ const handleChangePassword = async () => {
         {currentView === "gestion-candidatures" && <GestionCandidaturesView />}
       </div>
 
-      {/* Modale de changement de mot de passe */}
+      {/* Modale de changement de mot de passe - CORRIGÉE */}
       {showChangePassword && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold text-gray-800">Changer le mot de passe</h3>
-              <button onClick={() => setShowChangePassword(false)} className="text-gray-400 hover:text-gray-600">
+              <button 
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordError("");
+                  setPasswordSuccess("");
+                  setPasswordData({
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                  });
+                }} 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
             <div className="space-y-4">
-              {passwordError && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{passwordError}</div>}
-              {passwordSuccess && <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">{passwordSuccess}</div>}
+              {passwordError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  {passwordError}
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                  {passwordSuccess}
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe actuel</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de passe actuel *
+                </label>
                 <input 
                   type="password" 
                   value={passwordData.currentPassword} 
@@ -2892,7 +2882,9 @@ const handleChangePassword = async () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nouveau mot de passe</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nouveau mot de passe *
+                </label>
                 <input 
                   type="password" 
                   value={passwordData.newPassword} 
@@ -2900,9 +2892,12 @@ const handleChangePassword = async () => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
                   placeholder="Entrez le nouveau mot de passe" 
                 />
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Confirmer le nouveau mot de passe</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirmer le nouveau mot de passe *
+                </label>
                 <input 
                   type="password" 
                   value={passwordData.confirmPassword} 
@@ -2913,8 +2908,28 @@ const handleChangePassword = async () => {
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
-              <button onClick={() => setShowChangePassword(false)} className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium">Annuler</button>
-              <button onClick={handleChangePassword} className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium">Changer le mot de passe</button>
+              <button 
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordError("");
+                  setPasswordSuccess("");
+                  setPasswordData({
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                  });
+                }} 
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleChangePassword} 
+                disabled={isChangingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isChangingPassword ? "Changement..." : "Changer le mot de passe"}
+              </button>
             </div>
           </div>
         </div>
