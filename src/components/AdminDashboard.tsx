@@ -35,6 +35,7 @@ import {
   Settings,
   Ban,
   RotateCcw,
+  X,
 } from "lucide-react";
 import api from "../lib/api";
 
@@ -91,6 +92,29 @@ interface User {
   role: "admin" | "gestionnaire";
   date_creation: string;
   statut: "actif" | "inactif";
+}
+
+// Interfaces pour les réponses API
+interface ApiResponse<T> {
+  message?: string;
+  error?: string;
+  user?: T;
+  users?: T[];
+  data?: T;
+  offre?: T;
+}
+
+interface UserResponse extends ApiResponse<User> {
+  users?: User[];
+  user?: User;
+}
+
+interface CandidatureResponse extends ApiResponse<Candidature> {
+  candidatures?: Candidature[];
+}
+
+interface OffreResponse extends ApiResponse<OffreEmploi> {
+  offres?: OffreEmploi[];
 }
 
 const diplomeOrder: Record<string, number> = {
@@ -268,7 +292,7 @@ const DashboardAdmin = () => {
         fetchCandidatures();
       }
     }
-  }, [currentView, activeTab, token]);
+  }, [currentView, activeTab]);
 
   // Fonctions pour charger les données
   const fetchOffres = async () => {
@@ -330,143 +354,143 @@ const DashboardAdmin = () => {
     }
   };
 
-// Dans fetchUsers - VERSION SIMPLIFIÉE
-const fetchUsers = async () => {
-  try {
-    setLoadingUsers(true);
-    setErrorUsers("");
-    console.log("🔄 Chargement des utilisateurs...");
-    
-    const { res, data } = await api.get<User[]>("/api/admin/utilisateurs", token);
-    console.log("📨 Réponse API utilisateurs:", { status: res.status, data });
-    
-    if (!res.ok) {
-      throw new Error(data.message || `Erreur ${res.status} lors du chargement des utilisateurs`);
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      setErrorUsers("");
+      console.log("🔄 Chargement des utilisateurs...");
+      
+      const { res, data } = await api.get<User[]>("/api/admin/utilisateurs", token);
+      console.log("📨 Réponse API utilisateurs:", { status: res.status, data });
+      
+      if (!res.ok) {
+        // Gestion sécurisée des erreurs
+        const errorData = data as any;
+        throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status} lors du chargement des utilisateurs`);
+      }
+      
+      setUsers(data as User[]);
+      
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+      console.error("❌ Erreur chargement utilisateurs:", err);
+      setErrorUsers(message);
+    } finally {
+      setLoadingUsers(false);
     }
-    
-    setUsers(data);
-    
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-    console.error("❌ Erreur chargement utilisateurs:", err);
-    setErrorUsers(message);
-  } finally {
-    setLoadingUsers(false);
-  }
-};
-  // Fonctions pour la gestion des utilisateurs - CORRIGÉES
-// Dans handleAddUser - CORRIGÉ
-// Dans handleAddUser - VERSION AVEC LOGGING COMPLET
-// handleAddUser - VERSION AMÉLIORÉE
-// handleAddUser - VERSION CORRIGÉE
-// handleAddUser - VERSION CORRIGÉE
-const handleAddUser = async () => {
-  try {
-    setErrorUsers("");
-    console.log("🔄 Données avant envoi:", newUser);
+  };
 
-    // Validation
-    if (!newUser.nom?.trim()) {
-      setErrorUsers("Le nom est requis");
-      return;
+  // Fonction pour ajouter un utilisateur - CORRIGÉE
+  const handleAddUser = async () => {
+    try {
+      setErrorUsers("");
+      console.log("🔄 Données avant envoi:", newUser);
+
+      // Validation
+      if (!newUser.nom?.trim()) {
+        setErrorUsers("Le nom est requis");
+        return;
+      }
+      if (!newUser.email?.trim()) {
+        setErrorUsers("L'email est requis");
+        return;
+      }
+      if (!newUser.password) {
+        setErrorUsers("Le mot de passe est requis");
+        return;
+      }
+
+      const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
+      
+      const userData = {
+        nom: newUser.nom.trim(),
+        email: newUser.email.trim(),
+        motDePasse: newUser.password
+      };
+
+      console.log("📤 Données envoyées:", userData);
+
+      const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
+      
+      console.log("📨 Réponse:", { status: res.status, data });
+
+      if (!res.ok) {
+        const errorData = data as any;
+        throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
+      }
+
+      console.log("✅ Utilisateur créé:", data);
+
+      // Réinitialiser et fermer
+      setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+      setShowAddUser(false);
+      
+      // Recharger la liste
+      setTimeout(() => {
+        fetchUsers();
+      }, 500);
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur création:", err);
+      setErrorUsers(message);
     }
-    if (!newUser.email?.trim()) {
-      setErrorUsers("L'email est requis");
-      return;
+  }; 
+
+  // Fonction pour supprimer un utilisateur - CORRIGÉE
+  const handleDeleteUser = async (user: User) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
+    try {
+      console.log("🔄 Suppression de l'utilisateur:", user);
+      
+      // Déterminer le type pour l'URL
+      const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
+      
+      const { res, data } = await api.delete(`/api/admin/${userType}/${user.id}`, token);
+      console.log("📨 Réponse suppression utilisateur:", { status: res.status, data });
+      
+      if (!res.ok) {
+        const errorData = data as any;
+        throw new Error(errorData?.message || errorData?.error || "Erreur lors de la suppression de l'utilisateur.");
+      }
+      
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur suppression utilisateur:", err);
+      setErrorUsers(message);
     }
-    if (!newUser.password) {
-      setErrorUsers("Le mot de passe est requis");
-      return;
+  };
+
+  const handleToggleUserStatus = async (user: User) => {
+    try {
+      const newStatus = user.statut === "actif" ? "inactif" : "actif";
+      console.log("🔄 Changement de statut utilisateur:", { user, newStatus });
+      
+      // Déterminer le type pour l'URL
+      const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
+      
+      const { res, data } = await api.put(
+        `/api/admin/${userType}/${user.id}/status`,
+        { statut: newStatus },
+        token
+      );
+      console.log("📨 Réponse changement statut:", { status: res.status, data });
+      
+      if (!res.ok) {
+        const errorData = data as any;
+        throw new Error(errorData?.message || errorData?.error || "Erreur lors de la modification du statut.");
+      }
+      
+      setUsers(prev => prev.map(u => 
+        u.id === user.id ? { ...u, statut: newStatus } : u
+      ));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur changement statut:", err);
+      setErrorUsers(message);
     }
-
-    const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
-    
-    const userData = {
-      nom: newUser.nom.trim(),
-      email: newUser.email.trim(),
-      motDePasse: newUser.password
-    };
-
-    console.log("📤 Données envoyées:", userData);
-
-    const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
-    
-    console.log("📨 Réponse:", { status: res.status, data });
-
-    if (!res.ok) {
-      throw new Error(data.message || data.error || `Erreur ${res.status}`);
-    }
-
-    console.log("✅ Utilisateur créé:", data.user);
-
-    // Réinitialiser et fermer
-    setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-    setShowAddUser(false);
-    
-    // Recharger la liste
-    setTimeout(() => {
-      fetchUsers();
-    }, 500);
-
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("❌ Erreur création:", err);
-    setErrorUsers(message);
-  }
-}; 
-
-// Dans handleDeleteUser - CORRIGÉ
-const handleDeleteUser = async (user: User) => {
-  if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) return;
-  try {
-    console.log("🔄 Suppression de l'utilisateur:", user);
-    
-    // Déterminer le type pour l'URL
-    const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
-    
-    const { res, data } = await api.delete(`/api/admin/${userType}/${user.id}`, token);
-    console.log("📨 Réponse suppression utilisateur:", { status: res.status, data });
-    
-    if (!res.ok) {
-      throw new Error(data.message || data.error || "Erreur lors de la suppression de l'utilisateur.");
-    }
-    
-    setUsers(prev => prev.filter(u => u.id !== user.id));
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("❌ Erreur suppression utilisateur:", err);
-    setErrorUsers(message);
-  }
-};
-
-const handleToggleUserStatus = async (user: User) => {
-  try {
-    const newStatus = user.statut === "actif" ? "inactif" : "actif";
-    console.log("🔄 Changement de statut utilisateur:", { user, newStatus });
-    
-    // Déterminer le type pour l'URL
-    const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
-    
-    const { res, data } = await api.put(
-      `/api/admin/${userType}/${user.id}/status`,
-      { statut: newStatus },
-      token
-    );
-    console.log("📨 Réponse changement statut:", { status: res.status, data });
-    
-    if (!res.ok) {
-      throw new Error(data.message || data.error || "Erreur lors de la modification du statut.");
-    }
-    
-    setUsers(prev => prev.map(u => 
-      u.id === user.id ? { ...u, statut: newStatus } : u
-    ));
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("❌ Erreur changement statut:", err);
-    setErrorUsers(message);
-  }
-};
+  };
 
   // Fonctions pour la gestion des offres et candidatures
   const ajouterChampExigence = () => setExigencesFields([...exigencesFields, ""]);
@@ -644,7 +668,7 @@ const handleToggleUserStatus = async (user: User) => {
     );
   };
 
-  // Fonction améliorée pour changer le statut
+  // Fonction améliorée pour changer le statut - CORRIGÉE
   const changerStatut = async (
     candidature: Candidature,
     nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
@@ -654,7 +678,7 @@ const handleToggleUserStatus = async (user: User) => {
 
       if (nouveauStatut === "ignorer") {
         // Marquer comme ignorée localement
-        const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" };
+        const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" as const };
         setCandidatures((prev) =>
           prev.map((c) =>
             c.id === id && c.type === type ? updatedCandidature : c
@@ -716,6 +740,7 @@ const handleToggleUserStatus = async (user: User) => {
     navigate("/login");
   };
 
+  // Fonction de changement de mot de passe - CORRIGÉE
   const handleChangePassword = async () => {
     setPasswordError("");
     setPasswordSuccess("");
@@ -753,10 +778,12 @@ const handleToggleUserStatus = async (user: User) => {
       console.log("📨 Réponse du serveur:", data);
 
       if (!res.ok) {
-        throw new Error(data.message || data.error || `Erreur HTTP ${res.status}`);
+        const errorData = data as any;
+        throw new Error(errorData?.message || errorData?.error || `Erreur HTTP ${res.status}`);
       }
 
-      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+      const successData = data as any;
+      setPasswordSuccess(successData?.message || "Mot de passe changé avec succès !");
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       
       // Fermer le modal après 2 secondes
@@ -795,7 +822,7 @@ const handleToggleUserStatus = async (user: User) => {
     return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">{experience}</span>;
   };
 
-  // Composant ActionsSelect pour gérer les actions sur les candidatures
+  // Composant ActionsSelect pour gérer les actions sur les candidatures - CORRIGÉ
   const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
     if (candidature.ignored) {
       return (
@@ -851,7 +878,7 @@ const handleToggleUserStatus = async (user: User) => {
           onClick={() => supprimerCandidature(candidature)}
           className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
           title="Supprimer"
-        >
+          >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -1928,15 +1955,15 @@ const handleToggleUserStatus = async (user: User) => {
                         {user.statut === "actif" ? "Actif" : "Inactif"}
                       </span>
                     </td>
-<td className="px-6 py-4 space-x-2">
-  <button
-    onClick={() => handleDeleteUser(user)}
-    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-    title="Supprimer cet utilisateur"
-  >
-    <Trash2 className="h-4 w-4" />
-  </button>
-</td>
+                    <td className="px-6 py-4 space-x-2">
+                      <button
+                        onClick={() => handleDeleteUser(user)}
+                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        title="Supprimer cet utilisateur"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1946,121 +1973,120 @@ const handleToggleUserStatus = async (user: User) => {
       )}
 
       {/* Modal pour ajouter un utilisateur - CORRIGÉ */}
-
-{showAddUser && (
-  <div 
-    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-    onClick={() => {
-      setShowAddUser(false);
-      setErrorUsers("");
-      setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-    }}
-  >
-    <div 
-      className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn"
-      onClick={(e) => e.stopPropagation()} // Empêche la fermeture en cliquant sur le modal
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
-        <button 
+      {showAddUser && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => {
             setShowAddUser(false);
             setErrorUsers("");
             setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-          }} 
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-          type="button"
+          }}
         >
-          <XCircle className="h-6 w-6" />
-        </button>
-      </div>
-      
-      <div className="space-y-4">
-        {errorUsers && (
-          <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-            {errorUsers}
-          </div>
-        )}
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nom *
-          </label>
-          <input 
-            type="text" 
-            value={newUser.nom} 
-            onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))} 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-            placeholder="Entrez le nom complet" 
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email *
-          </label>
-          <input 
-            type="email" 
-            value={newUser.email} 
-            onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))} 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-            placeholder="Entrez l'email" 
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Mot de passe *
-          </label>
-          <input 
-            type="password" 
-            value={newUser.password} 
-            onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))} 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
-            placeholder="Entrez le mot de passe" 
-            minLength={6}
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Rôle *
-          </label>
-          <select 
-            value={newUser.role} 
-            onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "gestionnaire" }))} 
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+          <div 
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
           >
-            <option value="gestionnaire">Gestionnaire</option>
-            <option value="admin">Administrateur</option>
-          </select>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
+              <button 
+                onClick={() => {
+                  setShowAddUser(false);
+                  setErrorUsers("");
+                  setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+                }} 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                type="button"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {errorUsers && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  {errorUsers}
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom *
+                </label>
+                <input 
+                  type="text" 
+                  value={newUser.nom} 
+                  onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez le nom complet" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input 
+                  type="email" 
+                  value={newUser.email} 
+                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez l'email" 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de passe *
+                </label>
+                <input 
+                  type="password" 
+                  value={newUser.password} 
+                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                  placeholder="Entrez le mot de passe" 
+                  minLength={6}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rôle *
+                </label>
+                <select 
+                  value={newUser.role} 
+                  onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as "admin" | "gestionnaire" }))} 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all duration-200"
+                >
+                  <option value="gestionnaire">Gestionnaire</option>
+                  <option value="admin">Administrateur</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <button 
+                onClick={() => {
+                  setShowAddUser(false);
+                  setErrorUsers("");
+                  setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+                }} 
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                type="button"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleAddUser} 
+                disabled={!newUser.nom.trim() || !newUser.email.trim() || !newUser.password}
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+              >
+                Créer l'utilisateur
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-      
-      <div className="mt-6 flex justify-end space-x-3">
-        <button 
-          onClick={() => {
-            setShowAddUser(false);
-            setErrorUsers("");
-            setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
-          }} 
-          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
-          type="button"
-        >
-          Annuler
-        </button>
-        <button 
-          onClick={handleAddUser} 
-          disabled={!newUser.nom.trim() || !newUser.email.trim() || !newUser.password}
-          className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          type="button"
-        >
-          Créer l'utilisateur
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </motion.div>
   );
 
@@ -2868,7 +2894,7 @@ const handleToggleUserStatus = async (user: User) => {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold text-gray-800">Changer le mot de passe</h3>
               <button onClick={() => setShowChangePassword(false)} className="text-gray-400 hover:text-gray-600">
-                <XCircle className="h-6 w-6" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             <div className="space-y-4">
