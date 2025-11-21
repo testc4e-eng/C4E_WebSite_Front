@@ -626,11 +626,6 @@ const envoyerEmailCandidature = async (
       }
     }
 
-    if (!emailSent) {
-      console.warn("⚠️ Aucun endpoint email n'a fonctionné, mais le statut a été mis à jour");
-      setErrorCandidatures(`✅ Statut mis à jour mais email non envoyé (problème technique)`);
-    }
-
 } catch (error: unknown) {
   console.error("❌ Erreur générale envoi email:", error);
 
