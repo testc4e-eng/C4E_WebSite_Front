@@ -665,7 +665,7 @@ const envoyerEmailCandidature = async (
     );
     console.log(`✅ Candidature de ${candidature.nom} restaurée`);
   };
-
+  
 const changerStatut = async (
   candidature: Candidature,
   nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
@@ -685,23 +685,8 @@ const changerStatut = async (
       return;
     }
 
-    // CORRECTION TEMPORAIRE : Utilisez le bon endpoint
-    let endpoint = "";
-    
-    if (type === "spontanee" || type === "stage_spontane") {
-      // Votre route est montée sur /api/candidatures/stage, pas sur /api/candidatures/spontanees
-      endpoint = `/api/candidatures/stage/${id}`; // ← CORRECTION
-    } else if (type === "stage") {
-      endpoint = `/api/candidatures/stage/${id}`;
-    } else if (type === "emploi") {
-      endpoint = `/api/candidatures/emploi/${id}`;
-    } else if (type === "pfe") {
-      endpoint = `/api/candidatures/pfe/${id}`;
-    } else {
-      console.error("Type de candidature inconnu:", type);
-      return;
-    }
-
+    // ✅ NOUVELLE ROUTE UNIVERSELLE
+    const endpoint = `/api/candidatures/${type}/${id}`;
     console.log(`📡 Appel API: ${endpoint}`, { statut: nouveauStatut });
 
     const res = await fetch(getApiUrl(endpoint), {
@@ -716,7 +701,7 @@ const changerStatut = async (
     if (!res.ok) {
       const errorText = await res.text();
       console.error(`❌ Erreur ${res.status}:`, errorText);
-      throw new Error(`Erreur ${res.status}: ${endpoint} non trouvé`);
+      throw new Error(`Erreur ${res.status}: ${endpoint}`);
     }
 
     const result = await res.json();
