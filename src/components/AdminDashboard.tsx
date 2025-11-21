@@ -1861,7 +1861,7 @@ const GestionUtilisateursView = () => {
     setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" }); // ← CORRIGÉ ICI
   };
 
-  // Fonction pour ajouter un utilisateur - CORRIGÉE
+  // Fonction pour ajouter un utilisateur - VERSION AMÉLIORÉE AVEC DÉBOGAGE
   const handleAddUser = async () => {
     try {
       setErrorUsers("");
@@ -1875,11 +1875,11 @@ const GestionUtilisateursView = () => {
         setErrorUsers("L'email est requis");
         return;
       }
-      if (!newUser.motDePasse) { // ← CORRIGÉ ICI
+      if (!newUser.motDePasse) {
         setErrorUsers("Le mot de passe est requis");
         return;
       }
-      if (newUser.motDePasse.length < 6) { // ← CORRIGÉ ICI
+      if (newUser.motDePasse.length < 6) {
         setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
         return;
       }
@@ -1897,34 +1897,59 @@ const GestionUtilisateursView = () => {
       const userData = {
         nom: newUser.nom.trim(),
         email: newUser.email.trim(),
-        motDePasse: newUser.motDePasse // ← CORRIGÉ ICI
+        motDePasse: newUser.motDePasse
       };
 
-      console.log("🔄 Envoi des données:", { 
+      console.log("🔄 TENTATIVE DE CRÉATION D'UTILISATEUR");
+      console.log("📦 Données envoyées:", { 
         userType, 
         userData: {
           ...userData,
           motDePasse: "***" // Masquer le mot de passe dans les logs
-        } 
+        },
+        tokenPresent: !!token
       });
 
-      const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
-      
-      if (!res.ok) {
-        console.log("❌ Réponse d'erreur du serveur:", {
-          status: res.status,
-          statusText: res.statusText,
-          data: data
-        });
+      // TEST AVEC UNE REQUÊTE FETCH DIRECTE POUR DÉBOGUER
+      const response = await fetch(`https://c4e-website-back.onrender.com/api/admin/${userType}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      });
+
+      console.log("📡 Réponse du serveur:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      const responseData = await response.json();
+      console.log("📨 Données de réponse:", responseData);
+
+      if (!response.ok) {
+        // Essayez d'obtenir plus de détails sur l'erreur
+        let errorMessage = "Erreur lors de la création";
         
-        const errorData = data as any;
-        throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
+        if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.error) {
+          errorMessage = responseData.error;
+        } else if (responseData.detail) {
+          errorMessage = responseData.detail;
+        } else if (responseData.code) {
+          errorMessage = `Erreur ${responseData.code}: ${responseData.message || 'Erreur de base de données'}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      console.log("✅ Utilisateur créé avec succès:", data);
+      console.log("✅ UTILISATEUR CRÉÉ AVEC SUCCÈS:", responseData);
 
-      // Réinitialiser et fermer - CORRIGÉ
-      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" }); // ← CORRIGÉ ICI
+      // Réinitialiser et fermer
+      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
       setShowAddUser(false);
       
       // Recharger la liste
@@ -1932,8 +1957,35 @@ const GestionUtilisateursView = () => {
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-      console.error("❌ Erreur détaillée création utilisateur:", err);
-      setErrorUsers(message);
+      console.error("❌ ERREUR DÉTAILLÉE CRÉATION UTILISATEUR:", err);
+      setErrorUsers(`Erreur: ${message}`);
+    }
+  };
+
+  // Fonction de test pour vérifier la connexion à l'API
+  const testAPIConnection = async () => {
+    try {
+      console.log("🧪 TEST DE CONNEXION API...");
+      
+      const response = await fetch("https://c4e-website-back.onrender.com/api/admin/test-debug", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      console.log("🧪 RÉSULTAT TEST API:", data);
+      
+      if (response.ok) {
+        setErrorUsers("✅ Test API réussi - Le backend fonctionne");
+      } else {
+        setErrorUsers(`❌ Test API échoué: ${data.message || 'Erreur inconnue'}`);
+      }
+    } catch (error) {
+      console.error("❌ ERREUR TEST API:", error);
+      setErrorUsers("❌ Impossible de se connecter au backend");
     }
   };
 
@@ -1957,15 +2009,26 @@ const GestionUtilisateursView = () => {
 
         <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
 
-        {!showAddUser && (
+        <div className="flex items-center space-x-4">
+          {/* Bouton de test API */}
           <button
-            onClick={() => setShowAddUser(true)}
-            className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
+            onClick={testAPIConnection}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium"
           >
-            <UserPlus className="h-5 w-5" />
-            <span>Ajouter un Utilisateur</span>
+            <Settings className="h-5 w-5" />
+            <span>Tester API</span>
           </button>
-        )}
+
+          {!showAddUser && (
+            <button
+              onClick={() => setShowAddUser(true)}
+              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
+            >
+              <UserPlus className="h-5 w-5" />
+              <span>Ajouter un Utilisateur</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* FORMULAIRE D'AJOUT - VERSION CORRIGÉE */}
@@ -2024,8 +2087,8 @@ const GestionUtilisateursView = () => {
                 </label>
                 <input
                   type="password"
-                  value={newUser.motDePasse} // ← CORRIGÉ ICI
-                  onChange={(e) => setNewUser(prev => ({ ...prev, motDePasse: e.target.value }))} // ← CORRIGÉ ICI
+                  value={newUser.motDePasse}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, motDePasse: e.target.value }))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
                   placeholder="Entrez le mot de passe"
                   minLength={6}
@@ -2053,6 +2116,16 @@ const GestionUtilisateursView = () => {
                 </select>
               </div>
             </div>
+
+            {/* INFORMATIONS DE DÉBOGAGE */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Informations de débogage :</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p><strong>Token:</strong> {token ? "Présent" : "Manquant"}</p>
+                <p><strong>URL API:</strong> https://c4e-website-back.onrender.com</p>
+                <p><strong>Endpoint:</strong> /api/admin/{newUser.role === "admin" ? "administrateurs" : "gestionnaires"}</p>
+              </div>
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -2068,8 +2141,8 @@ const GestionUtilisateursView = () => {
               disabled={
                 !newUser.nom.trim() ||
                 !newUser.email.trim() ||
-                !newUser.motDePasse || // ← CORRIGÉ ICI
-                newUser.motDePasse.length < 6 // ← CORRIGÉ ICI
+                !newUser.motDePasse ||
+                newUser.motDePasse.length < 6
               }
               className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
             >
