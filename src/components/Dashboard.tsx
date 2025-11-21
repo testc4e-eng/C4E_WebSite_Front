@@ -299,75 +299,98 @@ useEffect(() => {
       fetchOffres();
   }, [activeTab, token]);
 
-  useEffect(() => {
-const fetchCandidatures = async () => {
-  try {
-    setLoadingCandidatures(true);
-    setErrorCandidatures("");
+useEffect(() => {
+  const fetchCandidatures = async () => {
+    try {
+      setLoadingCandidatures(true);
+      setErrorCandidatures("");
 
-    let url = "";
-    if (activeTab === "candidatures") {
-      url = "/api/candidatures/spontanees/toutes";
-    } else if (activeTab === "candidatures-postes" || activeTab === "archives") {
-      url = "/api/candidatures";
+      let url = "";
+      if (activeTab === "candidatures") {
+        url = "/api/candidatures/spontanees/toutes";
+      } else if (activeTab === "candidatures-postes" || activeTab === "archives") {
+        url = "/api/candidatures";
+      }
+
+      const { res, data } = await api.get<any>(url, token);
+
+      if (!res.ok) throw new Error("Erreur lors du chargement des candidatures.");
+
+      // CORRECTION : Normaliser les données pour toujours avoir un tableau
+      let normalizedData: Candidature[] = [];
+
+      if (Array.isArray(data.candidatures)) {
+        // Cas où l'API renvoie { candidatures: [...] }
+        normalizedData = data.candidatures;
+      } else if (Array.isArray(data)) {
+        // Cas où l'API renvoie directement un tableau
+        normalizedData = data;
+      } else if (data.candidature) {
+        // Cas où l'API renvoie { candidature: {...} } (objet unique)
+        normalizedData = [data.candidature];
+      } else {
+        // Fallback
+        normalizedData = [];
+      }
+
+      console.log("📥 Données normalisées:", {
+        originalData: data,
+        normalizedCount: normalizedData.length,
+        normalizedData
+      });
+
+      // Fusion intelligente : préserver l'état ignored des candidatures existantes
+      setCandidatures(prevCandidatures => {
+        // Créer un Map des candidatures existantes pour recherche rapide
+        const existingCandidaturesMap = new Map();
+        prevCandidatures.forEach(c => {
+          const key = `${c.id}-${c.type}`;
+          existingCandidaturesMap.set(key, c);
+        });
+
+        // Fusionner les nouvelles données avec les existantes
+        const mergedCandidatures = normalizedData.map((newCand: Candidature) => {
+          const key = `${newCand.id}-${newCand.type}`;
+          const existingCand = existingCandidaturesMap.get(key);
+          
+          if (existingCand) {
+            // Si la candidature existe déjà, préserver l'état ignored
+            return {
+              ...newCand,
+              ignored: existingCand.ignored || false
+            };
+          } else {
+            // Nouvelle candidature
+            return {
+              ...newCand,
+              ignored: false
+            };
+          }
+        });
+
+        // Ajouter les candidatures ignorées qui ne sont pas dans la réponse API
+        const ignoredCandidatures = prevCandidatures.filter(c => 
+          c.ignored && !normalizedData.some((newCand: Candidature) => 
+            newCand.id === c.id && newCand.type === c.type
+          )
+        );
+
+        return [...mergedCandidatures, ...ignoredCandidatures];
+      });
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+      console.error("Erreur fetch:", err);
+      setErrorCandidatures(message);
+    } finally {
+      setLoadingCandidatures(false);
     }
+  };
 
-    const { res, data } = await api.get<Candidature[]>(url, token);
-
-    if (!res.ok) throw new Error("Erreur lors du chargement des candidatures.");
-
-    // Fusion intelligente : préserver l'état ignored des candidatures existantes
-    setCandidatures(prevCandidatures => {
-      // Créer un Map des candidatures existantes pour recherche rapide
-      const existingCandidaturesMap = new Map();
-      prevCandidatures.forEach(c => {
-        const key = `${c.id}-${c.type}`;
-        existingCandidaturesMap.set(key, c);
-      });
-
-      // Fusionner les nouvelles données avec les existantes
-      const mergedCandidatures = data.map(newCand => {
-        const key = `${newCand.id}-${newCand.type}`;
-        const existingCand = existingCandidaturesMap.get(key);
-        
-        if (existingCand) {
-          // Si la candidature existe déjà, préserver l'état ignored
-          return {
-            ...newCand,
-            ignored: existingCand.ignored || false
-          };
-        } else {
-          // Nouvelle candidature
-          return {
-            ...newCand,
-            ignored: false
-          };
-        }
-      });
-
-      // Ajouter les candidatures ignorées qui ne sont pas dans la réponse API
-      const ignoredCandidatures = prevCandidatures.filter(c => 
-        c.ignored && !data.some(newCand => 
-          newCand.id === c.id && newCand.type === c.type
-        )
-      );
-
-      return [...mergedCandidatures, ...ignoredCandidatures];
-    });
-
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-    console.error("Erreur fetch:", err);
-    setErrorCandidatures(message);
-  } finally {
-    setLoadingCandidatures(false);
+  if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
+    fetchCandidatures();
   }
-};
-
-    if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
-      fetchCandidatures();
-    }
-  }, [activeTab, token]);
+}, [activeTab, token]);
 
   const ajouterChampExigence = () => {
     setExigencesFields([...exigencesFields, ""]);
@@ -703,7 +726,7 @@ const res = await fetch(getApiUrl(endpoint), {
 
 const data = await res.json();
 console.log("✅ Réponse API:", data);
-
+///////////
     if (!res.ok) {
       const errorText = await res.text();
       console.error(`❌ Erreur ${res.status}:`, errorText);
