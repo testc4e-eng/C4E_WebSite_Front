@@ -312,63 +312,58 @@ useEffect(() => {
         url = "/api/candidatures";
       }
 
-      const { res, data } = await api.get<any>(url, token);
+      console.log("🔄 Chargement des candidatures depuis:", url);
 
-      if (!res.ok) throw new Error("Erreur lors du chargement des candidatures.");
+      const response = await fetch(getApiUrl(url), {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      // CORRECTION : Normaliser les données pour toujours avoir un tableau
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("📥 Réponse API brute:", data);
+
+      // Normaliser les données
       let normalizedData: Candidature[] = [];
 
       if (Array.isArray(data.candidatures)) {
-        // Cas où l'API renvoie { candidatures: [...] }
         normalizedData = data.candidatures;
+        console.log("✅ Format: { candidatures: [] }");
       } else if (Array.isArray(data)) {
-        // Cas où l'API renvoie directement un tableau
         normalizedData = data;
-      } else if (data.candidature) {
-        // Cas où l'API renvoie { candidature: {...} } (objet unique)
+        console.log("✅ Format: tableau direct");
+      } else if (data.candidature && typeof data.candidature === 'object') {
         normalizedData = [data.candidature];
+        console.log("✅ Format: { candidature: {} }");
       } else {
-        // Fallback
+        console.warn("❌ Format non reconnu, utilisation fallback");
         normalizedData = [];
       }
 
-      console.log("📥 Données normalisées:", {
-        originalData: data,
-        normalizedCount: normalizedData.length,
-        normalizedData
-      });
+      console.log(`📊 ${normalizedData.length} candidatures normalisées`);
 
-      // Fusion intelligente : préserver l'état ignored des candidatures existantes
+      // Fusion avec l'état existant
       setCandidatures(prevCandidatures => {
-        // Créer un Map des candidatures existantes pour recherche rapide
-        const existingCandidaturesMap = new Map();
+        const existingMap = new Map();
         prevCandidatures.forEach(c => {
           const key = `${c.id}-${c.type}`;
-          existingCandidaturesMap.set(key, c);
+          existingMap.set(key, c);
         });
 
-        // Fusionner les nouvelles données avec les existantes
         const mergedCandidatures = normalizedData.map((newCand: Candidature) => {
           const key = `${newCand.id}-${newCand.type}`;
-          const existingCand = existingCandidaturesMap.get(key);
+          const existingCand = existingMap.get(key);
           
-          if (existingCand) {
-            // Si la candidature existe déjà, préserver l'état ignored
-            return {
-              ...newCand,
-              ignored: existingCand.ignored || false
-            };
-          } else {
-            // Nouvelle candidature
-            return {
-              ...newCand,
-              ignored: false
-            };
-          }
+          return existingCand 
+            ? { ...newCand, ignored: existingCand.ignored || false }
+            : { ...newCand, ignored: false };
         });
 
-        // Ajouter les candidatures ignorées qui ne sont pas dans la réponse API
         const ignoredCandidatures = prevCandidatures.filter(c => 
           c.ignored && !normalizedData.some((newCand: Candidature) => 
             newCand.id === c.id && newCand.type === c.type
@@ -379,14 +374,15 @@ useEffect(() => {
       });
 
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-      console.error("Erreur fetch:", err);
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur fetchCandidatures:", err);
       setErrorCandidatures(message);
     } finally {
       setLoadingCandidatures(false);
     }
   };
 
+  // ⚠️ UNIQUEMENT CET APPEL DOIT RESTER
   if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
     fetchCandidatures();
   }
@@ -612,7 +608,7 @@ const envoyerEmailCandidature = async (
     const emailEndpoints = [
       `/api/candidatures/${candidature.id}/envoyer-email`,
       `/api/candidatures/spontanees/${candidature.id}/envoyer-email`,
-      `/api/candidatures/envoyer-email`, // Endpoint générique
+      `/api/candidatures/envoyer-email`,
     ];
 
     let emailSent = false;
@@ -649,16 +645,16 @@ const envoyerEmailCandidature = async (
       }
     }
 
-} catch (error: unknown) {
-  console.error("❌ Erreur générale envoi email:", error);
+    if (!emailSent) {
+      console.warn("❌ Aucun endpoint email n'a fonctionné");
+    }
 
-  // Vérification sécurisée
-  const message = error instanceof Error ? error.message : String(error);
-
-  setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${message}`);
-}
+  } catch (error: unknown) {
+    console.error("❌ Erreur générale envoi email:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${message}`);
+  }
 };
-
   const restaurerCandidature = (candidature: Candidature) => {
     setCandidatures((prev) =>
       prev.map((c) =>
@@ -677,7 +673,7 @@ const changerStatut = async (
   try {
     const { id, type } = candidature;
 
-    console.log("🚀 Mise à jour statut:", { id, type, nouveau: nouveauStatut });
+    console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut });
 
     if (nouveauStatut === "ignorer") {
       const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" as "en_attente" };
@@ -689,7 +685,44 @@ const changerStatut = async (
       return;
     }
 
-    // Mettre à jour le statut dans l'UI immédiatement
+    // CORRECTION DES ENDPOINTS
+    let endpoint = "";
+    
+    if (type === "spontanee" || type === "stage_spontane") {
+      endpoint = `/api/candidatures/spontanees/${id}`;
+    } else if (type === "stage") {
+      endpoint = `/api/candidatures/stage/${id}`;
+    } else if (type === "emploi") {
+      endpoint = `/api/candidatures/emploi/${id}`;
+    } else if (type === "pfe") {
+      endpoint = `/api/candidatures/pfe/${id}`;
+    } else {
+      console.error("Type de candidature inconnu:", type);
+      return;
+    }
+
+    console.log(`📡 Appel API: ${getApiUrl(endpoint)}`, { statut: nouveauStatut });
+
+    const res = await fetch(getApiUrl(endpoint), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ statut: nouveauStatut }),
+    });
+
+    // CORRECTION : Vérifier le statut avant de parser
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`❌ Erreur ${res.status}:`, errorText);
+      throw new Error(`Erreur ${res.status}: ${endpoint} non trouvé`);
+    }
+
+    const result = await res.json();
+    console.log("✅ Statut mis à jour:", result);
+
+    // Mettre à jour l'UI
     const updatedCandidature = { ...candidature, statut: nouveauStatut, ignored: false };
     setCandidatures((prev) =>
       prev.map((c) =>
@@ -697,83 +730,15 @@ const changerStatut = async (
       )
     );
 
-    // DÉTERMINER LE BON ENDPOINT API - VERSION CORRECTE
-    let endpoint = "";
-    let method = "PUT";
-
-    // CORRECTION : Utiliser les bonnes routes selon le type
-if (type === "spontanee") {
-  endpoint = `/api/candidatures/spontanees/${id}`; // correspond à ton backend
-} else if (type === "stage") {
-  endpoint = `/api/candidatures/stage/${id}`;      // correspond à ton backend
-} else if (type === "emploi") {
-  endpoint = `/api/candidatures/emploi/${id}`;    // correspond à ton backend
-} else {
-  console.error("Type de candidature inconnu :", type);
-  return;
-}
-
-    console.log(`📡 Appel API CORRECT: ${endpoint}`, { method, statut: nouveauStatut });
-
-const res = await fetch(getApiUrl(endpoint), {
-  method: method,
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify({ statut: nouveauStatut }),
-});
-
-const data = await res.json();
-console.log("✅ Réponse API:", data);
-///////////
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`❌ Erreur ${res.status}:`, errorText);
-      throw new Error(`Erreur ${res.status}: ${errorText}`);
-    }
-
-    const result = await res.json();
-    console.log("✅ Statut mis à jour avec succès:", result);
-
-    // Envoyer l'email si acceptée ou refusée
+    // Envoyer email si nécessaire
     if (nouveauStatut === "acceptee" || nouveauStatut === "refusee") {
       await envoyerEmailCandidature(candidature, nouveauStatut);
     }
 
   } catch (err: unknown) {
     console.error("❌ Erreur détaillée:", err);
-    
     const message = err instanceof Error ? err.message : "Erreur inconnue";
     setErrorCandidatures(`Échec mise à jour statut: ${message}`);
-
-    // Recharger les candidatures en cas d'erreur
-    const fetchCandidatures = async () => {
-      try {
-        console.log("🔄 Rechargement des candidatures après erreur...");
-        let url = "/api/candidatures";
-        if (activeTab === "candidatures") {
-          url = "/api/candidatures/spontanees/toutes";
-        }
-        
-        const res = await fetch(getApiUrl(url), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data: Candidature[] = await res.json();
-          const normalizedData = data.map((cand) => ({
-            ...cand,
-            offreId: cand.offreId || cand.offre_id,
-            ignored: false
-          }));
-          setCandidatures(normalizedData);
-          console.log("✅ Candidatures rechargées après erreur");
-        }
-      } catch (reloadErr) {
-        console.error("❌ Erreur rechargement:", reloadErr);
-      }
-    };
-    fetchCandidatures();
   }
 };
 
