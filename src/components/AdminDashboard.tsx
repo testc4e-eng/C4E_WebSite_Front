@@ -2667,8 +2667,6 @@ const GestionUtilisateursView = () => {
         </section>
       )}
 
-// 📂 Dans DashboardAdmin.tsx - CORRECTION DE L'AFFICHAGE
-
 {activeTab === "candidatures" && (
   <section className="space-y-6">
     <h2 className="text-3xl font-bold text-gray-900 text-center">Gestion des Candidatures Spontanées & Stage/PFE</h2>
