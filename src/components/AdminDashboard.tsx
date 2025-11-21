@@ -1831,7 +1831,7 @@ const GestionUtilisateursView = () => {
     setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
   };
 
-  // Fonction pour ajouter un utilisateur - CORRIGÉE
+  // Fonction pour ajouter un utilisateur
   const handleAddUser = async () => {
     try {
       setErrorUsers("");
@@ -1845,6 +1845,14 @@ const GestionUtilisateursView = () => {
         setErrorUsers("L'email est requis");
         return;
       }
+      if (!newUser.password) {
+        setErrorUsers("Le mot de passe est requis");
+        return;
+      }
+      if (newUser.password.length < 6) {
+        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
 
       // Validation email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1855,12 +1863,11 @@ const GestionUtilisateursView = () => {
 
       const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
       
-      // CORRECTION : Format des données pour votre backend
+      // Format des données pour l'API
       const userData = {
         nom: newUser.nom.trim(),
         email: newUser.email.trim(),
-        // Le backend attend ces champs même s'ils sont optionnels
-        motDePasse: "tempPassword123" // Mot de passe temporaire
+        motDePasse: newUser.password
       };
 
       console.log("🔄 Envoi des données:", { userType, userData });
@@ -1917,7 +1924,7 @@ const GestionUtilisateursView = () => {
         )}
       </div>
 
-      {/* FORMULAIRE D'AJOUT - VERSION NORMALE */}
+      {/* FORMULAIRE D'AJOUT - VERSION NORMALE AVEC MOT DE PASSE */}
       {showAddUser && (
         <div className="bg-white rounded-2xl shadow-2xl p-6 mb-8 border border-gray-200">
           <div className="flex justify-between items-center mb-6">
@@ -1966,6 +1973,22 @@ const GestionUtilisateursView = () => {
                 />
               </div>
 
+              {/* CHAMP MOT DE PASSE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de passe *
+                </label>
+                <input
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Entrez le mot de passe"
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+              </div>
+
               {/* CHAMP RÔLE */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1985,23 +2008,6 @@ const GestionUtilisateursView = () => {
                   <option value="admin">Administrateur</option>
                 </select>
               </div>
-
-              {/* NOTE INFORMATION */}
-              <div className="md:col-span-2">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-800 mb-1">
-                        Information importante
-                      </p>
-                      <p className="text-xs text-blue-600">
-                        Un mot de passe temporaire sera automatiquement généré et envoyé par email à l'utilisateur.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -2017,7 +2023,9 @@ const GestionUtilisateursView = () => {
               onClick={handleAddUser}
               disabled={
                 !newUser.nom.trim() ||
-                !newUser.email.trim()
+                !newUser.email.trim() ||
+                !newUser.password ||
+                newUser.password.length < 6
               }
               className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
             >
