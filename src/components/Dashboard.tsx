@@ -679,32 +679,30 @@ const changerStatut = async (
     let method = "PUT";
 
     // CORRECTION : Utiliser les bonnes routes selon le type
-    if (type === "spontanee") {
-      // Pour les candidatures spontanées générales - utiliser la route dédiée
-      endpoint = `/api/candidatures/spontanees/${id}/statut`;
-    } else if (type === "stage_spontane") {
-      // Pour les stages spontanés - utiliser la route principale
-      endpoint = `/api/candidatures/statut/stage_spontane/${id}`;
-    } else {
-      // Pour les candidatures par postes (emploi, stage, pfe)
-      endpoint = `/api/candidatures/statut/${type}/${id}`;
-    }
+if (type === "spontanee") {
+  endpoint = `/api/candidatures/spontanees/${id}`; // correspond à ton backend
+} else if (type === "stage") {
+  endpoint = `/api/candidatures/stage/${id}`;      // correspond à ton backend
+} else if (type === "emploi") {
+  endpoint = `/api/candidatures/emploi/${id}`;    // correspond à ton backend
+} else {
+  console.error("Type de candidature inconnu :", type);
+  return;
+}
 
     console.log(`📡 Appel API CORRECT: ${endpoint}`, { method, statut: nouveauStatut });
 
-    const res = await fetch(
-      getApiUrl(endpoint),
-      {
-        method: method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          statut: nouveauStatut
-        }),
-      }
-    );
+const res = await fetch(getApiUrl(endpoint), {
+  method: method,
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify({ statut: nouveauStatut }),
+});
+
+const data = await res.json();
+console.log("✅ Réponse API:", data);
 
     if (!res.ok) {
       const errorText = await res.text();
