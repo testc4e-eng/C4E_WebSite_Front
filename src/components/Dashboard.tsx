@@ -685,11 +685,12 @@ const changerStatut = async (
       return;
     }
 
-    // CORRECTION DES ENDPOINTS
+    // CORRECTION TEMPORAIRE : Utilisez le bon endpoint
     let endpoint = "";
     
     if (type === "spontanee" || type === "stage_spontane") {
-      endpoint = `/api/candidatures/spontanees/${id}`;
+      // Votre route est montée sur /api/candidatures/stage, pas sur /api/candidatures/spontanees
+      endpoint = `/api/candidatures/stage/${id}`; // ← CORRECTION
     } else if (type === "stage") {
       endpoint = `/api/candidatures/stage/${id}`;
     } else if (type === "emploi") {
@@ -701,7 +702,7 @@ const changerStatut = async (
       return;
     }
 
-    console.log(`📡 Appel API: ${getApiUrl(endpoint)}`, { statut: nouveauStatut });
+    console.log(`📡 Appel API: ${endpoint}`, { statut: nouveauStatut });
 
     const res = await fetch(getApiUrl(endpoint), {
       method: "PUT",
@@ -712,7 +713,6 @@ const changerStatut = async (
       body: JSON.stringify({ statut: nouveauStatut }),
     });
 
-    // CORRECTION : Vérifier le statut avant de parser
     if (!res.ok) {
       const errorText = await res.text();
       console.error(`❌ Erreur ${res.status}:`, errorText);
