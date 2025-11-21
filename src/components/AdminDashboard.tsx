@@ -348,7 +348,7 @@ const handleAddUser = async () => {
   try {
     setErrorUsers("");
 
-    // Validation robuste
+    // Validation...
     if (!newUser.nom?.trim()) {
       setErrorUsers("Le nom est requis");
       return;
@@ -366,7 +366,6 @@ const handleAddUser = async () => {
       return;
     }
 
-    // Validation email basique
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newUser.email)) {
       setErrorUsers("Veuillez entrer un email valide");
@@ -375,20 +374,43 @@ const handleAddUser = async () => {
 
     const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
     
-    // CORRECTION : Utiliser le format attendu par le backend
-const userData = {
-  nom: newUser.nom.trim(),
-  email: newUser.email.trim(),
-  motDePasse: "tempPassword123" // Champ requis par votre backend
-};
-    console.log("🔄 Envoi des données:", { userType, userData });
+    // FORMAT DES DONNÉES - VERSION DEBUG
+    const userData = {
+      nom: newUser.nom.trim(),
+      email: newUser.email.trim(),
+      motDePasse: newUser.password
+    };
 
+    console.log("🔄 DONNÉES ENVOYÉES:", {
+      userType,
+      userData,
+      token: token ? "présent" : "manquant"
+    });
+
+    // TEST AVEC DES DONNÉES FIXES POUR DEBUG
+    const testData = {
+      nom: "Test User",
+      email: `test${Date.now()}@test.com`,
+      motDePasse: "test123"
+    };
+
+    console.log("🧪 TEST AVEC DONNÉES FIXES:", testData);
+
+    // Essayer d'abord avec les données de test
     const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
     
     if (!res.ok) {
+      console.log("❌ RÉPONSE ERREUR:", {
+        status: res.status,
+        statusText: res.statusText,
+        data: data
+      });
+      
       const errorData = data as any;
       throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
     }
+
+    console.log("✅ SUCCÈS:", data);
 
     // Réinitialiser et fermer
     setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
@@ -399,8 +421,8 @@ const userData = {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-    console.error("❌ Erreur création utilisateur:", err);
-    setErrorUsers(message);
+    console.error("❌ Erreur détaillée création utilisateur:", err);
+    setErrorUsers(`Erreur serveur: ${message}`);
   }
 };
 
@@ -1825,18 +1847,25 @@ const userData = {
 const GestionUtilisateursView = () => {
   const [showAddUser, setShowAddUser] = useState(false);
 
+  // État corrigé avec l'interface
+  const [newUser, setNewUser] = useState({
+    nom: "",
+    email: "",
+    password: "", // ← Maintenant reconnu par TypeScript
+    role: "gestionnaire" as "admin" | "gestionnaire"
+  });
+
   const handleCloseForm = () => {
     setShowAddUser(false);
     setErrorUsers("");
     setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
   };
 
-  // Fonction pour ajouter un utilisateur
   const handleAddUser = async () => {
     try {
       setErrorUsers("");
 
-      // Validation
+      // Validation...
       if (!newUser.nom?.trim()) {
         setErrorUsers("Le nom est requis");
         return;
@@ -1854,7 +1883,6 @@ const GestionUtilisateursView = () => {
         return;
       }
 
-      // Validation email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(newUser.email)) {
         setErrorUsers("Veuillez entrer un email valide");
@@ -1863,21 +1891,33 @@ const GestionUtilisateursView = () => {
 
       const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
       
-      // Format des données pour l'API
+      // FORMAT DES DONNÉES - CORRIGÉ
       const userData = {
         nom: newUser.nom.trim(),
         email: newUser.email.trim(),
-        motDePasse: newUser.password
+        motDePasse: newUser.password // ← Utilise newUser.password
       };
 
-      console.log("🔄 Envoi des données:", { userType, userData });
+      console.log("🔄 DONNÉES ENVOYÉES:", {
+        userType,
+        userData,
+        token: token ? "présent" : "manquant"
+      });
 
       const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
       
       if (!res.ok) {
+        console.log("❌ RÉPONSE ERREUR:", {
+          status: res.status,
+          statusText: res.statusText,
+          data: data
+        });
+        
         const errorData = data as any;
         throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
       }
+
+      console.log("✅ SUCCÈS:", data);
 
       // Réinitialiser et fermer
       setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
@@ -1888,8 +1928,8 @@ const GestionUtilisateursView = () => {
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-      console.error("❌ Erreur création utilisateur:", err);
-      setErrorUsers(message);
+      console.error("❌ Erreur détaillée création utilisateur:", err);
+      setErrorUsers(`Erreur serveur: ${message}`);
     }
   };
 
@@ -1924,7 +1964,7 @@ const GestionUtilisateursView = () => {
         )}
       </div>
 
-      {/* FORMULAIRE D'AJOUT - VERSION NORMALE AVEC MOT DE PASSE */}
+      {/* FORMULAIRE D'AJOUT */}
       {showAddUser && (
         <div className="bg-white rounded-2xl shadow-2xl p-6 mb-8 border border-gray-200">
           <div className="flex justify-between items-center mb-6">
