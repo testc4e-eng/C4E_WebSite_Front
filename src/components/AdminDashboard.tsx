@@ -2010,14 +2010,6 @@ const GestionUtilisateursView = () => {
         <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
 
         <div className="flex items-center space-x-4">
-          {/* Bouton de test API */}
-          <button
-            onClick={testAPIConnection}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium"
-          >
-            <Settings className="h-5 w-5" />
-            <span>Tester API</span>
-          </button>
 
           {!showAddUser && (
             <button
@@ -2114,16 +2106,6 @@ const GestionUtilisateursView = () => {
                   <option value="gestionnaire">Gestionnaire</option>
                   <option value="admin">Administrateur</option>
                 </select>
-              </div>
-            </div>
-
-            {/* INFORMATIONS DE DÉBOGAGE */}
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Informations de débogage :</h4>
-              <div className="text-xs text-gray-600 space-y-1">
-                <p><strong>Token:</strong> {token ? "Présent" : "Manquant"}</p>
-                <p><strong>URL API:</strong> https://c4e-website-back.onrender.com</p>
-                <p><strong>Endpoint:</strong> /api/admin/{newUser.role === "admin" ? "administrateurs" : "gestionnaires"}</p>
               </div>
             </div>
           </div>
