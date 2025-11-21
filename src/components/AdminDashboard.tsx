@@ -1821,13 +1821,67 @@ const userData = {
     </div>
   );
 
-  // VUE GESTION DES UTILISATEURS - CORRIGÉE
+// VUE GESTION DES UTILISATEURS - VERSION CORRIGÉE
+// VUE GESTION DES UTILISATEURS - SANS MOT DE PASSE
 const GestionUtilisateursView = () => {
-
   const handleCloseModal = () => {
     setShowAddUser(false);
     setErrorUsers("");
     setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+  };
+
+  // Fonction pour ajouter un utilisateur - VERSION SIMPLIFIÉE
+  const handleAddUser = async () => {
+    try {
+      setErrorUsers("");
+
+      // Validation simplifiée (sans password)
+      if (!newUser.nom?.trim()) {
+        setErrorUsers("Le nom est requis");
+        return;
+      }
+      if (!newUser.email?.trim()) {
+        setErrorUsers("L'email est requis");
+        return;
+      }
+
+      // Validation email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newUser.email)) {
+        setErrorUsers("Veuillez entrer un email valide");
+        return;
+      }
+
+      const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
+      
+      // Données simplifiées pour l'API (sans mot de passe)
+      const userData = {
+        nom: newUser.nom.trim(),
+        email: newUser.email.trim()
+        // Le backend génère automatiquement le mot de passe
+      };
+
+      console.log("🔄 Envoi des données:", { userType, userData });
+
+      const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
+      
+      if (!res.ok) {
+        const errorData = data as any;
+        throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
+      }
+
+      // Réinitialiser et fermer
+      setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+      setShowAddUser(false);
+      
+      // Recharger la liste
+      fetchUsers();
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
+      console.error("❌ Erreur création utilisateur:", err);
+      setErrorUsers(message);
+    }
   };
 
   return (
@@ -1940,13 +1994,12 @@ const GestionUtilisateursView = () => {
         </div>
       )}
 
-      {/* Modal Ajouter un Utilisateur – Version corrigée */}
+      {/* Modal Ajouter un Utilisateur – SANS CHAMP MOT DE PASSE */}
       {showAddUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
-
               <button
                 onClick={handleCloseModal}
                 className="text-gray-400 hover:text-gray-600 transition"
@@ -1962,42 +2015,39 @@ const GestionUtilisateursView = () => {
                 </div>
               )}
 
+              {/* CHAMP NOM */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom *
+                </label>
                 <input
                   type="text"
                   value={newUser.nom}
                   onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
                   placeholder="Entrez le nom complet"
                 />
               </div>
 
+              {/* CHAMP EMAIL */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
                 <input
                   type="email"
                   value={newUser.email}
                   onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
-                  placeholder="Entrez l'email"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="exemple@email.com"
                 />
               </div>
 
+              {/* CHAMP RÔLE */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe *</label>
-<input
-  type="password"
-  value={newUser.motDePasse}
-  onChange={(e) =>
-    setNewUser({ ...newUser, motDePasse: e.target.value })
-  }
-/>
-                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Rôle *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rôle *
+                </label>
                 <select
                   value={newUser.role}
                   onChange={(e) =>
@@ -2006,18 +2056,33 @@ const GestionUtilisateursView = () => {
                       role: e.target.value as "admin" | "gestionnaire"
                     }))
                   }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
                 >
                   <option value="gestionnaire">Gestionnaire</option>
                   <option value="admin">Administrateur</option>
                 </select>
+              </div>
+
+              {/* NOTE INFORMATION */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start space-x-2">
+                  <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">
+                      Information importante
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Un mot de passe temporaire sera automatiquement généré et envoyé par email à l'utilisateur.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={handleCloseModal}
-                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium"
               >
                 Annuler
               </button>
@@ -2026,11 +2091,9 @@ const GestionUtilisateursView = () => {
                 onClick={handleAddUser}
                 disabled={
                   !newUser.nom.trim() ||
-                  !newUser.email.trim() ||
-                  !newUser.password ||
-                  newUser.password.length < 6
+                  !newUser.email.trim()
                 }
-                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
               >
                 Créer l'utilisateur
               </button>
