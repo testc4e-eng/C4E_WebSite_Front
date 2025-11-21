@@ -165,11 +165,11 @@ const DashboardAdmin = () => {
   const [errorUsers, setErrorUsers] = useState("");
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({
-    nom: "",
-    email: "",
-    password: "",
-    role: "gestionnaire" as "admin" | "gestionnaire",
-  });
+  nom: "",
+  email: "",
+  motDePasse: "",
+  role: "gestionnaire",
+});
 
   // États pour la gestion des candidatures
   const [activeTab, setActiveTab] = useState<
@@ -376,12 +376,11 @@ const handleAddUser = async () => {
     const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
     
     // CORRECTION : Utiliser le format attendu par le backend
-    const userData = {
-      nom: newUser.nom.trim(),
-      email: newUser.email.trim(),
-      motDePasse: newUser.password // ← Changé de 'password' à 'motDePasse'
-    };
-
+const userData = {
+  nom: newUser.nom,
+  email: newUser.email,
+  motDePasse: newUser.motDePasse,
+};
     console.log("🔄 Envoi des données:", { userType, userData });
 
     const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
@@ -1987,14 +1986,13 @@ const GestionUtilisateursView = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe *</label>
-                <input
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
-                  placeholder="Entrez le mot de passe"
-                  minLength={6}
-                />
+<input
+  type="password"
+  value={newUser.motDePasse}
+  onChange={(e) =>
+    setNewUser({ ...newUser, motDePasse: e.target.value })
+  }
+/>
                 <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
               </div>
 
