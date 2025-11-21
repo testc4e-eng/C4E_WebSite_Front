@@ -1847,25 +1847,26 @@ const handleAddUser = async () => {
 const GestionUtilisateursView = () => {
   const [showAddUser, setShowAddUser] = useState(false);
 
-  // État corrigé avec l'interface
+  // ÉTAT CORRIGÉ : utilisation de "motDePasse" au lieu de "password"
   const [newUser, setNewUser] = useState({
     nom: "",
     email: "",
-    password: "", // ← Maintenant reconnu par TypeScript
+    motDePasse: "", // ← CORRIGÉ ICI
     role: "gestionnaire" as "admin" | "gestionnaire"
   });
 
   const handleCloseForm = () => {
     setShowAddUser(false);
     setErrorUsers("");
-    setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" }); // ← CORRIGÉ ICI
   };
 
+  // Fonction pour ajouter un utilisateur - CORRIGÉE
   const handleAddUser = async () => {
     try {
       setErrorUsers("");
 
-      // Validation...
+      // Validation CORRIGÉE
       if (!newUser.nom?.trim()) {
         setErrorUsers("Le nom est requis");
         return;
@@ -1874,15 +1875,16 @@ const GestionUtilisateursView = () => {
         setErrorUsers("L'email est requis");
         return;
       }
-      if (!newUser.password) {
+      if (!newUser.motDePasse) { // ← CORRIGÉ ICI
         setErrorUsers("Le mot de passe est requis");
         return;
       }
-      if (newUser.password.length < 6) {
+      if (newUser.motDePasse.length < 6) { // ← CORRIGÉ ICI
         setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
         return;
       }
 
+      // Validation email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(newUser.email)) {
         setErrorUsers("Veuillez entrer un email valide");
@@ -1891,23 +1893,25 @@ const GestionUtilisateursView = () => {
 
       const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
       
-      // FORMAT DES DONNÉES - CORRIGÉ
+      // Format des données pour l'API - CORRIGÉ
       const userData = {
         nom: newUser.nom.trim(),
         email: newUser.email.trim(),
-        motDePasse: newUser.password // ← Utilise newUser.password
+        motDePasse: newUser.motDePasse // ← CORRIGÉ ICI
       };
 
-      console.log("🔄 DONNÉES ENVOYÉES:", {
-        userType,
-        userData,
-        token: token ? "présent" : "manquant"
+      console.log("🔄 Envoi des données:", { 
+        userType, 
+        userData: {
+          ...userData,
+          motDePasse: "***" // Masquer le mot de passe dans les logs
+        } 
       });
 
       const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
       
       if (!res.ok) {
-        console.log("❌ RÉPONSE ERREUR:", {
+        console.log("❌ Réponse d'erreur du serveur:", {
           status: res.status,
           statusText: res.statusText,
           data: data
@@ -1917,10 +1921,10 @@ const GestionUtilisateursView = () => {
         throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
       }
 
-      console.log("✅ SUCCÈS:", data);
+      console.log("✅ Utilisateur créé avec succès:", data);
 
-      // Réinitialiser et fermer
-      setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+      // Réinitialiser et fermer - CORRIGÉ
+      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" }); // ← CORRIGÉ ICI
       setShowAddUser(false);
       
       // Recharger la liste
@@ -1929,7 +1933,7 @@ const GestionUtilisateursView = () => {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
       console.error("❌ Erreur détaillée création utilisateur:", err);
-      setErrorUsers(`Erreur serveur: ${message}`);
+      setErrorUsers(message);
     }
   };
 
@@ -1964,7 +1968,7 @@ const GestionUtilisateursView = () => {
         )}
       </div>
 
-      {/* FORMULAIRE D'AJOUT */}
+      {/* FORMULAIRE D'AJOUT - VERSION CORRIGÉE */}
       {showAddUser && (
         <div className="bg-white rounded-2xl shadow-2xl p-6 mb-8 border border-gray-200">
           <div className="flex justify-between items-center mb-6">
@@ -2013,15 +2017,15 @@ const GestionUtilisateursView = () => {
                 />
               </div>
 
-              {/* CHAMP MOT DE PASSE */}
+              {/* CHAMP MOT DE PASSE - CORRIGÉ */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Mot de passe *
                 </label>
                 <input
                   type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                  value={newUser.motDePasse} // ← CORRIGÉ ICI
+                  onChange={(e) => setNewUser(prev => ({ ...prev, motDePasse: e.target.value }))} // ← CORRIGÉ ICI
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
                   placeholder="Entrez le mot de passe"
                   minLength={6}
@@ -2064,8 +2068,8 @@ const GestionUtilisateursView = () => {
               disabled={
                 !newUser.nom.trim() ||
                 !newUser.email.trim() ||
-                !newUser.password ||
-                newUser.password.length < 6
+                !newUser.motDePasse || // ← CORRIGÉ ICI
+                newUser.motDePasse.length < 6 // ← CORRIGÉ ICI
               }
               className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
             >
