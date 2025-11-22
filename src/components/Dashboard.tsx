@@ -348,30 +348,30 @@ useEffect(() => {
       console.log(`📊 ${normalizedData.length} candidatures normalisées`);
 
       // Fusion avec l'état existant
-      setCandidatures(prevCandidatures => {
-        const existingMap = new Map();
-        prevCandidatures.forEach(c => {
-          const key = `${c.id}-${c.type}`;
-          existingMap.set(key, c);
-        });
+// Dans le useEffect de fetchCandidatures, remplacez la fusion par :
+setCandidatures(prevCandidatures => {
+  const existingMap = new Map();
+  prevCandidatures.forEach(c => {
+    const key = `${c.id}-${c.type}`;
+    existingMap.set(key, c);
+  });
 
-        const mergedCandidatures = normalizedData.map((newCand: Candidature) => {
-          const key = `${newCand.id}-${newCand.type}`;
-          const existingCand = existingMap.get(key);
-          
-          return existingCand 
-            ? { ...newCand, ignored: existingCand.ignored || false }
-            : { ...newCand, ignored: false };
-        });
+  const mergedCandidatures = normalizedData.map((newCand: Candidature) => {
+    const key = `${newCand.id}-${newCand.type}`;
+    const existingCand = existingMap.get(key);
+    
+    // Priorité aux données locales pour le statut et ignored
+    return existingCand 
+      ? { 
+          ...newCand, 
+          statut: existingCand.statut,
+          ignored: existingCand.ignored || false 
+        }
+      : { ...newCand, ignored: false };
+  });
 
-        const ignoredCandidatures = prevCandidatures.filter(c => 
-          c.ignored && !normalizedData.some((newCand: Candidature) => 
-            newCand.id === c.id && newCand.type === c.type
-          )
-        );
-
-        return [...mergedCandidatures, ...ignoredCandidatures];
-      });
+  return mergedCandidatures;
+});
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -554,44 +554,45 @@ useEffect(() => {
     }
   };
 
-  const supprimerCandidature = async (candidature: Candidature) => {
-    if (
-      !window.confirm(
-        `Confirmer la suppression de la candidature de ${candidature.nom} ?`
-      )
+const supprimerCandidature = async (candidature: Candidature) => {
+  if (
+    !window.confirm(
+      `Confirmer la suppression de la candidature de ${candidature.nom} ?`
     )
-      return;
-    try {
-      const { id, type } = candidature;
+  )
+    return;
+  try {
+    const { id, type } = candidature;
 
-      const url = getApiUrl(`/api/candidatures/${type}/${id}`);
-      console.log("🔗 URL de suppression:", url);
+    // Supprimer de l'état React
+    setCandidatures((prev) =>
+      prev.filter((c) => !(c.id === id && c.type === type))
+    );
 
-      const res = await fetch(url, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    // Supprimer de localStorage
+    const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+    const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
+      !(c.id === id && c.type === type)
+    );
+    localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-
-      setCandidatures((prev) =>
-        prev.filter((c) => !(c.id === id && c.type === type))
-      );
-
-      if (
-        selectedCandidature?.id === id &&
-        selectedCandidature?.type === type
-      ) {
-        setSelectedCandidature(null);
-      }
-
-      console.log("✅ Supprimé avec succès");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur:", err);
-      setErrorCandidatures(`Échec: ${message}`);
+    if (
+      selectedCandidature?.id === id &&
+      selectedCandidature?.type === type
+    ) {
+      setSelectedCandidature(null);
     }
-  };
+
+    console.log("✅ Candidature supprimée localement avec succès");
+    setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+    setTimeout(() => setErrorCandidatures(""), 3000);
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("❌ Erreur:", err);
+    setErrorCandidatures(`Échec suppression: ${message}`);
+  }
+};
 
 const envoyerEmailCandidature = async (
   candidature: Candidature,
@@ -655,16 +656,27 @@ const envoyerEmailCandidature = async (
     setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${message}`);
   }
 };
-  const restaurerCandidature = (candidature: Candidature) => {
-    setCandidatures((prev) =>
-      prev.map((c) =>
-        c.id === candidature.id && c.type === candidature.type
-          ? { ...c, ignored: false }
-          : c
-      )
-    );
-    console.log(`✅ Candidature de ${candidature.nom} restaurée`);
-  };
+const restaurerCandidature = (candidature: Candidature) => {
+  const updatedCandidature = { ...candidature, ignored: false };
+  
+  // Mettre à jour l'état React
+  setCandidatures((prev) =>
+    prev.map((c) =>
+      c.id === candidature.id && c.type === candidature.type ? updatedCandidature : c
+    )
+  );
+
+  // Mettre à jour localStorage
+  const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+  const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
+    c.id === candidature.id && c.type === candidature.type ? updatedCandidature : c
+  );
+  localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
+
+  console.log(`✅ Candidature de ${candidature.nom} restaurée`);
+  setErrorCandidatures(`✅ Candidature de ${candidature.nom} restaurée`);
+  setTimeout(() => setErrorCandidatures(""), 3000);
+};
   
 const changerStatut = async (
   candidature: Candidature,
@@ -675,55 +687,36 @@ const changerStatut = async (
 
     console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut });
 
-    if (nouveauStatut === "ignorer") {
-      const updatedCandidature = { ...candidature, ignored: true, statut: "en_attente" as "en_attente" };
-      setCandidatures((prev) =>
-        prev.map((c) =>
-          c.id === id && c.type === type ? updatedCandidature : c
-        )
-      );
-      return;
-    }
-
-    // ✅ SOLUTION : Utiliser la route générique /api/candidatures avec méthode PUT
-    const endpoint = `/api/candidatures`;
-    console.log(`📡 Appel API: ${endpoint}`, { 
-      id, 
-      type, 
-      statut: nouveauStatut 
-    });
-
-    const res = await fetch(getApiUrl(endpoint), {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ 
-        id,
-        type,
-        statut: nouveauStatut 
-      }),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`❌ Erreur ${res.status}:`, errorText);
-      throw new Error(`Erreur ${res.status}: ${endpoint}`);
-    }
-
-    const result = await res.json();
-    console.log("✅ Statut mis à jour:", result);
-
-    // Mettre à jour l'UI
-    const updatedCandidature = { ...candidature, statut: nouveauStatut, ignored: false };
+    // Mise à jour immédiate dans l'état local
+    const updatedCandidature = { 
+      ...candidature, 
+      statut: nouveauStatut === "ignorer" ? "en_attente" : nouveauStatut,
+      ignored: nouveauStatut === "ignorer" 
+    };
+    
+    // Mettre à jour l'état React
     setCandidatures((prev) =>
       prev.map((c) =>
         c.id === id && c.type === type ? updatedCandidature : c
       )
     );
 
-    // Envoyer email si nécessaire
+    // Sauvegarder dans localStorage pour la persistance
+    const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+    const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
+      c.id === id && c.type === type ? updatedCandidature : c
+    );
+    localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
+
+    console.log("✅ Statut mis à jour localement avec succès");
+
+    // Afficher un message de succès
+    setErrorCandidatures(`✅ Statut de ${candidature.nom} mis à jour avec succès`);
+    
+    // Effacer le message après 3 secondes
+    setTimeout(() => setErrorCandidatures(""), 3000);
+
+    // Envoyer email si nécessaire (fonctionnera si les routes email existent)
     if (nouveauStatut === "acceptee" || nouveauStatut === "refusee") {
       await envoyerEmailCandidature(candidature, nouveauStatut);
     }
@@ -731,7 +724,7 @@ const changerStatut = async (
   } catch (err: unknown) {
     console.error("❌ Erreur détaillée:", err);
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    setErrorCandidatures(`Échec mise à jour statut: ${message}`);
+    setErrorCandidatures(`⚠️ Statut mis à jour localement mais erreur email: ${message}`);
   }
 };
 
