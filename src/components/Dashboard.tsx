@@ -685,9 +685,13 @@ const changerStatut = async (
       return;
     }
 
-    // ✅ NOUVELLE ROUTE UNIVERSELLE
-    const endpoint = `/api/candidatures/${type}/${id}`;
-    console.log(`📡 Appel API: ${endpoint}`, { statut: nouveauStatut });
+    // ✅ SOLUTION : Utiliser la route générique /api/candidatures avec méthode PUT
+    const endpoint = `/api/candidatures`;
+    console.log(`📡 Appel API: ${endpoint}`, { 
+      id, 
+      type, 
+      statut: nouveauStatut 
+    });
 
     const res = await fetch(getApiUrl(endpoint), {
       method: "PUT",
@@ -695,7 +699,11 @@ const changerStatut = async (
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ statut: nouveauStatut }),
+      body: JSON.stringify({ 
+        id,
+        type,
+        statut: nouveauStatut 
+      }),
     });
 
     if (!res.ok) {
