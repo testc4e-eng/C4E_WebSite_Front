@@ -52,21 +52,24 @@ const Contact = () => {
   };
 
   // CORRECTION : Utilisation de l'URL Render
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    try {
-      console.log('🔄 Envoi du message vers:', `${API_BASE_URL}/contact`);
-      
-      const res = await fetch(`${API_BASE_URL}/api/contact`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
-
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  
+  // ⚠️ DEBUG - Affichez l'URL exacte
+  const url = `${API_BASE_URL}/api/contact`;
+  console.log('🔄 URL exacte:', url);
+  console.log('📦 Données envoyées:', formData);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
+    });
+   console.log('📨 Statut réponse:', res.status);
       if (res.ok) {
         setShowSuccess(true);
         setFormData({
