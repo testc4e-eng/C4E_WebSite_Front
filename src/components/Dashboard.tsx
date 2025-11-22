@@ -711,20 +711,26 @@ const changerStatut = async (
     console.log("✅ Statut mis à jour localement avec succès");
 
     // Afficher un message de succès
-    setErrorCandidatures(`✅ Statut de ${candidature.nom} mis à jour avec succès`);
+    const message = `✅ Statut de ${candidature.nom} mis à jour avec succès`;
+    setErrorCandidatures(message);
     
     // Effacer le message après 3 secondes
     setTimeout(() => setErrorCandidatures(""), 3000);
 
-    // Envoyer email si nécessaire (fonctionnera si les routes email existent)
+    // Tenter d'envoyer l'email si nécessaire, mais ne pas bloquer en cas d'échec
     if (nouveauStatut === "acceptee" || nouveauStatut === "refusee") {
-      await envoyerEmailCandidature(candidature, nouveauStatut);
+      try {
+        await envoyerEmailCandidature(candidature, nouveauStatut);
+      } catch (emailError) {
+        console.warn("⚠️ Échec envoi email, mais statut sauvegardé:", emailError);
+        // Ne pas afficher d'erreur à l'utilisateur pour l'email
+      }
     }
 
   } catch (err: unknown) {
     console.error("❌ Erreur détaillée:", err);
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    setErrorCandidatures(`⚠️ Statut mis à jour localement mais erreur email: ${message}`);
+    setErrorCandidatures(`❌ Erreur: ${message}`);
   }
 };
 
