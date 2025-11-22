@@ -599,63 +599,24 @@ const envoyerEmailCandidature = async (
   statut: "acceptee" | "refusee"
 ) => {
   try {
-    console.log("📧 Tentative d'envoi d'email pour:", { 
+    console.log("📧 Fonction email appelée (simulation):", { 
       candidatureId: candidature.id, 
-      type: candidature.type, 
-      statut 
+      statut,
+      email: candidature.email 
     });
 
-    // Essayer différents endpoints pour l'email
-    const emailEndpoints = [
-      `/api/candidatures/${candidature.id}/envoyer-email`,
-      `/api/candidatures/spontanees/${candidature.id}/envoyer-email`,
-      `/api/candidatures/envoyer-email`,
-    ];
-
-    let emailSent = false;
-
-    for (const endpoint of emailEndpoints) {
-      try {
-        console.log(`📧 Essai endpoint email: ${endpoint}`);
-
-        const response = await fetch(getApiUrl(endpoint), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            statut: statut,
-            email: candidature.email,
-            nom: candidature.nom,
-            poste: candidature.poste || "Non spécifié",
-          }),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log(`✅ Email envoyé avec succès via ${endpoint}`, result);
-          setErrorCandidatures(`✅ Email ${statut === 'acceptee' ? 'd\'acceptation' : 'de refus'} envoyé à ${candidature.email}`);
-          emailSent = true;
-          break;
-        } else {
-          console.warn(`❌ Échec email avec ${endpoint}:`, response.status);
-        }
-      } catch (emailError) {
-        console.warn(`❌ Erreur email avec ${endpoint}:`, emailError);
-      }
-    }
-
-    if (!emailSent) {
-      console.warn("❌ Aucun endpoint email n'a fonctionné");
-    }
+    // Pour l'instant, on simule juste l'envoi d'email
+    // Les routes backend n'existent pas encore
+    console.log(`✅ Simulation email ${statut} pour ${candidature.nom} (${candidature.email})`);
+    
+    return true;
 
   } catch (error: unknown) {
-    console.error("❌ Erreur générale envoi email:", error);
-    const message = error instanceof Error ? error.message : String(error);
-    setErrorCandidatures(`✅ Statut mis à jour mais erreur email: ${message}`);
+    console.warn("⚠️ Note: Fonctionnalité email non disponible pour le moment");
+    return true; // On retourne true pour ne pas bloquer le processus
   }
 };
+
 const restaurerCandidature = (candidature: Candidature) => {
   const updatedCandidature = { ...candidature, ignored: false };
   
@@ -710,21 +671,16 @@ const changerStatut = async (
 
     console.log("✅ Statut mis à jour localement avec succès");
 
-    // Afficher un message de succès
+    // Message de succès
     const message = `✅ Statut de ${candidature.nom} mis à jour avec succès`;
     setErrorCandidatures(message);
     
     // Effacer le message après 3 secondes
     setTimeout(() => setErrorCandidatures(""), 3000);
 
-    // Tenter d'envoyer l'email si nécessaire, mais ne pas bloquer en cas d'échec
+    // Simulation d'envoi d'email (ne fait rien pour le moment)
     if (nouveauStatut === "acceptee" || nouveauStatut === "refusee") {
-      try {
-        await envoyerEmailCandidature(candidature, nouveauStatut);
-      } catch (emailError) {
-        console.warn("⚠️ Échec envoi email, mais statut sauvegardé:", emailError);
-        // Ne pas afficher d'erreur à l'utilisateur pour l'email
-      }
+      await envoyerEmailCandidature(candidature, nouveauStatut);
     }
 
   } catch (err: unknown) {
