@@ -76,7 +76,7 @@ interface Candidature {
   id: number;
   type: "emploi" | "stage" | "pfe" | "spontanee" | "stage_spontane";
   nom: string;
-  prenom?: string; // ← AJOUTER cette ligne
+  prenom?: string;
   email: string;
   cvUrl?: string;
   lettreMotivationUrl?: string;
@@ -122,6 +122,21 @@ const getFileUrl = (filePath?: string) => {
   return `${API_BASE_URL}${
     filePath.startsWith("/") ? filePath : "/" + filePath
   }`;
+};
+
+// Fonction utilitaire pour gérer les erreurs API
+const handleApiError = async (response: Response) => {
+  if (!response.ok) {
+    let errorMessage = `Erreur HTTP ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      errorMessage = `Erreur ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMessage);
+  }
+  return response;
 };
 
 // Fonction de tri des candidatures
@@ -308,7 +323,7 @@ useEffect(() => {
       let url = "";
       if (activeTab === "candidatures") {
         url = "/api/candidatures/spontanees/toutes";
-      } else if (activeTab === "candidatures-postes" || activeTab === "archives") {
+      } else if (activeTab === "candidatures-postes" || activeTab === "archives" || activeTab === "reponses-candidatures") {
         url = "/api/candidatures";
       }
 
@@ -333,60 +348,51 @@ useEffect(() => {
 
       if (Array.isArray(data.candidatures)) {
         normalizedData = data.candidatures;
-        console.log("✅ Format: { candidatures: [] }");
       } else if (Array.isArray(data)) {
         normalizedData = data;
-        console.log("✅ Format: tableau direct");
       } else if (data.candidature && typeof data.candidature === 'object') {
         normalizedData = [data.candidature];
-        console.log("✅ Format: { candidature: {} }");
       } else {
-        console.warn("❌ Format non reconnu, utilisation fallback");
         normalizedData = [];
       }
 
-      console.log(`📊 ${normalizedData.length} candidatures normalisées`);
+      // CORRECTION : Fusion améliorée qui préserve mieux l'état local
+      setCandidatures(prevCandidatures => {
+        const localMap = new Map();
+        prevCandidatures.forEach(c => {
+          const key = `${c.id}-${c.type}`;
+          localMap.set(key, {
+            ...c,
+            ignored: c.ignored,
+            statut: c.statut
+          });
+        });
 
-      // Fusion avec l'état existant
-// ✅ PAR CE CODE CORRIGÉ :
-// REMPLACEZ tout le setCandidatures dans fetchCandidatures par :
-setCandidatures(prevCandidatures => {
-  console.log("🔄 Début fusion - Candidatures locales:", prevCandidatures.length);
-  
-  // Créer un Map de toutes les candidatures locales avec leur état COMPLET
-  const localMap = new Map();
-  prevCandidatures.forEach(c => {
-    const key = `${c.id}-${c.type}`;
-    localMap.set(key, c);
-  });
+        const merged = normalizedData.map((apiCand: Candidature) => {
+          const key = `${apiCand.id}-${apiCand.type}`;
+          const localCand = localMap.get(key);
+          
+          if (localCand) {
+            console.log(`✅ Fusion: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
+            return {
+              ...apiCand,
+              ignored: localCand.ignored !== undefined ? localCand.ignored : false,
+              statut: localCand.statut || apiCand.statut || "en_attente",
+              dateSoumission: localCand.dateSoumission || apiCand.dateSoumission
+            };
+          }
+          
+          // Nouvelle candidature
+          return {
+            ...apiCand,
+            ignored: false,
+            statut: apiCand.statut || "en_attente"
+          };
+        });
 
-  // Pour chaque candidature de l'API, on garde l'état local si elle existe
-  const merged = normalizedData.map((apiCand: Candidature) => {
-    const key = `${apiCand.id}-${apiCand.type}`;
-    const localCand = localMap.get(key);
-    
-    if (localCand) {
-      console.log(`✅ Garde état local: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
-      // On garde TOUT l'état local, on ne prend que les données de base de l'API
-      return {
-        ...apiCand,           // données fraîches (nom, email, etc.)
-        statut: localCand.statut,
-        ignored: localCand.ignored,
-        dateSoumission: localCand.dateSoumission // garde aussi la date locale si nécessaire
-      };
-    }
-    
-    // Nouvelle candidature depuis l'API
-    return {
-      ...apiCand,
-      ignored: false,
-      statut: apiCand.statut || "en_attente"
-    };
-  });
-
-  console.log(`📊 Résultat fusion: ${merged.length} total, ${merged.filter(c => c.ignored).length} ignorées`);
-  return merged;
-});
+        console.log(`✅ Fusion: ${merged.length} total, ${merged.filter(c => c.ignored).length} ignorées`);
+        return merged;
+      });
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -397,11 +403,12 @@ setCandidatures(prevCandidatures => {
     }
   };
 
-  // ⚠️ UNIQUEMENT CET APPEL DOIT RESTER
-  if (["candidatures", "candidatures-postes", "archives"].includes(activeTab)) {
+  if (["candidatures", "candidatures-postes", "archives", "reponses-candidatures"].includes(activeTab)) {
     fetchCandidatures();
   }
 }, [activeTab, token]);
+
+
 
   const ajouterChampExigence = () => {
     setExigencesFields([...exigencesFields, ""]);
@@ -570,14 +577,29 @@ setCandidatures(prevCandidatures => {
   };
 
 const supprimerCandidature = async (candidature: Candidature) => {
-  if (
-    !window.confirm(
-      `Confirmer la suppression de la candidature de ${candidature.nom} ?`
-    )
-  )
+  if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`))
     return;
+
   try {
     const { id, type } = candidature;
+
+    // CORRECTION : URL correcte pour la suppression
+    let url = "";
+    if (type === "spontanee" || type === "stage_spontane") {
+      url = `/api/candidatures/spontanees/${id}`;
+    } else {
+      url = `/api/candidatures/${id}`;
+    }
+
+    const response = await fetch(getApiUrl(url), {
+      method: "DELETE",
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    await handleApiError(response);
 
     // Supprimer de l'état React
     setCandidatures((prev) =>
@@ -591,14 +613,11 @@ const supprimerCandidature = async (candidature: Candidature) => {
     );
     localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-    if (
-      selectedCandidature?.id === id &&
-      selectedCandidature?.type === type
-    ) {
+    if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
       setSelectedCandidature(null);
     }
 
-    console.log("✅ Candidature supprimée localement avec succès");
+    console.log("✅ Candidature supprimée avec succès");
     setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
     setTimeout(() => setErrorCandidatures(""), 3000);
 
@@ -620,29 +639,25 @@ const envoyerEmailCandidature = async (
       email: candidature.email 
     });
 
-    // Pour l'instant, on simule juste l'envoi d'email
-    // Les routes backend n'existent pas encore
     console.log(`✅ Simulation email ${statut} pour ${candidature.nom} (${candidature.email})`);
     
     return true;
 
   } catch (error: unknown) {
     console.warn("⚠️ Note: Fonctionnalité email non disponible pour le moment");
-    return true; // On retourne true pour ne pas bloquer le processus
+    return true;
   }
 };
 
 const restaurerCandidature = (candidature: Candidature) => {
   const updatedCandidature = { ...candidature, ignored: false };
   
-  // Mettre à jour l'état React
   setCandidatures((prev) =>
     prev.map((c) =>
       c.id === candidature.id && c.type === candidature.type ? updatedCandidature : c
     )
   );
 
-  // Mettre à jour localStorage
   const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
   const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
     c.id === candidature.id && c.type === candidature.type ? updatedCandidature : c
@@ -663,11 +678,10 @@ const changerStatut = async (
 
     console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut });
 
-    // Pour "ignorer", on gère uniquement en local
     if (nouveauStatut === "ignorer") {
       const updatedCandidature = { 
         ...candidature, 
-        statut: "en_attente", // ← IMPORTANT: statut reste "en_attente" pour les ignorées
+        statut: "en_attente",
         ignored: true 
       };
       
@@ -677,7 +691,6 @@ const changerStatut = async (
         )
       );
 
-      // Sauvegarder dans localStorage
       const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
       const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
         c.id === id && c.type === type ? updatedCandidature : c
@@ -689,7 +702,6 @@ const changerStatut = async (
       return;
     }
 
-    // Pour les statuts "acceptee" et "refusee", mettre à jour le backend
     const response = await fetch(getApiUrl(`/api/candidatures/statut/${type}/${id}`), {
       method: "PUT",
       headers: {
@@ -701,18 +713,15 @@ const changerStatut = async (
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP ${response.status}`);
-    }
+    await handleApiError(response);
 
     const result = await response.json();
     console.log("✅ Réponse backend:", result);
 
-    // Mettre à jour l'état local
     const updatedCandidature = { 
       ...candidature, 
       statut: nouveauStatut,
-      ignored: false // ← IMPORTANT: une candidature acceptée/refusée n'est pas ignorée
+      ignored: false
     };
     
     setCandidatures((prev) =>
@@ -721,14 +730,12 @@ const changerStatut = async (
       )
     );
 
-    // Sauvegarder dans localStorage
     const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
     const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
       c.id === id && c.type === type ? updatedCandidature : c
     );
     localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-    // Message de succès
     const message = result.message || `✅ Statut de ${candidature.nom} mis à jour avec succès`;
     setErrorCandidatures(message);
     
@@ -805,8 +812,6 @@ const changerStatut = async (
   };
 
 const handleLogout = () => {
-  // Ne pas supprimer les candidatures pour les préserver
-  // localStorage.removeItem("candidatures");
   localStorage.removeItem("token");
   navigate("/login");
 };
@@ -817,7 +822,6 @@ const handleChangePassword = async () => {
     setPasswordError("");
     setPasswordSuccess("");
 
-    // Validation
     if (!passwordData.currentPassword) {
       setPasswordError("Le mot de passe actuel est requis");
       return;
@@ -862,7 +866,6 @@ const handleChangePassword = async () => {
 
     setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
     
-    // Réinitialiser
     setPasswordData({
       currentPassword: "",
       newPassword: "",
@@ -895,37 +898,18 @@ const handleChangePassword = async () => {
   );
 
   // Candidatures archivées (acceptées/refusées) pour "Réponses Candidatures"
-  const candidaturesArchivees = candidaturesActives.filter(
-    (c) => c.statut === "acceptee" || c.statut === "refusee"
+  const candidaturesArchivees = candidatures.filter((c) => 
+    (c.statut === "acceptee" || c.statut === "refusee") && !c.ignored
   );
 
   // Candidatures ignorées pour "Archives"
   const candidaturesIgnorees = candidatures.filter((c) => c.ignored);
 
-  const candidaturesFiltreesArchive =
-    archiveFilter === "tous"
-      ? candidaturesArchivees
-      : candidaturesArchivees.filter((c) =>
-          archiveFilter === "acceptees"
-            ? c.statut === "acceptee"
-            : archiveFilter === "refusees"
-            ? c.statut === "refusee"
-            : c.ignored
-        );
-
-  const candidaturesRecherchees = candidaturesFiltreesArchive.filter(
-    (c) =>
-      c.nom.toLowerCase().includes(searchArchive.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchArchive.toLowerCase()) ||
-      (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
-  );
-
+  // Stats pour les archives
   const statsArchives = {
     total: candidaturesArchivees.length,
-    acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee")
-      .length,
-    refusees: candidaturesArchivees.filter((c) => c.statut === "refusee")
-      .length,
+    acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee").length,
+    refusees: candidaturesArchivees.filter((c) => c.statut === "refusee").length,
   };
 
   const statsIgnorees = {
@@ -1720,6 +1704,31 @@ const handleChangePassword = async () => {
   };
 
   const ReponsesCandidaturesList = () => {
+    // CORRECTION : Utiliser toutes les candidatures pour les réponses
+    const candidaturesArchivees = candidatures.filter((c) => 
+      (c.statut === "acceptee" || c.statut === "refusee") && !c.ignored
+    );
+
+    const candidaturesFiltreesArchive =
+      archiveFilter === "tous"
+        ? candidaturesArchivees
+        : archiveFilter === "acceptees"
+        ? candidaturesArchivees.filter((c) => c.statut === "acceptee")
+        : candidaturesArchivees.filter((c) => c.statut === "refusee");
+
+    const candidaturesRecherchees = candidaturesFiltreesArchive.filter(
+      (c) =>
+        c.nom.toLowerCase().includes(searchArchive.toLowerCase()) ||
+        c.email.toLowerCase().includes(searchArchive.toLowerCase()) ||
+        (c.poste && c.poste.toLowerCase().includes(searchArchive.toLowerCase()))
+    );
+
+    const statsArchives = {
+      total: candidaturesArchivees.length,
+      acceptees: candidaturesArchivees.filter((c) => c.statut === "acceptee").length,
+      refusees: candidaturesArchivees.filter((c) => c.statut === "refusee").length,
+    };
+
     return (
       <section className="space-y-6">
         <div className="text-center mb-8">
@@ -2283,17 +2292,21 @@ const handleChangePassword = async () => {
               </span>
             )}
           </button>
-                    <button
+          <button
             onClick={() => setActiveTab("reponses-candidatures")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
               activeTab === "reponses-candidatures"
-                ? "bg-gray-500 text-white shadow-lg"
+                ? "bg-yellow-500 text-white shadow-lg"
                 : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
             }`}
           >
-            
-            <Ban className="h-5 w-5" />
+            <CheckCircle className="h-5 w-5" />
             <span>Réponses Candidatures</span>
+            {statsArchives.total > 0 && (
+              <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                {statsArchives.total}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("archives")}
@@ -2774,7 +2787,7 @@ const handleChangePassword = async () => {
                   <h3 className="text-lg font-semibold text-gray-700 bg-gray-100 px-6 py-3 capitalize">
                     {type === "stage_spontane"
                       ? "Candidatures Spontanées Stage/PFE"
-                      : "Candidatures Spontanées Générales"}{" "}
+                      : "Candidatures Spontanées Générales"}{ " "}
                     <span className="ml-2 bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
                       {sortedCandidatures.length}
                     </span>
