@@ -63,7 +63,7 @@ interface Candidature {
   id: number;
   type: "emploi" | "stage" | "pfe" | "spontanee" | "stage_spontane";
   nom: string;
-  prenom?: string; // ← AJOUTER cette ligne
+  prenom?: string;
   email: string;
   cvUrl?: string;
   lettreMotivationUrl?: string;
@@ -114,6 +114,21 @@ const getFileUrl = (filePath?: string) => {
   if (!filePath) return null;
   if (filePath.startsWith("http")) return filePath;
   return `${API_BASE_URL}${filePath.startsWith("/") ? filePath : "/" + filePath}`;
+};
+
+// Fonction utilitaire pour gérer les erreurs API
+const handleApiError = async (response: Response) => {
+  if (!response.ok) {
+    let errorMessage = `Erreur HTTP ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch {
+      errorMessage = `Erreur ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMessage);
+  }
+  return response;
 };
 
 // Fonction de tri des candidatures
@@ -167,11 +182,11 @@ const DashboardAdmin = () => {
   const [errorUsers, setErrorUsers] = useState("");
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({
-  nom: "",
-  email: "",
-  motDePasse: "",
-  role: "gestionnaire",
-});
+    nom: "",
+    email: "",
+    motDePasse: "",
+    role: "gestionnaire" as "admin" | "gestionnaire"
+  });
 
   // États pour la gestion des candidatures
   const [activeTab, setActiveTab] = useState<
@@ -294,110 +309,107 @@ const DashboardAdmin = () => {
     }
   };
 
-// 📂 Dans DashboardAdmin.tsx - CORRECTION COMPLÈTE
+  const fetchCandidatures = async () => {
+    try {
+      setLoadingCandidatures(true);
+      setErrorCandidatures("");
 
-// 📂 CORRECTION COMPLÈTE de la fonction fetchCandidatures
-const fetchCandidatures = async () => {
-  try {
-    setLoadingCandidatures(true);
-    setErrorCandidatures("");
+      console.log("🔄 Chargement des candidatures...");
 
-    console.log("🔄 Chargement des candidatures...");
-
-    if (activeTab === "candidatures") {
-      // Charger TOUTES les candidatures spontanées
-      console.log("📥 Chargement des candidatures spontanées...");
-      
-      try {
-        const { res, data } = await api.get("/api/candidatures/spontanees/toutes", token);
+      if (activeTab === "candidatures") {
+        // Charger TOUTES les candidatures spontanées
+        console.log("📥 Chargement des candidatures spontanées...");
         
-        if (res.ok && data) {
-          console.log(`✅ ${data.length} candidatures spontanées chargées`);
+        try {
+          const { res, data } = await api.get("/api/candidatures/spontanees/toutes", token);
           
-          const allCandidatures = data.map((c: any) => ({
-            ...c,
-            type: c.type || "spontanee",
-            ignored: false,
-            competenceScore: c.competenceScore || calculateCompetenceScore(c.competences)
-          }));
-          
-          setCandidatures(allCandidatures);
-        } else {
-          console.warn("⚠️ Aucune candidature spontanée trouvée");
-          setCandidatures([]);
-        }
-      } catch (error) {
-        console.error("❌ Erreur chargement candidatures spontanées:", error);
-        // Fallback: utiliser les données locales
-        const savedCandidatures = localStorage.getItem('candidatures');
-        if (savedCandidatures) {
-          try {
-            setCandidatures(JSON.parse(savedCandidatures));
-          } catch (e) {
-            console.error("Erreur parsing localStorage:", e);
+          if (res.ok && data) {
+            console.log(`✅ ${data.length} candidatures spontanées chargées`);
+            
+            const allCandidatures = data.map((c: any) => ({
+              ...c,
+              type: c.type || "spontanee",
+              ignored: false,
+              competenceScore: c.competenceScore || calculateCompetenceScore(c.competences)
+            }));
+            
+            setCandidatures(allCandidatures);
+          } else {
+            console.warn("⚠️ Aucune candidature spontanée trouvée");
             setCandidatures([]);
           }
-        } else {
-          setCandidatures([]);
+        } catch (error) {
+          console.error("❌ Erreur chargement candidatures spontanées:", error);
+          // Fallback: utiliser les données locales
+          const savedCandidatures = localStorage.getItem('candidatures');
+          if (savedCandidatures) {
+            try {
+              setCandidatures(JSON.parse(savedCandidatures));
+            } catch (e) {
+              console.error("Erreur parsing localStorage:", e);
+              setCandidatures([]);
+            }
+          } else {
+            setCandidatures([]);
+          }
         }
-      }
-      
-    } else if (activeTab === "candidatures-postes" || activeTab === "archives" || activeTab === "reponses-candidatures") {
-      // Charger les candidatures par postes (CDI/CDD)
-      console.log("📥 Chargement des candidatures par postes...");
-      
-      try {
-        const { res, data } = await api.get("/api/candidatures", token);
         
-        if (res.ok && data) {
-          console.log(`✅ ${data.length} candidatures par postes chargées`);
+      } else if (activeTab === "candidatures-postes" || activeTab === "archives" || activeTab === "reponses-candidatures") {
+        // Charger les candidatures par postes (CDI/CDD)
+        console.log("📥 Chargement des candidatures par postes...");
+        
+        try {
+          const { res, data } = await api.get("/api/candidatures", token);
           
-          const candidaturesAvecType = data.map((c: any) => ({
-            ...c,
-            type: c.type || "emploi",
-            ignored: false
-          }));
-          
-          setCandidatures(candidaturesAvecType);
-        } else {
-          console.warn("⚠️ Aucune candidature par poste trouvée");
+          if (res.ok && data) {
+            console.log(`✅ ${data.length} candidatures par postes chargées`);
+            
+            const candidaturesAvecType = data.map((c: any) => ({
+              ...c,
+              type: c.type || "emploi",
+              ignored: false
+            }));
+            
+            setCandidatures(candidaturesAvecType);
+          } else {
+            console.warn("⚠️ Aucune candidature par poste trouvée");
+            setCandidatures([]);
+          }
+        } catch (error) {
+          console.error("❌ Erreur chargement candidatures par postes:", error);
           setCandidatures([]);
         }
-      } catch (error) {
-        console.error("❌ Erreur chargement candidatures par postes:", error);
-        setCandidatures([]);
       }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur connexion backend.";
+      console.error("❌ Erreur fetchCandidatures:", err);
+      setErrorCandidatures(message);
+      setCandidatures([]);
+    } finally {
+      setLoadingCandidatures(false);
     }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur connexion backend.";
-    console.error("❌ Erreur fetchCandidatures:", err);
-    setErrorCandidatures(message);
-    setCandidatures([]); // Fallback à un tableau vide
-  } finally {
-    setLoadingCandidatures(false);
-  }
-};
+  };
 
-// Fonction utilitaire pour calculer le score de compétence
-const calculateCompetenceScore = (competences: any) => {
-  if (!competences) return 0;
-  
-  try {
-    const comps = typeof competences === 'string' ? JSON.parse(competences) : competences;
-    const values = Object.values(comps).filter(val => typeof val === 'number');
+  // Fonction utilitaire pour calculer le score de compétence
+  const calculateCompetenceScore = (competences: any) => {
+    if (!competences) return 0;
     
-    if (values.length === 0) return 0;
-    
-    const total = values.reduce((sum: number, val: number) => sum + val, 0);
-    const average = total / values.length;
-    
-    // Convertir en pourcentage (sur 5 points)
-    return Math.round((average / 5) * 100);
-  } catch (error) {
-    console.error("Erreur calcul score compétences:", error);
-    return 0;
-  }
-};
+    try {
+      const comps = typeof competences === 'string' ? JSON.parse(competences) : competences;
+      const values = Object.values(comps).filter(val => typeof val === 'number');
+      
+      if (values.length === 0) return 0;
+      
+      const total = values.reduce((sum: number, val: number) => sum + val, 0);
+      const average = total / values.length;
+      
+      // Convertir en pourcentage (sur 5 points)
+      return Math.round((average / 5) * 100);
+    } catch (error) {
+      console.error("Erreur calcul score compétences:", error);
+      return 0;
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -421,83 +433,104 @@ const calculateCompetenceScore = (competences: any) => {
     }
   };
 
-  // Fonction pour ajouter un utilisateur - CORRIGÉE ET SÉCURISÉE
-const handleAddUser = async () => {
-  try {
-    setErrorUsers("");
+  // Fonction pour ajouter un utilisateur
+  const handleAddUser = async () => {
+    try {
+      setErrorUsers("");
 
-    // Validation CORRIGÉE - utiliser motDePasse au lieu de password
-    if (!newUser.nom?.trim()) {
-      setErrorUsers("Le nom est requis");
-      return;
-    }
-    if (!newUser.email?.trim()) {
-      setErrorUsers("L'email est requis");
-      return;
-    }
-    if (!newUser.motDePasse) { // ← CORRECTION ICI
-      setErrorUsers("Le mot de passe est requis");
-      return;
-    }
-    if (newUser.motDePasse.length < 6) { // ← CORRECTION ICI
-      setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
+      // Validation
+      if (!newUser.nom?.trim()) {
+        setErrorUsers("Le nom est requis");
+        return;
+      }
+      if (!newUser.email?.trim()) {
+        setErrorUsers("L'email est requis");
+        return;
+      }
+      if (!newUser.motDePasse) {
+        setErrorUsers("Le mot de passe est requis");
+        return;
+      }
+      if (newUser.motDePasse.length < 6) {
+        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newUser.email)) {
-      setErrorUsers("Veuillez entrer un email valide");
-      return;
-    }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newUser.email)) {
+        setErrorUsers("Veuillez entrer un email valide");
+        return;
+      }
 
-    const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
-    
-    // FORMAT DES DONNÉES CORRIGÉ
-    const userData = {
-      nom: newUser.nom.trim(),
-      email: newUser.email.trim(),
-      motDePasse: newUser.motDePasse // ← CORRECTION ICI
-    };
-
-    console.log("🔄 DONNÉES ENVOYÉES:", {
-      userType,
-      userData: {
-        ...userData,
-        motDePasse: "***" // Masquer le mot de passe dans les logs
-      },
-      token: token ? "présent" : "manquant"
-    });
-
-    const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
-    
-    if (!res.ok) {
-      console.log("❌ RÉPONSE ERREUR:", {
-        status: res.status,
-        statusText: res.statusText,
-        data: data
-      });
+      const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
       
-     const errorData = data as { message?: string; error?: string };
-     throw new Error(errorData?.message || errorData?.error || "Erreur lors de la suppression.");
+      // Format des données pour l'API
+      const userData = {
+        nom: newUser.nom.trim(),
+        email: newUser.email.trim(),
+        motDePasse: newUser.motDePasse
+      };
+
+      console.log("🔄 TENTATIVE DE CRÉATION D'UTILISATEUR");
+      console.log("📦 Données envoyées:", { 
+        userType, 
+        userData: {
+          ...userData,
+          motDePasse: "***"
+        }
+      });
+
+      const response = await fetch(`https://c4e-website-back.onrender.com/api/admin/${userType}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      });
+
+      console.log("📡 Réponse du serveur:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      const responseData = await response.json();
+      console.log("📨 Données de réponse:", responseData);
+
+      if (!response.ok) {
+        let errorMessage = "Erreur lors de la création";
+        
+        if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.error) {
+          errorMessage = responseData.error;
+        } else if (responseData.detail) {
+          errorMessage = responseData.detail;
+        } else if (responseData.code) {
+          errorMessage = `Erreur ${responseData.code}: ${responseData.message || 'Erreur de base de données'}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      console.log("✅ UTILISATEUR CRÉÉ AVEC SUCCÈS:", responseData);
+
+      // Réinitialiser et fermer
+      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+      setShowAddUser(false);
+      
+      // Recharger la liste
+      fetchUsers();
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
+      console.error("❌ ERREUR DÉTAILLÉE CRÉATION UTILISATEUR:", err);
+      setErrorUsers(`Erreur: ${message}`);
     }
+  };
 
-    console.log("✅ SUCCÈS:", data);
-
-    // Réinitialiser et fermer - CORRECTION ICI
-    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" }); // ← motDePasse au lieu de password
-    setShowAddUser(false);
-    
-    // Recharger la liste
-    fetchUsers();
-
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-    console.error("❌ Erreur détaillée création utilisateur:", err);
-    setErrorUsers(`Erreur serveur: ${message}`);
-  }
-};
-
-  // Fonction pour supprimer un utilisateur - CORRIGÉE
+  // Fonction pour supprimer un utilisateur
   const handleDeleteUser = async (user: User) => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.nom} ?`)) return;
     try {
@@ -547,24 +580,22 @@ const handleAddUser = async () => {
     setEditingExigences(offre.exigences.length > 0 ? [...offre.exigences] : [""]);
   };
 
- /////////////////// 
-// 📝 AJOUTEZ CES FONCTIONS AVEC useCallback
-const handleNouvelleOffreChange = useCallback((field: keyof typeof nouvelleOffre, value: string) => {
-  setNouvelleOffre(prev => ({
-    ...prev,
-    [field]: value
-  }));
-}, []);
-
-const handleEditingOffreChange = useCallback((field: keyof OffreEmploi, value: string) => {
-  if (editingOffre) {
-    setEditingOffre(prev => ({
+  // Fonctions pour gérer les changements de formulaire
+  const handleNouvelleOffreChange = useCallback((field: keyof typeof nouvelleOffre, value: string) => {
+    setNouvelleOffre(prev => ({
       ...prev,
       [field]: value
     }));
-  }
-}, [editingOffre]);
-//////////////
+  }, []);
+
+  const handleEditingOffreChange = useCallback((field: keyof OffreEmploi, value: string) => {
+    if (editingOffre) {
+      setEditingOffre(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  }, [editingOffre]);
 
   const ajouterOffre = async () => {
     if (!nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()) {
@@ -712,7 +743,7 @@ const handleEditingOffreChange = useCallback((field: keyof OffreEmploi, value: s
     );
   };
 
-  // Fonction améliorée pour changer le statut - CORRIGÉE
+  // Fonction pour changer le statut
   const changerStatut = async (
     candidature: Candidature,
     nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
@@ -784,77 +815,77 @@ const handleEditingOffreChange = useCallback((field: keyof OffreEmploi, value: s
     navigate("/login");
   };
 
-  // Fonction de changement de mot de passe - COMPLÈTEMENT CORRIGÉE
-const handleChangePassword = async () => {
-  try {
-    setIsChangingPassword(true);
-    setPasswordError("");
-    setPasswordSuccess("");
-
-    // Validation
-    if (!passwordData.currentPassword) {
-      setPasswordError("Le mot de passe actuel est requis");
-      return;
-    }
-    if (!passwordData.newPassword) {
-      setPasswordError("Le nouveau mot de passe est requis");
-      return;
-    }
-    if (!passwordData.confirmPassword) {
-      setPasswordError("La confirmation du mot de passe est requise");
-      return;
-    }
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("Les mots de passe ne correspondent pas");
-      return;
-    }
-
-    const requestBody = {
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword,
-      confirmPassword: passwordData.confirmPassword
-    };
-
-    const response = await fetch(getApiUrl("/api/auth/change-password"), {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || data.error || `Erreur ${response.status}`);
-    }
-
-    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-    
-    // Réinitialiser
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-
-    setTimeout(() => {
-      setShowChangePassword(false);
+  // Fonction de changement de mot de passe
+  const handleChangePassword = async () => {
+    try {
+      setIsChangingPassword(true);
+      setPasswordError("");
       setPasswordSuccess("");
-    }, 2000);
 
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Une erreur est survenue";
-    setPasswordError(message);
-  } finally {
-    setIsChangingPassword(false);
-  }
-};
+      // Validation
+      if (!passwordData.currentPassword) {
+        setPasswordError("Le mot de passe actuel est requis");
+        return;
+      }
+      if (!passwordData.newPassword) {
+        setPasswordError("Le nouveau mot de passe est requis");
+        return;
+      }
+      if (!passwordData.confirmPassword) {
+        setPasswordError("La confirmation du mot de passe est requise");
+        return;
+      }
+      if (passwordData.newPassword.length < 6) {
+        setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError("Les mots de passe ne correspondent pas");
+        return;
+      }
+
+      const requestBody = {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword
+      };
+
+      const response = await fetch(getApiUrl("/api/auth/change-password"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Erreur ${response.status}`);
+      }
+
+      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+      
+      // Réinitialiser
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess("");
+      }, 2000);
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue";
+      setPasswordError(message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
@@ -881,7 +912,7 @@ const handleChangePassword = async () => {
     return <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">{experience}</span>;
   };
 
-  // Composant ActionsSelect pour gérer les actions sur les candidatures - CORRIGÉ
+  // Composant ActionsSelect pour gérer les actions sur les candidatures
   const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
     if (candidature.ignored) {
       return (
@@ -937,7 +968,7 @@ const handleChangePassword = async () => {
           onClick={() => supprimerCandidature(candidature)}
           className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
           title="Supprimer"
-          >
+        >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -1507,123 +1538,117 @@ const handleChangePassword = async () => {
           </div>
         )}
 
-{selectedCandidature && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-      <div className="flex justify-between items-center mb-4 border-b pb-2">
-        <h3 className="text-2xl font-bold text-gray-800">Détails de la candidature ignorée</h3>
-        <div className="flex items-center space-x-2">
-          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">Ignorée</span>
-        </div>
-      </div>
+        {selectedCandidature && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+              <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 className="text-2xl font-bold text-gray-800">Détails de la candidature ignorée</h3>
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">Ignorée</span>
+                </div>
+              </div>
 
-      <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-        <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
-        <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
-        {selectedCandidature.telephone && <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>}
-        {selectedCandidature.diplome && <p><strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}</p>}
-        {selectedCandidature.experience && <p><strong>💼 Expérience :</strong> {selectedCandidature.experience}</p>}
-        {selectedCandidature.competenceScore && <p><strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%</p>}
-        <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+              <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
+                <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
+                <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
+                {selectedCandidature.telephone && <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>}
+                {selectedCandidature.diplome && <p><strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}</p>}
+                {selectedCandidature.experience && <p><strong>💼 Expérience :</strong> {selectedCandidature.experience}</p>}
+                {selectedCandidature.competenceScore && <p><strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%</p>}
+                <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
 
-        <p>
-          <strong>📋 Type :</strong>
-          <span
-            className={`ml-2 px-2 py-1 rounded-full text-xs ${
-              selectedCandidature.type === "emploi"
-                ? "bg-blue-100 text-blue-800"
-                : selectedCandidature.type === "stage"
-                ? "bg-green-100 text-green-800"
-                : selectedCandidature.type === "pfe"
-                ? "bg-purple-100 text-purple-800"
-                : selectedCandidature.type === "stage_spontane"
-                ? "bg-teal-100 text-teal-800"
-                : "bg-orange-100 text-orange-800"
-            }`}
-          >
-            {selectedCandidature.type === "spontanee"
-              ? "Spontanée"
-              : selectedCandidature.type === "emploi"
-              ? "CDI/CDD"
-              : selectedCandidature.type === "stage"
-              ? "Stage"
-              : selectedCandidature.type === "pfe"
-              ? "PFE"
-              : selectedCandidature.type === "stage_spontane"
-              ? "Stage Spontané"
-              : selectedCandidature.type}
-          </span>
-        </p>
+                <p>
+                  <strong>📋 Type :</strong>
+                  <span
+                    className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                      selectedCandidature.type === "emploi"
+                        ? "bg-blue-100 text-blue-800"
+                        : selectedCandidature.type === "stage"
+                        ? "bg-green-100 text-green-800"
+                        : selectedCandidature.type === "pfe"
+                        ? "bg-purple-100 text-purple-800"
+                        : selectedCandidature.type === "stage_spontane"
+                        ? "bg-teal-100 text-teal-800"
+                        : "bg-orange-100 text-orange-800"
+                    }`}
+                  >
+                    {selectedCandidature.type === "spontanee"
+                      ? "Spontanée"
+                      : selectedCandidature.type === "emploi"
+                      ? "CDI/CDD"
+                      : selectedCandidature.type === "stage"
+                      ? "Stage"
+                      : selectedCandidature.type === "pfe"
+                      ? "PFE"
+                      : selectedCandidature.type === "stage_spontane"
+                      ? "Stage Spontané"
+                      : selectedCandidature.type}
+                  </span>
+                </p>
 
-        {selectedCandidature.cvUrl && (
-          <p>
-            <strong>📎 CV :</strong>{" "}
-            <a
-              href={getFileUrl(selectedCandidature.cvUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline flex items-center space-x-1"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Télécharger le CV</span>
-            </a>
-          </p>
+                {selectedCandidature.cvUrl && (
+                  <p>
+                    <strong>📎 CV :</strong>{" "}
+                    <a
+                      href={getFileUrl(selectedCandidature.cvUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger le CV</span>
+                    </a>
+                  </p>
+                )}
+
+                {selectedCandidature.lettreMotivationUrl && (
+                  <p>
+                    <strong>📝 Lettre de motivation :</strong>{" "}
+                    <a
+                      href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger la lettre</span>
+                    </a>
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => restaurerCandidature(selectedCandidature)}
+                  className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Restaurer</span>
+                </button>
+                <button
+                  onClick={() => changerStatut(selectedCandidature, "ignorer")}
+                  className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
+                >
+                  <Ban className="h-4 w-4" />
+                  <span>Ignorer</span>
+                </button>
+                <button
+                  onClick={() => supprimerCandidature(selectedCandidature)}
+                  className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Supprimer</span>
+                </button>
+                <button
+                  onClick={() => setSelectedCandidature(null)}
+                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-
-        {selectedCandidature.lettreMotivationUrl && (
-          <p>
-            <strong>📝 Lettre de motivation :</strong>{" "}
-            <a
-              href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline flex items-center space-x-1"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Télécharger la lettre</span>
-            </a>
-          </p>
-        )}
-      </div>
-
-      <div className="mt-6 flex justify-end space-x-3">
-
-        {/* 🔵 NOUVEAU : BOUTON IGNORER */}
-        <button
-          onClick={() => changerStatut(selectedCandidature, "ignorer")}
-          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
-        >
-          <Ban className="h-4 w-4" />
-          <span>Ignorer</span>
-        </button>
-
-        <button
-          onClick={() => restaurerCandidature(selectedCandidature)}
-          className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-        >
-          <RotateCcw className="h-4 w-4" />
-          <span>Restaurer</span>
-        </button>
-
-        <button
-          onClick={() => supprimerCandidature(selectedCandidature)}
-          className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>Supprimer</span>
-        </button>
-
-        <button
-          onClick={() => setSelectedCandidature(null)}
-          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-        >
-          Fermer
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
       </section>
     );
   };
@@ -1953,385 +1978,245 @@ const handleChangePassword = async () => {
     </div>
   );
 
-// VUE GESTION DES UTILISATEURS - FORMULAIRE NORMAL
-const GestionUtilisateursView = () => {
-  const [showAddUser, setShowAddUser] = useState(false);
-
-  // ÉTAT CORRIGÉ : utilisation de "motDePasse" au lieu de "password"
-  const [newUser, setNewUser] = useState({
-    nom: "",
-    email: "",
-    motDePasse: "", // ← CORRIGÉ ICI
-    role: "gestionnaire" as "admin" | "gestionnaire"
-  });
-
-  const handleCloseForm = () => {
-    setShowAddUser(false);
-    setErrorUsers("");
-    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" }); // ← CORRIGÉ ICI
-  };
-
-  // Fonction pour ajouter un utilisateur - VERSION AMÉLIORÉE AVEC DÉBOGAGE
-  const handleAddUser = async () => {
-    try {
-      setErrorUsers("");
-
-      // Validation CORRIGÉE
-      if (!newUser.nom?.trim()) {
-        setErrorUsers("Le nom est requis");
-        return;
-      }
-      if (!newUser.email?.trim()) {
-        setErrorUsers("L'email est requis");
-        return;
-      }
-      if (!newUser.motDePasse) {
-        setErrorUsers("Le mot de passe est requis");
-        return;
-      }
-      if (newUser.motDePasse.length < 6) {
-        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
-        return;
-      }
-
-      // Validation email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(newUser.email)) {
-        setErrorUsers("Veuillez entrer un email valide");
-        return;
-      }
-
-      const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
-      
-      // Format des données pour l'API - CORRIGÉ
-      const userData = {
-        nom: newUser.nom.trim(),
-        email: newUser.email.trim(),
-        motDePasse: newUser.motDePasse
-      };
-
-      console.log("🔄 TENTATIVE DE CRÉATION D'UTILISATEUR");
-      console.log("📦 Données envoyées:", { 
-        userType, 
-        userData: {
-          ...userData,
-          motDePasse: "***" // Masquer le mot de passe dans les logs
-        },
-        tokenPresent: !!token
-      });
-
-      // TEST AVEC UNE REQUÊTE FETCH DIRECTE POUR DÉBOGUER
-      const response = await fetch(`https://c4e-website-back.onrender.com/api/admin/${userType}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(userData),
-      });
-
-      console.log("📡 Réponse du serveur:", {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-
-      const responseData = await response.json();
-      console.log("📨 Données de réponse:", responseData);
-
-      if (!response.ok) {
-        // Essayez d'obtenir plus de détails sur l'erreur
-        let errorMessage = "Erreur lors de la création";
-        
-        if (responseData.message) {
-          errorMessage = responseData.message;
-        } else if (responseData.error) {
-          errorMessage = responseData.error;
-        } else if (responseData.detail) {
-          errorMessage = responseData.detail;
-        } else if (responseData.code) {
-          errorMessage = `Erreur ${responseData.code}: ${responseData.message || 'Erreur de base de données'}`;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      console.log("✅ UTILISATEUR CRÉÉ AVEC SUCCÈS:", responseData);
-
-      // Réinitialiser et fermer
-      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+  // VUE GESTION DES UTILISATEURS
+  const GestionUtilisateursView = () => {
+    const handleCloseForm = () => {
       setShowAddUser(false);
-      
-      // Recharger la liste
-      fetchUsers();
+      setErrorUsers("");
+      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+    };
 
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-      console.error("❌ ERREUR DÉTAILLÉE CRÉATION UTILISATEUR:", err);
-      setErrorUsers(`Erreur: ${message}`);
-    }
-  };
-
-  // Fonction de test pour vérifier la connexion à l'API
-  const testAPIConnection = async () => {
-    try {
-      console.log("🧪 TEST DE CONNEXION API...");
-      
-      const response = await fetch("https://c4e-website-back.onrender.com/api/admin/test-debug", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      console.log("🧪 RÉSULTAT TEST API:", data);
-      
-      if (response.ok) {
-        setErrorUsers("✅ Test API réussi - Le backend fonctionne");
-      } else {
-        setErrorUsers(`❌ Test API échoué: ${data.message || 'Erreur inconnue'}`);
-      }
-    } catch (error) {
-      console.error("❌ ERREUR TEST API:", error);
-      setErrorUsers("❌ Impossible de se connecter au backend");
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="space-y-6"
-    >
-      {/* Header avec bouton retour */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setCurrentView("main")}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Retour au tableau de bord</span>
-          </button>
-        </div>
-
-        <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
-
-        <div className="flex items-center space-x-4">
-
-          {!showAddUser && (
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="space-y-6"
+      >
+        {/* Header avec bouton retour */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
             <button
-              onClick={() => setShowAddUser(true)}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
+              onClick={() => setCurrentView("main")}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200"
             >
-              <UserPlus className="h-5 w-5" />
-              <span>Ajouter un Utilisateur</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* FORMULAIRE D'AJOUT - VERSION CORRIGÉE */}
-      {showAddUser && (
-        <div className="bg-white rounded-2xl shadow-2xl p-6 mb-8 border border-gray-200">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
-            <button
-              onClick={handleCloseForm}
-              className="text-gray-400 hover:text-gray-600 transition p-2"
-            >
-              <X className="h-6 w-6" />
+              <ArrowLeft className="h-4 w-4" />
+              <span>Retour au tableau de bord</span>
             </button>
           </div>
 
-          <div className="space-y-4">
-            {errorUsers && (
-              <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                {errorUsers}
-              </div>
+          <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
+
+          <div className="flex items-center space-x-4">
+            {!showAddUser && (
+              <button
+                onClick={() => setShowAddUser(true)}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
+              >
+                <UserPlus className="h-5 w-5" />
+                <span>Ajouter un Utilisateur</span>
+              </button>
             )}
+          </div>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* CHAMP NOM */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom *
-                </label>
-                <input
-                  type="text"
-                  value={newUser.nom}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Entrez le nom complet"
-                />
-              </div>
+        {/* FORMULAIRE D'AJOUT */}
+        {showAddUser && (
+          <div className="bg-white rounded-2xl shadow-2xl p-6 mb-8 border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
+              <button
+                onClick={handleCloseForm}
+                className="text-gray-400 hover:text-gray-600 transition p-2"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
 
-              {/* CHAMP EMAIL */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                  placeholder="exemple@email.com"
-                />
-              </div>
+            <div className="space-y-4">
+              {errorUsers && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  {errorUsers}
+                </div>
+              )}
 
-              {/* CHAMP MOT DE PASSE - CORRIGÉ */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mot de passe *
-                </label>
-                <input
-                  type="password"
-                  value={newUser.motDePasse}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, motDePasse: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Entrez le mot de passe"
-                  minLength={6}
-                />
-                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* CHAMP NOM */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nom *
+                  </label>
+                  <input
+                    type="text"
+                    value={newUser.nom}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Entrez le nom complet"
+                  />
+                </div>
 
-              {/* CHAMP RÔLE */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rôle *
-                </label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) =>
-                    setNewUser(prev => ({
-                      ...prev,
-                      role: e.target.value as "admin" | "gestionnaire"
-                    }))
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                >
-                  <option value="gestionnaire">Gestionnaire</option>
-                  <option value="admin">Administrateur</option>
-                </select>
+                {/* CHAMP EMAIL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                    placeholder="exemple@email.com"
+                  />
+                </div>
+
+                {/* CHAMP MOT DE PASSE */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mot de passe *
+                  </label>
+                  <input
+                    type="password"
+                    value={newUser.motDePasse}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, motDePasse: e.target.value }))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Entrez le mot de passe"
+                    minLength={6}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+                </div>
+
+                {/* CHAMP RÔLE */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rôle *
+                  </label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) =>
+                      setNewUser(prev => ({
+                        ...prev,
+                        role: e.target.value as "admin" | "gestionnaire"
+                      }))
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  >
+                    <option value="gestionnaire">Gestionnaire</option>
+                    <option value="admin">Administrateur</option>
+                  </select>
+                </div>
               </div>
             </div>
+
+            <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleCloseForm}
+                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium"
+              >
+                Annuler
+              </button>
+
+              <button
+                onClick={handleAddUser}
+                disabled={
+                  !newUser.nom.trim() ||
+                  !newUser.email.trim() ||
+                  !newUser.motDePasse ||
+                  newUser.motDePasse.length < 6
+                }
+                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+              >
+                Créer l'utilisateur
+              </button>
+            </div>
           </div>
+        )}
 
-          <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button
-              onClick={handleCloseForm}
-              className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium"
-            >
-              Annuler
-            </button>
+        {/* LISTE DES UTILISATEURS */}
+        {errorUsers && !showAddUser && (
+          <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+            {errorUsers}
+          </div>
+        )}
 
-            <button
-              onClick={handleAddUser}
-              disabled={
-                !newUser.nom.trim() ||
-                !newUser.email.trim() ||
-                !newUser.motDePasse ||
-                newUser.motDePasse.length < 6
+        {loadingUsers ? (
+          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Chargement des utilisateurs...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+            <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">
+              Aucun utilisateur trouvé
+            </h4>
+            <p className="text-gray-500">
+              {showAddUser 
+                ? "Remplissez le formulaire ci-dessus pour créer votre premier utilisateur."
+                : "Commencez par créer votre premier utilisateur."
               }
-              className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
-            >
-              Créer l'utilisateur
-            </button>
+            </p>
           </div>
-        </div>
-      )}
-
-      {/* LISTE DES UTILISATEURS */}
-      {errorUsers && !showAddUser && (
-        <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
-          {errorUsers}
-        </div>
-      )}
-
-      {loadingUsers ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des utilisateurs...</p>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-          <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h4 className="text-lg font-semibold text-gray-700 mb-2">
-            Aucun utilisateur trouvé
-          </h4>
-          <p className="text-gray-500">
-            {showAddUser 
-              ? "Remplissez le formulaire ci-dessus pour créer votre premier utilisateur."
-              : "Commencez par créer votre premier utilisateur."
-            }
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                <tr>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Nom</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Email</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Rôle</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Date de création</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Statut</th>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition duration-200">
-                    <td className="px-6 py-4 text-gray-900">{user.nom}</td>
-                    <td className="px-6 py-4 text-gray-600">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                          user.role === "admin"
-                            ? "bg-purple-100 text-purple-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}
-                      >
-                        {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {new Date(user.date_creation).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                          user.statut === "actif"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {user.statut === "actif" ? "Actif" : "Inactif"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleDeleteUser(user)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition duration-200"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Nom</th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Email</th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Rôle</th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Date de création</th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Statut</th>
+                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 transition duration-200">
+                      <td className="px-6 py-4 text-gray-900">{user.nom}</td>
+                      <td className="px-6 py-4 text-gray-600">{user.email}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                            user.role === "admin"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {new Date(user.date_creation).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                            user.statut === "actif"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {user.statut === "actif" ? "Actif" : "Inactif"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleDeleteUser(user)}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition duration-200"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
-    </motion.div>
-  );
-};
-
+        )}
+      </motion.div>
+    );
+  };
 
   // VUE GESTION DES CANDIDATURES
   const GestionCandidaturesView = () => (
@@ -2417,460 +2302,476 @@ const GestionUtilisateursView = () => {
       {(activeTab === "candidatures" || activeTab === "candidatures-postes") && <StatsOverview />}
 
       {/* Contenu selon l'onglet actif */}
-{activeTab === "offres" && (
-  <section className="space-y-6">
-    <h2 className="text-3xl font-bold text-gray-900 text-center">Gestion des Offres d'Emploi</h2>
+      {activeTab === "offres" && (
+        <section className="space-y-6">
+          <h2 className="text-3xl font-bold text-gray-900 text-center">Gestion des Offres d'Emploi</h2>
 
-    {errorOffres && (
-      <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
-        {errorOffres}
-      </div>
-    )}
-    {loadingOffres && (
-      <div className="text-center py-8 text-gray-600">
-        Chargement des offres...
-      </div>
-    )}
-
-    {/* Formulaire CORRIGÉ avec la bonne syntaxe */}
-    <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-      <h3 className="text-xl font-semibold mb-6 text-gray-800">
-        {editingOffre ? "Modifier l'Offre" : "Ajouter une Nouvelle Offre"}
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* TITRE - CORRIGÉ */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Titre <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Ex: Développeur Full Stack"
-            value={editingOffre ? editingOffre.titre : nouvelleOffre.titre}
-            onChange={(e) =>
-              editingOffre
-                ? setEditingOffre(prev => prev ? {...prev, titre: e.target.value} : null)
-                : setNouvelleOffre(prev => ({...prev, titre: e.target.value}))
-            }
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-          />
-        </div>
-
-        {/* TYPE - CORRIGÉ */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Type <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={editingOffre ? editingOffre.type : nouvelleOffre.type}
-            onChange={(e) =>
-              editingOffre
-                ? setEditingOffre(prev => prev ? {...prev, type: e.target.value as OffreEmploi["type"]} : null)
-                : setNouvelleOffre(prev => ({...prev, type: e.target.value as OffreEmploi["type"]}))
-            }
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-          >
-            <option value="CDI">CDI</option>
-            <option value="CDD 12 mois">CDD 12 mois</option>
-            <option value="Stage">Stage</option>
-            <option value="PFE">PFE</option>
-          </select>
-        </div>
-
-        {/* LOCALISATION - CORRIGÉ */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Localisation <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Ex: Casablanca, Maroc"
-            value={editingOffre ? editingOffre.localisation : nouvelleOffre.localisation}
-            onChange={(e) =>
-              editingOffre
-                ? setEditingOffre(prev => prev ? {...prev, localisation: e.target.value} : null)
-                : setNouvelleOffre(prev => ({...prev, localisation: e.target.value}))
-            }
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-          />
-        </div>
-
-        {/* SALAIRE - CORRIGÉ */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Salaire (optionnel)
-          </label>
-          <input
-            type="text"
-            placeholder="Ex: 5000 MAD"
-            value={editingOffre ? editingOffre.salaire || "" : nouvelleOffre.salaire}
-            onChange={(e) =>
-              editingOffre
-                ? setEditingOffre(prev => prev ? {...prev, salaire: e.target.value} : null)
-                : setNouvelleOffre(prev => ({...prev, salaire: e.target.value}))
-            }
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-          />
-        </div>
-
-        {/* DATE EXPIRATION - CORRIGÉ */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Date d'Expiration <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            value={editingOffre ? editingOffre.dateExpiration : nouvelleOffre.dateExpiration}
-            onChange={(e) =>
-              editingOffre
-                ? setEditingOffre(prev => prev ? {...prev, dateExpiration: e.target.value} : null)
-                : setNouvelleOffre(prev => ({...prev, dateExpiration: e.target.value}))
-            }
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-          />
-        </div>
-
-        {/* DESCRIPTION - CORRIGÉ */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            placeholder="Description détaillée de l'offre..."
-            value={editingOffre ? editingOffre.description : nouvelleOffre.description}
-            onChange={(e) =>
-              editingOffre
-                ? setEditingOffre(prev => prev ? {...prev, description: e.target.value} : null)
-                : setNouvelleOffre(prev => ({...prev, description: e.target.value}))
-            }
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-            rows={4}
-          />
-        </div>
-
-        {/* EXIGENCES - Déjà correct */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Exigences du poste
-          </label>
-
-          {editingOffre ? (
-            <div className="space-y-3">
-              {editingExigences.map((exigence, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
-                    value={exigence}
-                    onChange={(e) => {
-                      const newExigences = [...editingExigences];
-                      newExigences[index] = e.target.value;
-                      setEditingExigences(newExigences);
-                    }}
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                  />
-                  {editingExigences.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newExigences = editingExigences.filter((_, i) => i !== index);
-                        setEditingExigences(newExigences);
-                      }}
-                      className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
-                      title="Supprimer cette exigence"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={() => setEditingExigences(prev => [...prev, ""])}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Ajouter une exigence</span>
-              </button>
+          {errorOffres && (
+            <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+              {errorOffres}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {exigencesFields.map((exigence, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
-                    value={exigence}
-                    onChange={(e) => {
-                      const newExigences = [...exigencesFields];
-                      newExigences[index] = e.target.value;
-                      setExigencesFields(newExigences);
-                    }}
-                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                  />
-                  {exigencesFields.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newExigences = exigencesFields.filter((_, i) => i !== index);
-                        setExigencesFields(newExigences);
-                      }}
-                      className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
-                      title="Supprimer cette exigence"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={() => setExigencesFields(prev => [...prev, ""])}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Ajouter une exigence</span>
-              </button>
+          )}
+          {loadingOffres && (
+            <div className="text-center py-8 text-gray-600">
+              Chargement des offres...
             </div>
           )}
 
-          <p className="text-xs text-gray-500 mt-2">
-            Chaque exigence sera stockée individuellement et pourra être utilisée pour le matching avec les candidats.
-          </p>
-        </div>
-      </div>
+          {/* Formulaire d'offres */}
+          <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+            <h3 className="text-xl font-semibold mb-6 text-gray-800">
+              {editingOffre ? "Modifier l'Offre" : "Ajouter une Nouvelle Offre"}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* TITRE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Développeur Full Stack"
+                  value={editingOffre ? editingOffre.titre : nouvelleOffre.titre}
+                  onChange={(e) =>
+                    editingOffre
+                      ? setEditingOffre(prev => prev ? {...prev, titre: e.target.value} : null)
+                      : setNouvelleOffre(prev => ({...prev, titre: e.target.value}))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                />
+              </div>
 
-      <div className="flex space-x-4 mt-6">
-        <button
-          onClick={editingOffre ? () => modifierOffre(editingOffre) : ajouterOffre}
-          disabled={
-            editingOffre
-              ? !editingOffre.titre.trim() || !editingOffre.description.trim() || !editingOffre.dateExpiration || !editingOffre.localisation.trim()
-              : !nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()
-          }
-          className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 shadow-md transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus className="h-5 w-5" />
-          <span>{editingOffre ? "Modifier" : "Ajouter"}</span>
-        </button>
-        
-        {editingOffre && (
-          <button
-            onClick={() => {
-              setEditingOffre(null);
-              setEditingExigences([""]);
-            }}
-            className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 shadow-md transition-all duration-200 font-medium"
-          >
-            Annuler
-          </button>
-        )}
-      </div>
-    </div>
+              {/* TYPE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={editingOffre ? editingOffre.type : nouvelleOffre.type}
+                  onChange={(e) =>
+                    editingOffre
+                      ? setEditingOffre(prev => prev ? {...prev, type: e.target.value as OffreEmploi["type"]} : null)
+                      : setNouvelleOffre(prev => ({...prev, type: e.target.value as OffreEmploi["type"]}))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="CDI">CDI</option>
+                  <option value="CDD 12 mois">CDD 12 mois</option>
+                  <option value="Stage">Stage</option>
+                  <option value="PFE">PFE</option>
+                </select>
+              </div>
 
+              {/* LOCALISATION */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Localisation <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Casablanca, Maroc"
+                  value={editingOffre ? editingOffre.localisation : nouvelleOffre.localisation}
+                  onChange={(e) =>
+                    editingOffre
+                      ? setEditingOffre(prev => prev ? {...prev, localisation: e.target.value} : null)
+                      : setNouvelleOffre(prev => ({...prev, localisation: e.target.value}))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                />
+              </div>
 
-    {/* Liste des offres */}
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
-          <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Titre</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Localisation</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Salaire</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expiration</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {offres.map((offre) => (
-              <tr key={offre.id} className="hover:bg-gray-50 transition-colors duration-200">
-                <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap">{offre.titre}</td>
-                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.type}</td>
-                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
-                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
-                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                  {new Date(offre.dateExpiration).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-3 text-sm whitespace-nowrap">
-                  <span
-                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                      offre.statut === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {offre.statut}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm whitespace-nowrap">
-                  <div className="flex space-x-2">
+              {/* SALAIRE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Salaire (optionnel)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: 5000 MAD"
+                  value={editingOffre ? editingOffre.salaire || "" : nouvelleOffre.salaire}
+                  onChange={(e) =>
+                    editingOffre
+                      ? setEditingOffre(prev => prev ? {...prev, salaire: e.target.value} : null)
+                      : setNouvelleOffre(prev => ({...prev, salaire: e.target.value}))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                />
+              </div>
+
+              {/* DATE EXPIRATION */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date d'Expiration <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={editingOffre ? editingOffre.dateExpiration : nouvelleOffre.dateExpiration}
+                  onChange={(e) =>
+                    editingOffre
+                      ? setEditingOffre(prev => prev ? {...prev, dateExpiration: e.target.value} : null)
+                      : setNouvelleOffre(prev => ({...prev, dateExpiration: e.target.value}))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                />
+              </div>
+
+              {/* DESCRIPTION */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  placeholder="Description détaillée de l'offre..."
+                  value={editingOffre ? editingOffre.description : nouvelleOffre.description}
+                  onChange={(e) =>
+                    editingOffre
+                      ? setEditingOffre(prev => prev ? {...prev, description: e.target.value} : null)
+                      : setNouvelleOffre(prev => ({...prev, description: e.target.value}))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  rows={4}
+                />
+              </div>
+
+              {/* EXIGENCES */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Exigences du poste
+                </label>
+
+                {editingOffre ? (
+                  <div className="space-y-3">
+                    {editingExigences.map((exigence, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                          value={exigence}
+                          onChange={(e) => {
+                            const newExigences = [...editingExigences];
+                            newExigences[index] = e.target.value;
+                            setEditingExigences(newExigences);
+                          }}
+                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                        />
+                        {editingExigences.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newExigences = editingExigences.filter((_, i) => i !== index);
+                              setEditingExigences(newExigences);
+                            }}
+                            className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            title="Supprimer cette exigence"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
                     <button
-                      onClick={() => handleEditClick(offre)}
-                      className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      title="Modifier"
+                      type="button"
+                      onClick={() => setEditingExigences(prev => [...prev, ""])}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
                     >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => supprimerOffre(offre.id)}
-                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="h-4 w-4" />
+                      <Plus className="h-4 w-4" />
+                      <span>Ajouter une exigence</span>
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-)}
+                ) : (
+                  <div className="space-y-3">
+                    {exigencesFields.map((exigence, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                          value={exigence}
+                          onChange={(e) => {
+                            const newExigences = [...exigencesFields];
+                            newExigences[index] = e.target.value;
+                            setExigencesFields(newExigences);
+                          }}
+                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                        />
+                        {exigencesFields.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newExigences = exigencesFields.filter((_, i) => i !== index);
+                              setExigencesFields(newExigences);
+                            }}
+                            className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            title="Supprimer cette exigence"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
 
-{activeTab === "candidatures" && (
-  <section className="space-y-6">
-    <h2 className="text-3xl font-bold text-gray-900 text-center">Gestion des Candidatures Spontanées & Stage/PFE</h2>
+                    <button
+                      type="button"
+                      onClick={() => setExigencesFields(prev => [...prev, ""])}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Ajouter une exigence</span>
+                    </button>
+                  </div>
+                )}
 
-    <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
-      <select
-        value={filterType}
-        onChange={(e) => setFilterType(e.target.value as "tous" | "stage_spontane" | "spontanee")}
-        className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
-      >
-        <option value="tous">Toutes les candidatures spontanées</option>
-        <option value="stage_spontane">Stages/PFE Spontanés</option>
-        <option value="spontanee">Candidatures spontanées générales</option>
-      </select>
-
-      {/* ... reste du code inchangé ... */}
-    </div>
-
-    {errorCandidatures && (
-      <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
-        {errorCandidatures}
-      </div>
-    )}
-    {loadingCandidatures && (
-      <div className="text-center py-8 text-gray-600">
-        Chargement des candidatures spontanées...
-      </div>
-    )}
-
-    {/* CORRECTION DU FILTRAGE - Utiliser le type réel de la base de données */}
-    {["stage_spontane", "spontanee"].map((type) => {
-      if (filterType !== "tous" && filterType !== type) return null;
-
-      // Filtrer par le champ "type" de la base de données
-      const candidaturesByType = candidatures.filter((c) => 
-        c.type === type && !c.ignored // Exclure les candidatures ignorées
-      );
-
-      const sortedCandidatures = getSortedCandidatures(
-        candidaturesByType,
-        sortBy,
-        sortOrder
-      );
-
-      return (
-        <div key={type} className="bg-white rounded-xl shadow-lg overflow-hidden mb-6 w-full">
-          <h3 className="text-lg font-semibold text-gray-700 bg-gray-100 px-6 py-3 capitalize">
-            {type === "stage_spontane" ? "Candidatures Spontanées Stage/PFE" : "Candidatures Spontanées Générales"}{" "}
-            <span className="ml-2 bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
-              {sortedCandidatures.length}
-            </span>
-          </h3>
-
-          {sortedCandidatures.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Book className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h4 className="text-lg font-semibold text-gray-700 mb-2">
-                Aucune candidature{" "}
-                {type === "stage_spontane" ? "spontanée de stage/PFE" : "spontanée générale"}
-              </h4>
-              <p className="text-gray-500">
-                {type === "stage_spontane"
-                  ? "Aucune candidature spontanée de stage ou PFE n'a été reçue pour le moment."
-                  : "Aucune candidature spontanée générale n'a été reçue pour le moment."}
-              </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Chaque exigence sera stockée individuellement et pourra être utilisée pour le matching avec les candidats.
+                </p>
+              </div>
             </div>
-          ) : (
+
+            <div className="flex space-x-4 mt-6">
+              <button
+                onClick={editingOffre ? () => modifierOffre(editingOffre) : ajouterOffre}
+                disabled={
+                  editingOffre
+                    ? !editingOffre.titre.trim() || !editingOffre.description.trim() || !editingOffre.dateExpiration || !editingOffre.localisation.trim()
+                    : !nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()
+                }
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 shadow-md transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="h-5 w-5" />
+                <span>{editingOffre ? "Modifier" : "Ajouter"}</span>
+              </button>
+              
+              {editingOffre && (
+                <button
+                  onClick={() => {
+                    setEditingOffre(null);
+                    setEditingExigences([""]);
+                  }}
+                  className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 shadow-md transition-all duration-200 font-medium"
+                >
+                  Annuler
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Liste des offres */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Titre</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score Compétences</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expérience</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date Soumission</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Localisation</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Salaire</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expiration</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
-
                 <tbody className="divide-y divide-gray-200">
-                  {sortedCandidatures.map((cand) => (
-                    <tr key={`${cand.id}-${cand.type}`} className="hover:bg-gray-50 transition-colors duration-200">
-                      <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap capitalize flex items-center space-x-2">
-                        {cand.type === "stage_spontane" && <Book className="h-4 w-4" />}
-                        {cand.type === "spontanee" && <Mail className="h-4 w-4" />}
-                        <span>
-                          {cand.type === "stage_spontane" ? "Stage/PFE" : cand.type === "spontanee" ? "Candidature Générale" : cand.type}
-                        </span>
-                      </td>
-<td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">
-  {cand.prenom ? `${cand.prenom} ${cand.nom}` : cand.nom}
-</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
+                  {offres.map((offre) => (
+                    <tr key={offre.id} className="hover:bg-gray-50 transition-colors duration-200">
+                      <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap">{offre.titre}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.type}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
+                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        <DisplayDiplome diplome={cand.diplome} />
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        <DisplayCompetenceScore score={cand.competenceScore} />
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        <DisplayExperience experience={cand.experience} />
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {new Date(offre.dateExpiration).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
                           className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                            cand.statut === "en_attente"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : cand.statut === "acceptee"
-                              ? "bg-green-100 text-green-800"
-                              : cand.statut === "refusee"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
+                            offre.statut === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                           }`}
                         >
-                          {cand.statut === "en_attente" ? "En attente" : cand.statut === "acceptee" ? "Acceptée" : cand.statut === "refusee" ? "Refusée" : "Ignorée"}
+                          {offre.statut}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
-                        <ActionsSelect candidature={cand} />
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEditClick(offre)}
+                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            title="Modifier"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => supprimerOffre(offre.id)}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+      )}
+
+      {activeTab === "candidatures" && (
+        <section className="space-y-6">
+          <h2 className="text-3xl font-bold text-gray-900 text-center">Gestion des Candidatures Spontanées & Stage/PFE</h2>
+
+          <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as "tous" | "stage_spontane" | "spontanee")}
+              className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
+            >
+              <option value="tous">Toutes les candidatures spontanées</option>
+              <option value="stage_spontane">Stages/PFE Spontanés</option>
+              <option value="spontanee">Candidatures spontanées générales</option>
+            </select>
+
+            <div className="flex items-center space-x-2">
+              <Filter className="h-5 w-5 text-gray-600" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as "date" | "diplome" | "competence" | "experience")}
+                className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
+              >
+                <option value="date">Trier par date</option>
+                <option value="diplome">Trier par diplôme</option>
+                <option value="competence">Trier par compétences</option>
+                <option value="experience">Trier par expérience</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className="p-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all duration-200"
+              >
+                {sortOrder === "asc" ? "↑" : "↓"}
+              </button>
+            </div>
+          </div>
+
+          {errorCandidatures && (
+            <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+              {errorCandidatures}
+            </div>
           )}
-        </div>
-      );
-    })}
-  </section>
-)}
+          {loadingCandidatures && (
+            <div className="text-center py-8 text-gray-600">
+              Chargement des candidatures spontanées...
+            </div>
+          )}
+
+          {/* Affichage des candidatures par type */}
+          {["stage_spontane", "spontanee"].map((type) => {
+            if (filterType !== "tous" && filterType !== type) return null;
+
+            const candidaturesByType = candidatures.filter((c) => 
+              c.type === type && !c.ignored
+            );
+
+            const sortedCandidatures = getSortedCandidatures(
+              candidaturesByType,
+              sortBy,
+              sortOrder
+            );
+
+            return (
+              <div key={type} className="bg-white rounded-xl shadow-lg overflow-hidden mb-6 w-full">
+                <h3 className="text-lg font-semibold text-gray-700 bg-gray-100 px-6 py-3 capitalize">
+                  {type === "stage_spontane" ? "Candidatures Spontanées Stage/PFE" : "Candidatures Spontanées Générales"}{" "}
+                  <span className="ml-2 bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
+                    {sortedCandidatures.length}
+                  </span>
+                </h3>
+
+                {sortedCandidatures.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Book className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-gray-700 mb-2">
+                      Aucune candidature{" "}
+                      {type === "stage_spontane" ? "spontanée de stage/PFE" : "spontanée générale"}
+                    </h4>
+                    <p className="text-gray-500">
+                      {type === "stage_spontane"
+                        ? "Aucune candidature spontanée de stage ou PFE n'a été reçue pour le moment."
+                        : "Aucune candidature spontanée générale n'a été reçue pour le moment."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
+                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score Compétences</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expérience</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date Soumission</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-gray-200">
+                        {sortedCandidatures.map((cand) => (
+                          <tr key={`${cand.id}-${cand.type}`} className="hover:bg-gray-50 transition-colors duration-200">
+                            <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap capitalize flex items-center space-x-2">
+                              {cand.type === "stage_spontane" && <Book className="h-4 w-4" />}
+                              {cand.type === "spontanee" && <Mail className="h-4 w-4" />}
+                              <span>
+                                {cand.type === "stage_spontane" ? "Stage/PFE" : cand.type === "spontanee" ? "Candidature Générale" : cand.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">
+                              {cand.prenom ? `${cand.prenom} ${cand.nom}` : cand.nom}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
+                            <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                              <DisplayDiplome diplome={cand.diplome} />
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                              <DisplayCompetenceScore score={cand.competenceScore} />
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                              <DisplayExperience experience={cand.experience} />
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                              {new Date(cand.dateSoumission).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3 text-sm whitespace-nowrap">
+                              <span
+                                className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                  cand.statut === "en_attente"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : cand.statut === "acceptee"
+                                    ? "bg-green-100 text-green-800"
+                                    : cand.statut === "refusee"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {cand.statut === "en_attente" ? "En attente" : cand.statut === "acceptee" ? "Acceptée" : cand.statut === "refusee" ? "Refusée" : "Ignorée"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm whitespace-nowrap">
+                              <ActionsSelect candidature={cand} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       {activeTab === "candidatures-postes" && (
         <section className="space-y-6">
@@ -2907,143 +2808,122 @@ const GestionUtilisateursView = () => {
 
           {viewMode === "postes" && <PostesList filtreType={ongletCandidatures} />}
           {viewMode === "candidatures" && selectedOffre && <CandidaturesForPoste filtreType={ongletCandidatures} />}
-{selectedCandidature && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-      <div className="flex justify-between items-center mb-4 border-b pb-2">
-        <h3 className="text-2xl font-bold text-gray-800">
-          Détails de la candidature ignorée
-        </h3>
-        <div className="flex items-center space-x-2">
-          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-            Ignorée
-          </span>
-        </div>
-      </div>
 
-      <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-        <p>
-          <strong>👤 Nom :</strong> {selectedCandidature.nom}
-        </p>
-        <p>
-          <strong>📧 Email :</strong> {selectedCandidature.email}
-        </p>
-        {selectedCandidature.telephone && (
-          <p>
-            <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
-          </p>
-        )}
-        {selectedCandidature.diplome && (
-          <p>
-            <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
-          </p>
-        )}
-        {selectedCandidature.experience && (
-          <p>
-            <strong>💼 Expérience :</strong> {selectedCandidature.experience}
-          </p>
-        )}
-        {selectedCandidature.competenceScore && (
-          <p>
-            <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
-          </p>
-        )}
-        <p>
-          <strong>📅 Date de soumission :</strong>{" "}
-          {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
-        </p>
-        <p>
-          <strong>📋 Type :</strong>
-          <span
-            className={`ml-2 px-2 py-1 rounded-full text-xs ${
-              selectedCandidature.type === "emploi"
-                ? "bg-blue-100 text-blue-800"
-                : selectedCandidature.type === "stage"
-                ? "bg-green-100 text-green-800"
-                : selectedCandidature.type === "pfe"
-                ? "bg-purple-100 text-purple-800"
-                : selectedCandidature.type === "stage_spontane"
-                ? "bg-teal-100 text-teal-800"
-                : "bg-orange-100 text-orange-800"
-            }`}
-          >
-            {selectedCandidature.type === "spontanee"
-              ? "Spontanée"
-              : selectedCandidature.type === "emploi"
-              ? "CDI/CDD"
-              : selectedCandidature.type === "stage"
-              ? "Stage"
-              : selectedCandidature.type === "pfe"
-              ? "PFE"
-              : selectedCandidature.type === "stage_spontane"
-              ? "Stage Spontané"
-              : selectedCandidature.type}
-          </span>
-        </p>
+          {selectedCandidature && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    Détails de la candidature ignorée
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                      Ignorée
+                    </span>
+                  </div>
+                </div>
 
-        {selectedCandidature.cvUrl && (
-          <p>
-            <strong>📎 CV :</strong>{" "}
-            <a
-              href={getFileUrl(selectedCandidature.cvUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline flex items-center space-x-1"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Télécharger le CV</span>
-            </a>
-          </p>
-        )}
+                <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
+                  <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
+                  <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
+                  {selectedCandidature.telephone && <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>}
+                  {selectedCandidature.diplome && <p><strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}</p>}
+                  {selectedCandidature.experience && <p><strong>💼 Expérience :</strong> {selectedCandidature.experience}</p>}
+                  {selectedCandidature.competenceScore && <p><strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%</p>}
+                  <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
 
-        {selectedCandidature.lettreMotivationUrl && (
-          <p>
-            <strong>📝 Lettre de motivation :</strong>{" "}
-            <a
-              href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline flex items-center space-x-1"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Télécharger la lettre</span>
-            </a>
-          </p>
-        )}
-      </div>
+                  <p>
+                    <strong>📋 Type :</strong>
+                    <span
+                      className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                        selectedCandidature.type === "emploi"
+                          ? "bg-blue-100 text-blue-800"
+                          : selectedCandidature.type === "stage"
+                          ? "bg-green-100 text-green-800"
+                          : selectedCandidature.type === "pfe"
+                          ? "bg-purple-100 text-purple-800"
+                          : selectedCandidature.type === "stage_spontane"
+                          ? "bg-teal-100 text-teal-800"
+                          : "bg-orange-100 text-orange-800"
+                      }`}
+                    >
+                      {selectedCandidature.type === "spontanee"
+                        ? "Spontanée"
+                        : selectedCandidature.type === "emploi"
+                        ? "CDI/CDD"
+                        : selectedCandidature.type === "stage"
+                        ? "Stage"
+                        : selectedCandidature.type === "pfe"
+                        ? "PFE"
+                        : selectedCandidature.type === "stage_spontane"
+                        ? "Stage Spontané"
+                        : selectedCandidature.type}
+                    </span>
+                  </p>
 
-      <div className="mt-6 flex justify-end space-x-3">
-        <button
-          onClick={() => restaurerCandidature(selectedCandidature)}
-          className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-        >
-          <RotateCcw className="h-4 w-4" />
-          <span>Restaurer</span>
-        </button>
-        <button
-          onClick={() => changerStatut(selectedCandidature, "ignorer")}
-          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
-        >
-          <Ban className="h-4 w-4" />
-          <span>Ignorer</span>
-        </button>
-        <button
-          onClick={() => supprimerCandidature(selectedCandidature)}
-          className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>Supprimer</span>
-        </button>
-        <button
-          onClick={() => setSelectedCandidature(null)}
-          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-        >
-          Fermer
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                  {selectedCandidature.cvUrl && (
+                    <p>
+                      <strong>📎 CV :</strong>{" "}
+                      <a
+                        href={getFileUrl(selectedCandidature.cvUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center space-x-1"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span>Télécharger le CV</span>
+                      </a>
+                    </p>
+                  )}
+
+                  {selectedCandidature.lettreMotivationUrl && (
+                    <p>
+                      <strong>📝 Lettre de motivation :</strong>{" "}
+                      <a
+                        href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center space-x-1"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span>Télécharger la lettre</span>
+                      </a>
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    onClick={() => restaurerCandidature(selectedCandidature)}
+                    className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span>Restaurer</span>
+                  </button>
+                  <button
+                    onClick={() => changerStatut(selectedCandidature, "ignorer")}
+                    className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
+                  >
+                    <Ban className="h-4 w-4" />
+                    <span>Ignorer</span>
+                  </button>
+                  <button
+                    onClick={() => supprimerCandidature(selectedCandidature)}
+                    className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Supprimer</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedCandidature(null)}
+                    className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -3089,10 +2969,11 @@ const GestionUtilisateursView = () => {
         {currentView === "gestion-candidatures" && <GestionCandidaturesView />}
       </div>
 
-      {/* Modale de changement de mot de passe - CORRIGÉE */}
+      {/* Modale de changement de mot de passe */}
       {showChangePassword && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-2xl font-bold text-gray-800">Changer le mot de passe</h3>
               <button 
                 onClick={() => {
@@ -3191,11 +3072,3 @@ const GestionUtilisateursView = () => {
 };
 
 export default DashboardAdmin;
-
-function handleEditingOffreChange(arg0: string, value: string): void {
-  throw new Error("Function not implemented.");
-}
-function handleNouvelleOffreChange(arg0: string, value: string): void {
-  throw new Error("Function not implemented.");
-}
-
