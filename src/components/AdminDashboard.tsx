@@ -2432,14 +2432,14 @@ const GestionUtilisateursView = () => {
       </div>
     )}
 
-    {/* Formulaire d'ajout/modification d'offre - CORRIGÉ */}
+    {/* Formulaire CORRIGÉ avec la bonne syntaxe */}
     <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
       <h3 className="text-xl font-semibold mb-6 text-gray-800">
         {editingOffre ? "Modifier l'Offre" : "Ajouter une Nouvelle Offre"}
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* TITRE */}
+        {/* TITRE - CORRIGÉ */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Titre <span className="text-red-500">*</span>
@@ -2450,20 +2450,14 @@ const GestionUtilisateursView = () => {
             value={editingOffre ? editingOffre.titre : nouvelleOffre.titre}
             onChange={(e) =>
               editingOffre
-                ? setEditingOffre({
-                    ...editingOffre,
-                    titre: e.target.value,
-                  })
-                : setNouvelleOffre({
-                    ...nouvelleOffre,
-                    titre: e.target.value,
-                  })
+                ? setEditingOffre(prev => prev ? {...prev, titre: e.target.value} : null)
+                : setNouvelleOffre(prev => ({...prev, titre: e.target.value}))
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
         </div>
 
-        {/* TYPE */}
+        {/* TYPE - CORRIGÉ */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Type <span className="text-red-500">*</span>
@@ -2472,14 +2466,8 @@ const GestionUtilisateursView = () => {
             value={editingOffre ? editingOffre.type : nouvelleOffre.type}
             onChange={(e) =>
               editingOffre
-                ? setEditingOffre({
-                    ...editingOffre,
-                    type: e.target.value as OffreEmploi["type"],
-                  })
-                : setNouvelleOffre({
-                    ...nouvelleOffre,
-                    type: e.target.value as OffreEmploi["type"],
-                  })
+                ? setEditingOffre(prev => prev ? {...prev, type: e.target.value as OffreEmploi["type"]} : null)
+                : setNouvelleOffre(prev => ({...prev, type: e.target.value as OffreEmploi["type"]}))
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           >
@@ -2490,7 +2478,7 @@ const GestionUtilisateursView = () => {
           </select>
         </div>
 
-        {/* LOCALISATION */}
+        {/* LOCALISATION - CORRIGÉ */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Localisation <span className="text-red-500">*</span>
@@ -2501,20 +2489,14 @@ const GestionUtilisateursView = () => {
             value={editingOffre ? editingOffre.localisation : nouvelleOffre.localisation}
             onChange={(e) =>
               editingOffre
-                ? setEditingOffre({
-                    ...editingOffre,
-                    localisation: e.target.value,
-                  })
-                : setNouvelleOffre({
-                    ...nouvelleOffre,
-                    localisation: e.target.value,
-                  })
+                ? setEditingOffre(prev => prev ? {...prev, localisation: e.target.value} : null)
+                : setNouvelleOffre(prev => ({...prev, localisation: e.target.value}))
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
         </div>
 
-        {/* SALAIRE */}
+        {/* SALAIRE - CORRIGÉ */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Salaire (optionnel)
@@ -2525,20 +2507,14 @@ const GestionUtilisateursView = () => {
             value={editingOffre ? editingOffre.salaire || "" : nouvelleOffre.salaire}
             onChange={(e) =>
               editingOffre
-                ? setEditingOffre({
-                    ...editingOffre,
-                    salaire: e.target.value,
-                  })
-                : setNouvelleOffre({
-                    ...nouvelleOffre,
-                    salaire: e.target.value,
-                  })
+                ? setEditingOffre(prev => prev ? {...prev, salaire: e.target.value} : null)
+                : setNouvelleOffre(prev => ({...prev, salaire: e.target.value}))
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
         </div>
 
-        {/* DATE EXPIRATION */}
+        {/* DATE EXPIRATION - CORRIGÉ */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Date d'Expiration <span className="text-red-500">*</span>
@@ -2548,20 +2524,14 @@ const GestionUtilisateursView = () => {
             value={editingOffre ? editingOffre.dateExpiration : nouvelleOffre.dateExpiration}
             onChange={(e) =>
               editingOffre
-                ? setEditingOffre({
-                    ...editingOffre,
-                    dateExpiration: e.target.value,
-                  })
-                : setNouvelleOffre({
-                    ...nouvelleOffre,
-                    dateExpiration: e.target.value,
-                  })
+                ? setEditingOffre(prev => prev ? {...prev, dateExpiration: e.target.value} : null)
+                : setNouvelleOffre(prev => ({...prev, dateExpiration: e.target.value}))
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
         </div>
 
-        {/* DESCRIPTION */}
+        {/* DESCRIPTION - CORRIGÉ */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Description <span className="text-red-500">*</span>
@@ -2571,21 +2541,15 @@ const GestionUtilisateursView = () => {
             value={editingOffre ? editingOffre.description : nouvelleOffre.description}
             onChange={(e) =>
               editingOffre
-                ? setEditingOffre({
-                    ...editingOffre,
-                    description: e.target.value,
-                  })
-                : setNouvelleOffre({
-                    ...nouvelleOffre,
-                    description: e.target.value,
-                  })
+                ? setEditingOffre(prev => prev ? {...prev, description: e.target.value} : null)
+                : setNouvelleOffre(prev => ({...prev, description: e.target.value}))
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
             rows={4}
           />
         </div>
 
-        {/* EXIGENCES */}
+        {/* EXIGENCES - Déjà correct */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Exigences du poste
@@ -2624,7 +2588,7 @@ const GestionUtilisateursView = () => {
 
               <button
                 type="button"
-                onClick={() => setEditingExigences([...editingExigences, ""])}
+                onClick={() => setEditingExigences(prev => [...prev, ""])}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
               >
                 <Plus className="h-4 w-4" />
@@ -2664,7 +2628,7 @@ const GestionUtilisateursView = () => {
 
               <button
                 type="button"
-                onClick={() => setExigencesFields([...exigencesFields, ""])}
+                onClick={() => setExigencesFields(prev => [...prev, ""])}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
               >
                 <Plus className="h-4 w-4" />
@@ -2706,6 +2670,7 @@ const GestionUtilisateursView = () => {
         )}
       </div>
     </div>
+
 
     {/* Liste des offres */}
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
