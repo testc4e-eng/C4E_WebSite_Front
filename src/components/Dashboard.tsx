@@ -128,13 +128,19 @@ const getFileUrl = (filePath?: string) => {
 const handleApiError = async (response: Response) => {
   if (!response.ok) {
     let errorMessage = `Erreur HTTP ${response.status}`;
+    let errorDetails = "";
+    
     try {
       const errorData = await response.json();
       errorMessage = errorData.message || errorData.error || errorMessage;
+      errorDetails = errorData.details || "";
     } catch {
       errorMessage = `Erreur ${response.status}: ${response.statusText}`;
     }
-    throw new Error(errorMessage);
+    
+    const fullError = errorDetails ? `${errorMessage} - ${errorDetails}` : errorMessage;
+    console.error(`❌ Erreur API ${response.status}:`, fullError);
+    throw new Error(fullError);
   }
   return response;
 };
@@ -357,42 +363,58 @@ useEffect(() => {
       }
 
       // CORRECTION : Fusion améliorée qui préserve mieux l'état local
-      setCandidatures(prevCandidatures => {
-        const localMap = new Map();
-        prevCandidatures.forEach(c => {
-          const key = `${c.id}-${c.type}`;
-          localMap.set(key, {
-            ...c,
-            ignored: c.ignored,
-            statut: c.statut
-          });
-        });
+setCandidatures(prevCandidatures => {
+  const localMap = new Map();
+  
+  // Créer un Map avec TOUTES les données locales
+  prevCandidatures.forEach(c => {
+    const key = `${c.id}-${c.type}`;
+    localMap.set(key, {
+      ...c,
+      // Préserver tous les états locaux importants
+      ignored: c.ignored,
+      statut: c.statut,
+      dateSoumission: c.dateSoumission
+    });
+  });
 
-        const merged = normalizedData.map((apiCand: Candidature) => {
-          const key = `${apiCand.id}-${apiCand.type}`;
-          const localCand = localMap.get(key);
-          
-          if (localCand) {
-            console.log(`✅ Fusion: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
-            return {
-              ...apiCand,
-              ignored: localCand.ignored !== undefined ? localCand.ignored : false,
-              statut: localCand.statut || apiCand.statut || "en_attente",
-              dateSoumission: localCand.dateSoumission || apiCand.dateSoumission
-            };
-          }
-          
-          // Nouvelle candidature
-          return {
-            ...apiCand,
-            ignored: false,
-            statut: apiCand.statut || "en_attente"
-          };
-        });
+  const merged = normalizedData.map((apiCand: Candidature) => {
+    const key = `${apiCand.id}-${apiCand.type}`;
+    const localCand = localMap.get(key);
+    
+    if (localCand) {
+      console.log(`✅ Fusion: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
+      
+      // Fusionner intelligemment : priorité aux données locales
+      return {
+        ...apiCand,           // données de base de l'API
+        ignored: localCand.ignored, // TOUJOURS prendre l'état local
+        statut: localCand.statut,   // TOUJOURS prendre l'état local
+        dateSoumission: localCand.dateSoumission // garder la date locale
+      };
+    }
+    
+    // Nouvelle candidature depuis l'API
+    return {
+      ...apiCand,
+      ignored: false, // par défaut non ignorée
+      statut: apiCand.statut || "en_attente"
+    };
+  });
 
-        console.log(`✅ Fusion: ${merged.length} total, ${merged.filter(c => c.ignored).length} ignorées`);
-        return merged;
-      });
+  // Ajouter les candidatures locales qui ne sont pas dans l'API (au cas où)
+  const localOnlyCandidates = prevCandidatures.filter(localCand => {
+    const key = `${localCand.id}-${localCand.type}`;
+    return !normalizedData.some(apiCand => 
+      `${apiCand.id}-${apiCand.type}` === key
+    );
+  });
+
+  const finalMerged = [...merged, ...localOnlyCandidates];
+  
+  console.log(`✅ Fusion finale: ${finalMerged.length} total, ${finalMerged.filter(c => c.ignored).length} ignorées`);
+  return finalMerged;
+});
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -583,13 +605,19 @@ const supprimerCandidature = async (candidature: Candidature) => {
   try {
     const { id, type } = candidature;
 
-    // CORRECTION : URL correcte pour la suppression
+    // CORRECTION : URLs de suppression basées sur le type exact
     let url = "";
     if (type === "spontanee" || type === "stage_spontane") {
+      // Pour les candidatures spontanées
       url = `/api/candidatures/spontanees/${id}`;
-    } else {
+    } else if (type === "emploi" || type === "stage" || type === "pfe") {
+      // Pour les candidatures par postes
       url = `/api/candidatures/${id}`;
+    } else {
+      throw new Error(`Type de candidature non supporté: ${type}`);
     }
+
+    console.log(`🗑️ Suppression: ${url}, type: ${type}, id: ${id}`);
 
     const response = await fetch(getApiUrl(url), {
       method: "DELETE",
@@ -599,6 +627,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
       }
     });
 
+    // Utiliser la fonction handleApiError pour mieux gérer les erreurs
     await handleApiError(response);
 
     // Supprimer de l'état React
@@ -623,7 +652,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("❌ Erreur:", err);
+    console.error("❌ Erreur suppression:", err);
     setErrorCandidatures(`Échec suppression: ${message}`);
   }
 };
@@ -676,14 +705,17 @@ const changerStatut = async (
   try {
     const { id, type } = candidature;
 
-    console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut });
+    console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut, currentIgnored: candidature.ignored });
 
+    // Pour "ignorer", on gère uniquement en local
     if (nouveauStatut === "ignorer") {
       const updatedCandidature = { 
         ...candidature, 
-        statut: "en_attente",
+        statut: "en_attente", // IMPORTANT: statut reste "en_attente"
         ignored: true 
       };
+      
+      console.log(`🔕 Ignorer: ${candidature.nom}, nouveau ignored=${updatedCandidature.ignored}`);
       
       setCandidatures((prev) =>
         prev.map((c) =>
@@ -691,6 +723,7 @@ const changerStatut = async (
         )
       );
 
+      // Sauvegarder dans localStorage IMMÉDIATEMENT
       const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
       const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
         c.id === id && c.type === type ? updatedCandidature : c
@@ -702,6 +735,7 @@ const changerStatut = async (
       return;
     }
 
+    // Pour les autres statuts, appeler l'API
     const response = await fetch(getApiUrl(`/api/candidatures/statut/${type}/${id}`), {
       method: "PUT",
       headers: {
@@ -718,10 +752,11 @@ const changerStatut = async (
     const result = await response.json();
     console.log("✅ Réponse backend:", result);
 
+    // Mettre à jour l'état local
     const updatedCandidature = { 
       ...candidature, 
       statut: nouveauStatut,
-      ignored: false
+      ignored: false // Une candidature acceptée/refusée n'est pas ignorée
     };
     
     setCandidatures((prev) =>
@@ -730,6 +765,7 @@ const changerStatut = async (
       )
     );
 
+    // Sauvegarder dans localStorage
     const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
     const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
       c.id === id && c.type === type ? updatedCandidature : c
