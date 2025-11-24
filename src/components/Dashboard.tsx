@@ -1538,136 +1538,143 @@ const handleLogout = () => {
           </div>
         )}
 
-        {selectedCandidature && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-              <div className="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 className="text-2xl font-bold text-gray-800">
-                  Détails de la candidature ignorée
-                </h3>
-                <div className="flex items-center space-x-2">
-                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                    Ignorée
-                  </span>
-                </div>
-              </div>
+{selectedCandidature && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 className="text-2xl font-bold text-gray-800">
+          Détails de la candidature ignorée
+        </h3>
+        <div className="flex items-center space-x-2">
+          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+            Ignorée
+          </span>
+        </div>
+      </div>
 
-              <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-                <p>
-                  <strong>👤 Nom :</strong> {selectedCandidature.nom}
-                </p>
-                <p>
-                  <strong>📧 Email :</strong> {selectedCandidature.email}
-                </p>
-                {selectedCandidature.telephone && (
-                  <p>
-                    <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
-                  </p>
-                )}
-                {selectedCandidature.diplome && (
-                  <p>
-                    <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
-                  </p>
-                )}
-                {selectedCandidature.experience && (
-                  <p>
-                    <strong>💼 Expérience :</strong> {selectedCandidature.experience}
-                  </p>
-                )}
-                {selectedCandidature.competenceScore && (
-                  <p>
-                    <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
-                  </p>
-                )}
-                <p>
-                  <strong>📅 Date de soumission :</strong>{" "}
-                  {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
-                </p>
-                <p>
-                  <strong>📋 Type :</strong>
-                  <span
-                    className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                      selectedCandidature.type === "emploi"
-                        ? "bg-blue-100 text-blue-800"
-                        : selectedCandidature.type === "stage"
-                        ? "bg-green-100 text-green-800"
-                        : selectedCandidature.type === "pfe"
-                        ? "bg-purple-100 text-purple-800"
-                        : selectedCandidature.type === "stage_spontane"
-                        ? "bg-teal-100 text-teal-800"
-                        : "bg-orange-100 text-orange-800"
-                    }`}
-                  >
-                    {selectedCandidature.type === "spontanee"
-                      ? "Spontanée"
-                      : selectedCandidature.type === "emploi"
-                      ? "CDI/CDD"
-                      : selectedCandidature.type === "stage"
-                      ? "Stage"
-                      : selectedCandidature.type === "pfe"
-                      ? "PFE"
-                      : selectedCandidature.type === "stage_spontane"
-                      ? "Stage Spontané"
-                      : selectedCandidature.type}
-                  </span>
-                </p>
-
-                {selectedCandidature.cvUrl && (
-                  <p>
-                    <strong>📎 CV :</strong>{" "}
-                    <a
-                      href={getFileUrl(selectedCandidature.cvUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center space-x-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span>Télécharger le CV</span>
-                    </a>
-                  </p>
-                )}
-
-                {selectedCandidature.lettreMotivationUrl && (
-                  <p>
-                    <strong>📝 Lettre de motivation :</strong>{" "}
-                    <a
-                      href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center space-x-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span>Télécharger la lettre</span>
-                    </a>
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => restaurerCandidature(selectedCandidature)}
-                  className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  <span>Restaurer</span>
-                </button>
-                <button
-                  onClick={() => supprimerCandidature(selectedCandidature)}
-                  className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Supprimer</span>
-                </button>
-                <button
-                  onClick={() => setSelectedCandidature(null)}
-                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
-          </div>
+      <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
+        <p>
+          <strong>👤 Nom :</strong> {selectedCandidature.nom}
+        </p>
+        <p>
+          <strong>📧 Email :</strong> {selectedCandidature.email}
+        </p>
+        {selectedCandidature.telephone && (
+          <p>
+            <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
+          </p>
         )}
+        {selectedCandidature.diplome && (
+          <p>
+            <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
+          </p>
+        )}
+        {selectedCandidature.experience && (
+          <p>
+            <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+          </p>
+        )}
+        {selectedCandidature.competenceScore && (
+          <p>
+            <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+          </p>
+        )}
+        <p>
+          <strong>📅 Date de soumission :</strong>{" "}
+          {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
+        </p>
+        <p>
+          <strong>📋 Type :</strong>
+          <span
+            className={`ml-2 px-2 py-1 rounded-full text-xs ${
+              selectedCandidature.type === "emploi"
+                ? "bg-blue-100 text-blue-800"
+                : selectedCandidature.type === "stage"
+                ? "bg-green-100 text-green-800"
+                : selectedCandidature.type === "pfe"
+                ? "bg-purple-100 text-purple-800"
+                : selectedCandidature.type === "stage_spontane"
+                ? "bg-teal-100 text-teal-800"
+                : "bg-orange-100 text-orange-800"
+            }`}
+          >
+            {selectedCandidature.type === "spontanee"
+              ? "Spontanée"
+              : selectedCandidature.type === "emploi"
+              ? "CDI/CDD"
+              : selectedCandidature.type === "stage"
+              ? "Stage"
+              : selectedCandidature.type === "pfe"
+              ? "PFE"
+              : selectedCandidature.type === "stage_spontane"
+              ? "Stage Spontané"
+              : selectedCandidature.type}
+          </span>
+        </p>
+
+        {selectedCandidature.cvUrl && (
+          <p>
+            <strong>📎 CV :</strong>{" "}
+            <a
+              href={getFileUrl(selectedCandidature.cvUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline flex items-center space-x-1"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger le CV</span>
+            </a>
+          </p>
+        )}
+
+        {selectedCandidature.lettreMotivationUrl && (
+          <p>
+            <strong>📝 Lettre de motivation :</strong>{" "}
+            <a
+              href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline flex items-center space-x-1"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger la lettre</span>
+            </a>
+          </p>
+        )}
+      </div>
+
+      <div className="mt-6 flex justify-end space-x-3">
+        <button
+          onClick={() => restaurerCandidature(selectedCandidature)}
+          className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+        >
+          <RotateCcw className="h-4 w-4" />
+          <span>Restaurer</span>
+        </button>
+        <button
+          onClick={() => changerStatut(selectedCandidature, "ignorer")}
+          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
+        >
+          <Ban className="h-4 w-4" />
+          <span>Ignorer</span>
+        </button>
+        <button
+          onClick={() => supprimerCandidature(selectedCandidature)}
+          className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span>Supprimer</span>
+        </button>
+        <button
+          onClick={() => setSelectedCandidature(null)}
+          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </section>
     );
   };
