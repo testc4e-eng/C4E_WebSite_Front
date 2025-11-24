@@ -2428,10 +2428,16 @@ const GestionUtilisateursView = () => {
             type="text"
             placeholder="Ex: Développeur Full Stack"
             value={editingOffre ? editingOffre.titre : nouvelleOffre.titre}
-            onChange={(e) => 
-              editingOffre 
-                ? handleEditingOffreChange('titre', e.target.value)
-                : handleNouvelleOffreChange('titre', e.target.value)
+            onChange={(e) =>
+              editingOffre
+                ? setEditingOffre({
+                    ...editingOffre,
+                    titre: e.target.value,
+                  })
+                : setNouvelleOffre({
+                    ...nouvelleOffre,
+                    titre: e.target.value,
+                  })
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
@@ -2444,10 +2450,16 @@ const GestionUtilisateursView = () => {
           </label>
           <select
             value={editingOffre ? editingOffre.type : nouvelleOffre.type}
-            onChange={(e) => 
-              editingOffre 
-                ? handleEditingOffreChange('type', e.target.value)
-                : handleNouvelleOffreChange('type', e.target.value)
+            onChange={(e) =>
+              editingOffre
+                ? setEditingOffre({
+                    ...editingOffre,
+                    type: e.target.value as OffreEmploi["type"],
+                  })
+                : setNouvelleOffre({
+                    ...nouvelleOffre,
+                    type: e.target.value as OffreEmploi["type"],
+                  })
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           >
@@ -2467,10 +2479,16 @@ const GestionUtilisateursView = () => {
             type="text"
             placeholder="Ex: Casablanca, Maroc"
             value={editingOffre ? editingOffre.localisation : nouvelleOffre.localisation}
-            onChange={(e) => 
-              editingOffre 
-                ? handleEditingOffreChange('localisation', e.target.value)
-                : handleNouvelleOffreChange('localisation', e.target.value)
+            onChange={(e) =>
+              editingOffre
+                ? setEditingOffre({
+                    ...editingOffre,
+                    localisation: e.target.value,
+                  })
+                : setNouvelleOffre({
+                    ...nouvelleOffre,
+                    localisation: e.target.value,
+                  })
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
@@ -2485,10 +2503,16 @@ const GestionUtilisateursView = () => {
             type="text"
             placeholder="Ex: 5000 MAD"
             value={editingOffre ? editingOffre.salaire || "" : nouvelleOffre.salaire}
-            onChange={(e) => 
-              editingOffre 
-                ? handleEditingOffreChange('salaire', e.target.value)
-                : handleNouvelleOffreChange('salaire', e.target.value)
+            onChange={(e) =>
+              editingOffre
+                ? setEditingOffre({
+                    ...editingOffre,
+                    salaire: e.target.value,
+                  })
+                : setNouvelleOffre({
+                    ...nouvelleOffre,
+                    salaire: e.target.value,
+                  })
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
@@ -2502,10 +2526,16 @@ const GestionUtilisateursView = () => {
           <input
             type="date"
             value={editingOffre ? editingOffre.dateExpiration : nouvelleOffre.dateExpiration}
-            onChange={(e) => 
-              editingOffre 
-                ? handleEditingOffreChange('dateExpiration', e.target.value)
-                : handleNouvelleOffreChange('dateExpiration', e.target.value)
+            onChange={(e) =>
+              editingOffre
+                ? setEditingOffre({
+                    ...editingOffre,
+                    dateExpiration: e.target.value,
+                  })
+                : setNouvelleOffre({
+                    ...nouvelleOffre,
+                    dateExpiration: e.target.value,
+                  })
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
           />
@@ -2519,10 +2549,16 @@ const GestionUtilisateursView = () => {
           <textarea
             placeholder="Description détaillée de l'offre..."
             value={editingOffre ? editingOffre.description : nouvelleOffre.description}
-            onChange={(e) => 
-              editingOffre 
-                ? handleEditingOffreChange('description', e.target.value)
-                : handleNouvelleOffreChange('description', e.target.value)
+            onChange={(e) =>
+              editingOffre
+                ? setEditingOffre({
+                    ...editingOffre,
+                    description: e.target.value,
+                  })
+                : setNouvelleOffre({
+                    ...nouvelleOffre,
+                    description: e.target.value,
+                  })
             }
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
             rows={4}
@@ -2543,13 +2579,20 @@ const GestionUtilisateursView = () => {
                     type="text"
                     placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
                     value={exigence}
-                    onChange={(e) => handleEditingExigenceChange(index, e.target.value)}
+                    onChange={(e) => {
+                      const newExigences = [...editingExigences];
+                      newExigences[index] = e.target.value;
+                      setEditingExigences(newExigences);
+                    }}
                     className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
                   />
                   {editingExigences.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => supprimerChampExigenceEdit(index)}
+                      onClick={() => {
+                        const newExigences = editingExigences.filter((_, i) => i !== index);
+                        setEditingExigences(newExigences);
+                      }}
                       className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
                       title="Supprimer cette exigence"
                     >
@@ -2561,7 +2604,7 @@ const GestionUtilisateursView = () => {
 
               <button
                 type="button"
-                onClick={ajouterChampExigenceEdit}
+                onClick={() => setEditingExigences([...editingExigences, ""])}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
               >
                 <Plus className="h-4 w-4" />
@@ -2576,13 +2619,20 @@ const GestionUtilisateursView = () => {
                     type="text"
                     placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
                     value={exigence}
-                    onChange={(e) => handleExigenceChange(index, e.target.value)}
+                    onChange={(e) => {
+                      const newExigences = [...exigencesFields];
+                      newExigences[index] = e.target.value;
+                      setExigencesFields(newExigences);
+                    }}
                     className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
                   />
                   {exigencesFields.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => supprimerChampExigence(index)}
+                      onClick={() => {
+                        const newExigences = exigencesFields.filter((_, i) => i !== index);
+                        setExigencesFields(newExigences);
+                      }}
                       className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
                       title="Supprimer cette exigence"
                     >
@@ -2594,7 +2644,7 @@ const GestionUtilisateursView = () => {
 
               <button
                 type="button"
-                onClick={ajouterChampExigence}
+                onClick={() => setExigencesFields([...exigencesFields, ""])}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
               >
                 <Plus className="h-4 w-4" />
@@ -2637,7 +2687,7 @@ const GestionUtilisateursView = () => {
       </div>
     </div>
 
-    {/* Liste des offres - reste inchangé */}
+    {/* Liste des offres */}
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
