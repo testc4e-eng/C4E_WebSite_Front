@@ -1983,17 +1983,7 @@ const DashboardAdmin = () => {
 
 // VUE GESTION DES UTILISATEURS - AVEC FORMULAIRE CORRIGÉ
 const GestionUtilisateursView = () => {
-  const [showAddUser, setShowAddUser] = useState(false);
 
-  // ÉTAT LOCAL pour le formulaire
-  const [newUser, setNewUser] = useState({
-    nom: "",
-    email: "",
-    motDePasse: "",
-    role: "gestionnaire" as "admin" | "gestionnaire"
-  });
-
-  // FONCTION DE FERMETURE CORRIGÉE
   const handleCloseForm = () => {
     setShowAddUser(false);
     setErrorUsers("");
