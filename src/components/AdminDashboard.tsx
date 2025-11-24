@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useCallback } from "react";
 import {
   LogOut,
   Plus,
@@ -545,6 +546,25 @@ const handleAddUser = async () => {
     setEditingOffre(offre);
     setEditingExigences(offre.exigences.length > 0 ? [...offre.exigences] : [""]);
   };
+
+ /////////////////// 
+// 📝 AJOUTEZ CES FONCTIONS AVEC useCallback
+const handleNouvelleOffreChange = useCallback((field: keyof typeof nouvelleOffre, value: string) => {
+  setNouvelleOffre(prev => ({
+    ...prev,
+    [field]: value
+  }));
+}, []);
+
+const handleEditingOffreChange = useCallback((field: keyof OffreEmploi, value: string) => {
+  if (editingOffre) {
+    setEditingOffre(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }
+}, [editingOffre]);
+//////////////
 
   const ajouterOffre = async () => {
     if (!nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()) {
