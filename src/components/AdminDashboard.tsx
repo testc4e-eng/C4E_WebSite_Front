@@ -1569,9 +1569,10 @@ const handleAddUser = async () => {
 
         {/* 🔵 NOUVEAU : BOUTON IGNORER */}
         <button
-          onClick={() => ignorerCandidature(selectedCandidature)}
-          className="flex items-center space-x-2 px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all font-medium"
+          onClick={() => changerStatut(selectedCandidature, "ignorer")}
+          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
         >
+          <Ban className="h-4 w-4" />
           <span>Ignorer</span>
         </button>
 

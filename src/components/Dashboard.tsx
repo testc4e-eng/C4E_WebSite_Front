@@ -2948,6 +2948,13 @@ const handleLogout = () => {
 
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
+          onClick={() => changerStatut(selectedCandidature, "ignorer")}
+          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
+        >
+          <Ban className="h-4 w-4" />
+          <span>Ignorer</span>
+        </button>
+                    <button
                       onClick={() => supprimerCandidature(selectedCandidature)}
                       className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
                     >
