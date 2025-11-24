@@ -349,35 +349,43 @@ useEffect(() => {
 
       // Fusion avec l'état existant
 // ✅ PAR CE CODE CORRIGÉ :
+// REMPLACEZ tout le setCandidatures dans fetchCandidatures par :
 setCandidatures(prevCandidatures => {
-  const existingMap = new Map();
+  console.log("🔄 Début fusion - Candidatures locales:", prevCandidatures.length);
+  
+  // Créer un Map de toutes les candidatures locales avec leur état COMPLET
+  const localMap = new Map();
   prevCandidatures.forEach(c => {
     const key = `${c.id}-${c.type}`;
-    existingMap.set(key, c);
+    localMap.set(key, c);
   });
 
-  const mergedCandidatures = normalizedData.map((newCand: Candidature) => {
-    const key = `${newCand.id}-${newCand.type}`;
-    const existingCand = existingMap.get(key);
+  // Pour chaque candidature de l'API, on garde l'état local si elle existe
+  const merged = normalizedData.map((apiCand: Candidature) => {
+    const key = `${apiCand.id}-${apiCand.type}`;
+    const localCand = localMap.get(key);
     
-    // Si la candidature existe déjà localement, on garde TOUTES ses propriétés locales
-    // Sauf qu'on met à jour avec les données fraîches de l'API pour les autres champs
-    if (existingCand) {
+    if (localCand) {
+      console.log(`✅ Garde état local: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
+      // On garde TOUT l'état local, on ne prend que les données de base de l'API
       return {
-        ...newCand, // données fraîches de l'API
-        statut: existingCand.statut, // statut local préservé
-        ignored: existingCand.ignored // ignored local préservé
+        ...apiCand,           // données fraîches (nom, email, etc.)
+        statut: localCand.statut,
+        ignored: localCand.ignored,
+        dateSoumission: localCand.dateSoumission // garde aussi la date locale si nécessaire
       };
     }
     
-    // Nouvelle candidature : on initialise ignored à false
+    // Nouvelle candidature depuis l'API
     return {
-      ...newCand,
-      ignored: false
+      ...apiCand,
+      ignored: false,
+      statut: apiCand.statut || "en_attente"
     };
   });
 
-  return mergedCandidatures;
+  console.log(`📊 Résultat fusion: ${merged.length} total, ${merged.filter(c => c.ignored).length} ignorées`);
+  return merged;
 });
 
     } catch (err: unknown) {
@@ -653,13 +661,13 @@ const changerStatut = async (
   try {
     const { id, type } = candidature;
 
-    console.log("🚀 Mise à jour statut backend:", { id, type, nouveauStatut });
+    console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut });
 
     // Pour "ignorer", on gère uniquement en local
     if (nouveauStatut === "ignorer") {
       const updatedCandidature = { 
         ...candidature, 
-        statut: "en_attente",
+        statut: "en_attente", // ← IMPORTANT: statut reste "en_attente" pour les ignorées
         ignored: true 
       };
       
@@ -681,7 +689,7 @@ const changerStatut = async (
       return;
     }
 
-    // Pour les autres statuts (acceptee, refusee, en_attente), appeler le backend
+    // Pour les statuts "acceptee" et "refusee", mettre à jour le backend
     const response = await fetch(getApiUrl(`/api/candidatures/statut/${type}/${id}`), {
       method: "PUT",
       headers: {
@@ -700,11 +708,11 @@ const changerStatut = async (
     const result = await response.json();
     console.log("✅ Réponse backend:", result);
 
-    // Mettre à jour l'état local avec la réponse du backend
+    // Mettre à jour l'état local
     const updatedCandidature = { 
       ...candidature, 
       statut: nouveauStatut,
-      ignored: false 
+      ignored: false // ← IMPORTANT: une candidature acceptée/refusée n'est pas ignorée
     };
     
     setCandidatures((prev) =>
