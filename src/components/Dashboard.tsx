@@ -348,7 +348,7 @@ useEffect(() => {
       console.log(`📊 ${normalizedData.length} candidatures normalisées`);
 
       // Fusion avec l'état existant
-// Dans le useEffect de fetchCandidatures, remplacez toute la fusion par :
+// ✅ PAR CE CODE CORRIGÉ :
 setCandidatures(prevCandidatures => {
   const existingMap = new Map();
   prevCandidatures.forEach(c => {
@@ -360,17 +360,21 @@ setCandidatures(prevCandidatures => {
     const key = `${newCand.id}-${newCand.type}`;
     const existingCand = existingMap.get(key);
     
-    // Priorité aux données locales pour le statut et ignored
-    return existingCand 
-      ? { 
-          ...newCand, 
-          statut: existingCand.statut, // ← Ici le type est préservé
-          ignored: existingCand.ignored || false 
-        }
-      : { 
-          ...newCand, 
-          ignored: false 
-        };
+    // Si la candidature existe déjà localement, on garde TOUTES ses propriétés locales
+    // Sauf qu'on met à jour avec les données fraîches de l'API pour les autres champs
+    if (existingCand) {
+      return {
+        ...newCand, // données fraîches de l'API
+        statut: existingCand.statut, // statut local préservé
+        ignored: existingCand.ignored // ignored local préservé
+      };
+    }
+    
+    // Nouvelle candidature : on initialise ignored à false
+    return {
+      ...newCand,
+      ignored: false
+    };
   });
 
   return mergedCandidatures;
