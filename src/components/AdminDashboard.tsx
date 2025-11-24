@@ -1979,244 +1979,326 @@ const DashboardAdmin = () => {
   );
 
   // VUE GESTION DES UTILISATEURS
-  const GestionUtilisateursView = () => {
-    const handleCloseForm = () => {
-      setShowAddUser(false);
-      setErrorUsers("");
-      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
-    };
+// 📂 Dans DashboardAdmin.tsx - CORRECTION COMPLÈTE
 
-    return (
-      <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="space-y-6"
-      >
-        {/* Header avec bouton retour */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
+// VUE GESTION DES UTILISATEURS - AVEC FORMULAIRE CORRIGÉ
+const GestionUtilisateursView = () => {
+  const [showAddUser, setShowAddUser] = useState(false);
+
+  // ÉTAT LOCAL pour le formulaire
+  const [newUser, setNewUser] = useState({
+    nom: "",
+    email: "",
+    motDePasse: "",
+    role: "gestionnaire" as "admin" | "gestionnaire"
+  });
+
+  // FONCTION DE FERMETURE CORRIGÉE
+  const handleCloseForm = () => {
+    setShowAddUser(false);
+    setErrorUsers("");
+    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+  };
+
+  // FONCTION D'AJOUT CORRIGÉE - VERSION SIMPLIFIÉE ET FONCTIONNELLE
+  const handleAddUser = async () => {
+    try {
+      setErrorUsers("");
+
+      // Validation
+      if (!newUser.nom?.trim()) {
+        setErrorUsers("Le nom est requis");
+        return;
+      }
+      if (!newUser.email?.trim()) {
+        setErrorUsers("L'email est requis");
+        return;
+      }
+      if (!newUser.motDePasse) {
+        setErrorUsers("Le mot de passe est requis");
+        return;
+      }
+      if (newUser.motDePasse.length < 6) {
+        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
+
+      // Validation email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newUser.email)) {
+        setErrorUsers("Veuillez entrer un email valide");
+        return;
+      }
+
+      const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
+      
+      // Format des données pour l'API
+      const userData = {
+        nom: newUser.nom.trim(),
+        email: newUser.email.trim(),
+        motDePasse: newUser.motDePasse
+      };
+
+      console.log("🔄 Création d'utilisateur:", { 
+        userType, 
+        userData: { ...userData, motDePasse: "***" }
+      });
+
+      // Utilisation de l'API avec gestion d'erreur améliorée
+      const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
+      
+      if (!res.ok) {
+        const errorData = data as any;
+        throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
+      }
+
+      console.log("✅ Utilisateur créé avec succès:", data);
+
+      // Réinitialiser et fermer
+      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+      setShowAddUser(false);
+      
+      // Recharger la liste
+      fetchUsers();
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
+      console.error("❌ Erreur création utilisateur:", err);
+      setErrorUsers(`Erreur: ${message}`);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="space-y-6"
+    >
+      {/* Header avec bouton retour */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setCurrentView("main")}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Retour au tableau de bord</span>
+          </button>
+        </div>
+
+        <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
+
+        <div className="flex items-center space-x-4">
+          {!showAddUser && (
             <button
-              onClick={() => setCurrentView("main")}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              onClick={() => setShowAddUser(true)}
+              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
             >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Retour au tableau de bord</span>
+              <UserPlus className="h-5 w-5" />
+              <span>Ajouter un Utilisateur</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* FORMULAIRE D'AJOUT - VERSION CORRIGÉE ET FONCTIONNELLE */}
+      {showAddUser && (
+        <div className="bg-white rounded-2xl shadow-2xl p-6 mb-8 border border-gray-200">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
+            <button
+              onClick={handleCloseForm}
+              className="text-gray-400 hover:text-gray-600 transition p-2"
+            >
+              <X className="h-6 w-6" />
             </button>
           </div>
 
-          <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
-
-          <div className="flex items-center space-x-4">
-            {!showAddUser && (
-              <button
-                onClick={() => setShowAddUser(true)}
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-md transition-all duration-200 font-medium"
-              >
-                <UserPlus className="h-5 w-5" />
-                <span>Ajouter un Utilisateur</span>
-              </button>
+          <div className="space-y-4">
+            {errorUsers && (
+              <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                {errorUsers}
+              </div>
             )}
-          </div>
-        </div>
 
-        {/* FORMULAIRE D'AJOUT */}
-        {showAddUser && (
-          <div className="bg-white rounded-2xl shadow-2xl p-6 mb-8 border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800">Ajouter un Utilisateur</h3>
-              <button
-                onClick={handleCloseForm}
-                className="text-gray-400 hover:text-gray-600 transition p-2"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* CHAMP NOM */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom *
+                </label>
+                <input
+                  type="text"
+                  value={newUser.nom}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Entrez le nom complet"
+                />
+              </div>
 
-            <div className="space-y-4">
-              {errorUsers && (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                  {errorUsers}
-                </div>
-              )}
+              {/* CHAMP EMAIL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="exemple@email.com"
+                />
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* CHAMP NOM */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nom *
-                  </label>
-                  <input
-                    type="text"
-                    value={newUser.nom}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, nom: e.target.value }))}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Entrez le nom complet"
-                  />
-                </div>
+              {/* CHAMP MOT DE PASSE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de passe *
+                </label>
+                <input
+                  type="password"
+                  value={newUser.motDePasse}
+                  onChange={(e) => setNewUser(prev => ({ ...prev, motDePasse: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Entrez le mot de passe"
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+              </div>
 
-                {/* CHAMP EMAIL */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                    placeholder="exemple@email.com"
-                  />
-                </div>
-
-                {/* CHAMP MOT DE PASSE */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mot de passe *
-                  </label>
-                  <input
-                    type="password"
-                    value={newUser.motDePasse}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, motDePasse: e.target.value }))}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Entrez le mot de passe"
-                    minLength={6}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
-                </div>
-
-                {/* CHAMP RÔLE */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rôle *
-                  </label>
-                  <select
-                    value={newUser.role}
-                    onChange={(e) =>
-                      setNewUser(prev => ({
-                        ...prev,
-                        role: e.target.value as "admin" | "gestionnaire"
-                      }))
-                    }
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                  >
-                    <option value="gestionnaire">Gestionnaire</option>
-                    <option value="admin">Administrateur</option>
-                  </select>
-                </div>
+              {/* CHAMP RÔLE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rôle *
+                </label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) =>
+                    setNewUser(prev => ({
+                      ...prev,
+                      role: e.target.value as "admin" | "gestionnaire"
+                    }))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="gestionnaire">Gestionnaire</option>
+                  <option value="admin">Administrateur</option>
+                </select>
               </div>
             </div>
-
-            <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <button
-                onClick={handleCloseForm}
-                className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium"
-              >
-                Annuler
-              </button>
-
-              <button
-                onClick={handleAddUser}
-                disabled={
-                  !newUser.nom.trim() ||
-                  !newUser.email.trim() ||
-                  !newUser.motDePasse ||
-                  newUser.motDePasse.length < 6
-                }
-                className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
-              >
-                Créer l'utilisateur
-              </button>
-            </div>
           </div>
-        )}
 
-        {/* LISTE DES UTILISATEURS */}
-        {errorUsers && !showAddUser && (
-          <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
-            {errorUsers}
-          </div>
-        )}
+          <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <button
+              onClick={handleCloseForm}
+              className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 font-medium"
+            >
+              Annuler
+            </button>
 
-        {loadingUsers ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Chargement des utilisateurs...</p>
-          </div>
-        ) : users.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-            <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h4 className="text-lg font-semibold text-gray-700 mb-2">
-              Aucun utilisateur trouvé
-            </h4>
-            <p className="text-gray-500">
-              {showAddUser 
-                ? "Remplissez le formulaire ci-dessus pour créer votre premier utilisateur."
-                : "Commencez par créer votre premier utilisateur."
+            <button
+              onClick={handleAddUser}
+              disabled={
+                !newUser.nom.trim() ||
+                !newUser.email.trim() ||
+                !newUser.motDePasse ||
+                newUser.motDePasse.length < 6
               }
-            </p>
+              className="px-5 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+            >
+              Créer l'utilisateur
+            </button>
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Nom</th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Email</th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Rôle</th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Date de création</th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Statut</th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-700">Actions</th>
+        </div>
+      )}
+
+      {/* LISTE DES UTILISATEURS */}
+      {errorUsers && !showAddUser && (
+        <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+          {errorUsers}
+        </div>
+      )}
+
+      {loadingUsers ? (
+        <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des utilisateurs...</p>
+        </div>
+      ) : users.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl shadow-lg">
+          <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h4 className="text-lg font-semibold text-gray-700 mb-2">
+            Aucun utilisateur trouvé
+          </h4>
+          <p className="text-gray-500">
+            {showAddUser 
+              ? "Remplissez le formulaire ci-dessus pour créer votre premier utilisateur."
+              : "Commencez par créer votre premier utilisateur."
+            }
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Nom</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Email</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Rôle</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Date de création</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Statut</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 transition duration-200">
+                    <td className="px-6 py-4 text-gray-900">{user.nom}</td>
+                    <td className="px-6 py-4 text-gray-600">{user.email}</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          user.role === "admin"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-blue-100 text-blue-800"
+                        }`}
+                      >
+                        {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {new Date(user.date_creation).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          user.statut === "actif"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {user.statut === "actif" ? "Actif" : "Inactif"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleDeleteUser(user)}
+                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition duration-200"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 transition duration-200">
-                      <td className="px-6 py-4 text-gray-900">{user.nom}</td>
-                      <td className="px-6 py-4 text-gray-600">{user.email}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                            user.role === "admin"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {new Date(user.date_creation).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                            user.statut === "actif"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {user.statut === "actif" ? "Actif" : "Inactif"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleDeleteUser(user)}
-                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition duration-200"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </motion.div>
-    );
-  };
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
   // VUE GESTION DES CANDIDATURES
   const GestionCandidaturesView = () => (
