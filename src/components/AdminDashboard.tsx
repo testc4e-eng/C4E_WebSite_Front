@@ -295,72 +295,83 @@ const DashboardAdmin = () => {
 
 // 📂 Dans DashboardAdmin.tsx - CORRECTION COMPLÈTE
 
+// 📂 CORRECTION COMPLÈTE de la fonction fetchCandidatures
 const fetchCandidatures = async () => {
   try {
     setLoadingCandidatures(true);
     setErrorCandidatures("");
 
+    console.log("🔄 Chargement des candidatures...");
+
     if (activeTab === "candidatures") {
-      // Charger les candidatures spontanées ET les candidatures stage
-      console.log("🔄 Chargement des candidatures spontanées et Stage/PFE...");
+      // Charger TOUTES les candidatures spontanées
+      console.log("📥 Chargement des candidatures spontanées...");
       
-      const [spontaneesResponse, stageResponse] = await Promise.all([
-        api.get("/api/candidatures/spontanees/toutes", token),
-        api.get("/api/candidatures/stage/toutes", token)
-      ]);
-
-      let allCandidatures = [];
-
-      // Candidatures spontanées générales
-      if (spontaneesResponse.res.ok) {
-        const spontanees = spontaneesResponse.data.map((c: any) => ({
-          ...c,
-          type: c.type || "spontanee", // Fallback si type manquant
-          ignored: false,
-          // Calculer le score de compétence si manquant
-          competenceScore: c.competenceScore || calculateCompetenceScore(c.competences)
-        }));
-        allCandidatures = [...allCandidatures, ...spontanees];
-        console.log(`📊 ${spontanees.length} candidatures spontanées chargées`);
-      } else {
-        console.error("❌ Erreur chargement candidatures spontanées:", spontaneesResponse);
+      try {
+        const { res, data } = await api.get("/api/candidatures/spontanees/toutes", token);
+        
+        if (res.ok && data) {
+          console.log(`✅ ${data.length} candidatures spontanées chargées`);
+          
+          const allCandidatures = data.map((c: any) => ({
+            ...c,
+            type: c.type || "spontanee",
+            ignored: false,
+            competenceScore: c.competenceScore || calculateCompetenceScore(c.competences)
+          }));
+          
+          setCandidatures(allCandidatures);
+        } else {
+          console.warn("⚠️ Aucune candidature spontanée trouvée");
+          setCandidatures([]);
+        }
+      } catch (error) {
+        console.error("❌ Erreur chargement candidatures spontanées:", error);
+        // Fallback: utiliser les données locales
+        const savedCandidatures = localStorage.getItem('candidatures');
+        if (savedCandidatures) {
+          try {
+            setCandidatures(JSON.parse(savedCandidatures));
+          } catch (e) {
+            console.error("Erreur parsing localStorage:", e);
+            setCandidatures([]);
+          }
+        } else {
+          setCandidatures([]);
+        }
       }
-
-      // Candidatures Stage/PFE
-      if (stageResponse.res.ok) {
-        const stages = stageResponse.data.map((c: any) => ({
-          ...c,
-          type: c.type || "stage_spontane", // Fallback si type manquant
-          ignored: false,
-          // Calculer le score de compétence si manquant
-          competenceScore: c.competenceScore || calculateCompetenceScore(c.competences)
-        }));
-        allCandidatures = [...allCandidatures, ...stages];
-        console.log(`📊 ${stages.length} candidatures Stage/PFE chargées`);
-      } else {
-        console.error("❌ Erreur chargement candidatures Stage/PFE:", stageResponse);
-      }
-
-      console.log(`✅ Total: ${allCandidatures.length} candidatures chargées`);
-      setCandidatures(allCandidatures);
       
     } else if (activeTab === "candidatures-postes" || activeTab === "archives" || activeTab === "reponses-candidatures") {
       // Charger les candidatures par postes (CDI/CDD)
-      const { res, data } = await api.get("/api/candidatures", token);
-      if (!res.ok) throw new Error("Erreur lors du chargement des candidatures.");
+      console.log("📥 Chargement des candidatures par postes...");
       
-      const candidaturesAvecType = data.map((c: any) => ({
-        ...c,
-        type: c.type || "emploi", // Assurer un type par défaut
-        ignored: false
-      }));
-      
-      setCandidatures(candidaturesAvecType);
+      try {
+        const { res, data } = await api.get("/api/candidatures", token);
+        
+        if (res.ok && data) {
+          console.log(`✅ ${data.length} candidatures par postes chargées`);
+          
+          const candidaturesAvecType = data.map((c: any) => ({
+            ...c,
+            type: c.type || "emploi",
+            ignored: false
+          }));
+          
+          setCandidatures(candidaturesAvecType);
+        } else {
+          console.warn("⚠️ Aucune candidature par poste trouvée");
+          setCandidatures([]);
+        }
+      } catch (error) {
+        console.error("❌ Erreur chargement candidatures par postes:", error);
+        setCandidatures([]);
+      }
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur connexion backend.";
     console.error("❌ Erreur fetchCandidatures:", err);
     setErrorCandidatures(message);
+    setCandidatures([]); // Fallback à un tableau vide
   } finally {
     setLoadingCandidatures(false);
   }
@@ -2386,277 +2397,306 @@ const GestionUtilisateursView = () => {
       {(activeTab === "candidatures" || activeTab === "candidatures-postes") && <StatsOverview />}
 
       {/* Contenu selon l'onglet actif */}
-      {activeTab === "offres" && (
-        <section className="space-y-6">
-          <h2 className="text-3xl font-bold text-gray-900 text-center">Gestion des Offres d'Emploi</h2>
+{activeTab === "offres" && (
+  <section className="space-y-6">
+    <h2 className="text-3xl font-bold text-gray-900 text-center">Gestion des Offres d'Emploi</h2>
 
-          {errorOffres && (
-            <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
-              {errorOffres}
-            </div>
-          )}
-          {loadingOffres && (
-            <div className="text-center py-8 text-gray-600">
-              Chargement des offres...
-            </div>
-          )}
+    {errorOffres && (
+      <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
+        {errorOffres}
+      </div>
+    )}
+    {loadingOffres && (
+      <div className="text-center py-8 text-gray-600">
+        Chargement des offres...
+      </div>
+    )}
 
-          {/* Formulaire d'ajout/modification d'offre */}
-          <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-            <h3 className="text-xl font-semibold mb-6 text-gray-800">
-              {editingOffre ? "Modifier l'Offre" : "Ajouter une Nouvelle Offre"}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Titre <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  placeholder="Ex: Développeur Full Stack"
-                  value={editingOffre ? editingOffre.titre : nouvelleOffre.titre}
-                  onChange={(e) =>
-                    editingOffre
-                      ? setEditingOffre({ ...editingOffre, titre: e.target.value })
-                      : setNouvelleOffre({ ...nouvelleOffre, titre: e.target.value })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Type <span className="text-red-500">*</span></label>
-                <select
-                  value={editingOffre ? editingOffre.type : nouvelleOffre.type}
-                  onChange={(e) =>
-                    editingOffre
-                      ? setEditingOffre({ ...editingOffre, type: e.target.value as OffreEmploi["type"] })
-                      : setNouvelleOffre({ ...nouvelleOffre, type: e.target.value as OffreEmploi["type"] })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                >
-                  <option value="CDI">CDI</option>
-                  <option value="CDD 12 mois">CDD 12 mois</option>
-                  <option value="Stage">Stage</option>
-                  <option value="PFE">PFE</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Localisation <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  placeholder="Ex: Casablanca, Maroc"
-                  value={editingOffre ? editingOffre.localisation : nouvelleOffre.localisation}
-                  onChange={(e) =>
-                    editingOffre
-                      ? setEditingOffre({ ...editingOffre, localisation: e.target.value })
-                      : setNouvelleOffre({ ...nouvelleOffre, localisation: e.target.value })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Salaire (optionnel)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: 5000 MAD"
-                  value={editingOffre ? editingOffre.salaire || "" : nouvelleOffre.salaire}
-                  onChange={(e) =>
-                    editingOffre
-                      ? setEditingOffre({ ...editingOffre, salaire: e.target.value })
-                      : setNouvelleOffre({ ...nouvelleOffre, salaire: e.target.value })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date d'Expiration <span className="text-red-500">*</span></label>
-                <input
-                  type="date"
-                  value={editingOffre ? editingOffre.dateExpiration : nouvelleOffre.dateExpiration}
-                  onChange={(e) =>
-                    editingOffre
-                      ? setEditingOffre({ ...editingOffre, dateExpiration: e.target.value })
-                      : setNouvelleOffre({ ...nouvelleOffre, dateExpiration: e.target.value })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description <span className="text-red-500">*</span></label>
-                <textarea
-                  placeholder="Description détaillée de l'offre..."
-                  value={editingOffre ? editingOffre.description : nouvelleOffre.description}
-                  onChange={(e) =>
-                    editingOffre
-                      ? setEditingOffre({ ...editingOffre, description: e.target.value })
-                      : setNouvelleOffre({ ...nouvelleOffre, description: e.target.value })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                  rows={4}
-                />
-              </div>
+    {/* Formulaire d'ajout/modification d'offre - CORRIGÉ */}
+    <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+      <h3 className="text-xl font-semibold mb-6 text-gray-800">
+        {editingOffre ? "Modifier l'Offre" : "Ajouter une Nouvelle Offre"}
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* TITRE */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Titre <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            placeholder="Ex: Développeur Full Stack"
+            value={editingOffre ? editingOffre.titre : nouvelleOffre.titre}
+            onChange={(e) => 
+              editingOffre 
+                ? handleEditingOffreChange('titre', e.target.value)
+                : handleNouvelleOffreChange('titre', e.target.value)
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+          />
+        </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Exigences du poste</label>
+        {/* TYPE */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Type <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={editingOffre ? editingOffre.type : nouvelleOffre.type}
+            onChange={(e) => 
+              editingOffre 
+                ? handleEditingOffreChange('type', e.target.value)
+                : handleNouvelleOffreChange('type', e.target.value)
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+          >
+            <option value="CDI">CDI</option>
+            <option value="CDD 12 mois">CDD 12 mois</option>
+            <option value="Stage">Stage</option>
+            <option value="PFE">PFE</option>
+          </select>
+        </div>
 
-                {editingOffre ? (
-                  <div className="space-y-3">
-                    {editingExigences.map((exigence, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
-                          value={exigence}
-                          onChange={(e) => mettreAJourChampExigenceEdit(index, e.target.value)}
-                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                        />
-                        {editingExigences.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => supprimerChampExigenceEdit(index)}
-                            className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
-                            title="Supprimer cette exigence"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+        {/* LOCALISATION */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Localisation <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            placeholder="Ex: Casablanca, Maroc"
+            value={editingOffre ? editingOffre.localisation : nouvelleOffre.localisation}
+            onChange={(e) => 
+              editingOffre 
+                ? handleEditingOffreChange('localisation', e.target.value)
+                : handleNouvelleOffreChange('localisation', e.target.value)
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+          />
+        </div>
 
+        {/* SALAIRE */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Salaire (optionnel)
+          </label>
+          <input
+            type="text"
+            placeholder="Ex: 5000 MAD"
+            value={editingOffre ? editingOffre.salaire || "" : nouvelleOffre.salaire}
+            onChange={(e) => 
+              editingOffre 
+                ? handleEditingOffreChange('salaire', e.target.value)
+                : handleNouvelleOffreChange('salaire', e.target.value)
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+          />
+        </div>
+
+        {/* DATE EXPIRATION */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Date d'Expiration <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={editingOffre ? editingOffre.dateExpiration : nouvelleOffre.dateExpiration}
+            onChange={(e) => 
+              editingOffre 
+                ? handleEditingOffreChange('dateExpiration', e.target.value)
+                : handleNouvelleOffreChange('dateExpiration', e.target.value)
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+          />
+        </div>
+
+        {/* DESCRIPTION */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            placeholder="Description détaillée de l'offre..."
+            value={editingOffre ? editingOffre.description : nouvelleOffre.description}
+            onChange={(e) => 
+              editingOffre 
+                ? handleEditingOffreChange('description', e.target.value)
+                : handleNouvelleOffreChange('description', e.target.value)
+            }
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+            rows={4}
+          />
+        </div>
+
+        {/* EXIGENCES */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Exigences du poste
+          </label>
+
+          {editingOffre ? (
+            <div className="space-y-3">
+              {editingExigences.map((exigence, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                    value={exigence}
+                    onChange={(e) => handleEditingExigenceChange(index, e.target.value)}
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  />
+                  {editingExigences.length > 1 && (
                     <button
                       type="button"
-                      onClick={ajouterChampExigenceEdit}
-                      className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
+                      onClick={() => supprimerChampExigenceEdit(index)}
+                      className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                      title="Supprimer cette exigence"
                     >
-                      <Plus className="h-4 w-4" />
-                      <span>Ajouter une exigence</span>
+                      <Trash2 className="h-4 w-4" />
                     </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {exigencesFields.map((exigence, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
-                          value={exigence}
-                          onChange={(e) => mettreAJourChampExigence(index, e.target.value)}
-                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
-                        />
-                        {exigencesFields.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => supprimerChampExigence(index)}
-                            className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
-                            title="Supprimer cette exigence"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                  )}
+                </div>
+              ))}
 
-                    <button
-                      type="button"
-                      onClick={ajouterChampExigence}
-                      className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
-                    >
-                      <Plus className="h-4 w-4" />
-                      <span>Ajouter une exigence</span>
-                    </button>
-                  </div>
-                )}
-
-                <p className="text-xs text-gray-500 mt-2">
-                  Chaque exigence sera stockée individuellement et pourra être utilisée pour le matching avec les candidats.
-                </p>
-              </div>
-            </div>
-            <div className="flex space-x-4 mt-6">
               <button
-                onClick={editingOffre ? () => modifierOffre(editingOffre) : ajouterOffre}
-                disabled={
-                  editingOffre
-                    ? !editingOffre.titre.trim() || !editingOffre.description.trim() || !editingOffre.dateExpiration || !editingOffre.localisation.trim()
-                    : !nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()
-                }
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 shadow-md transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={ajouterChampExigenceEdit}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
               >
-                <Plus className="h-5 w-5" />
-                <span>{editingOffre ? "Modifier" : "Ajouter"}</span>
+                <Plus className="h-4 w-4" />
+                <span>Ajouter une exigence</span>
               </button>
-              {editingOffre && (
-                <button
-                  onClick={() => {
-                    setEditingOffre(null);
-                    setEditingExigences([""]);
-                  }}
-                  className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 shadow-md transition-all duration-200 font-medium"
-                >
-                  Annuler
-                </button>
-              )}
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {exigencesFields.map((exigence, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder={`Exigence ${index + 1} (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                    value={exigence}
+                    onChange={(e) => handleExigenceChange(index, e.target.value)}
+                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-200"
+                  />
+                  {exigencesFields.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => supprimerChampExigence(index)}
+                      className="p-3 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all duration-200"
+                      title="Supprimer cette exigence"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
 
-          {/* Liste des offres */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Titre</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Localisation</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Salaire</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expiration</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {offres.map((offre) => (
-                    <tr key={offre.id} className="hover:bg-gray-50 transition-colors duration-200">
-                      <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap">{offre.titre}</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.type}</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(offre.dateExpiration).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                            offre.statut === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {offre.statut}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEditClick(offre)}
-                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            title="Modifier"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => supprimerOffre(offre.id)}
-                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <button
+                type="button"
+                onClick={ajouterChampExigence}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Ajouter une exigence</span>
+              </button>
             </div>
-          </div>
-        </section>
-      )}
+          )}
+
+          <p className="text-xs text-gray-500 mt-2">
+            Chaque exigence sera stockée individuellement et pourra être utilisée pour le matching avec les candidats.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex space-x-4 mt-6">
+        <button
+          onClick={editingOffre ? () => modifierOffre(editingOffre) : ajouterOffre}
+          disabled={
+            editingOffre
+              ? !editingOffre.titre.trim() || !editingOffre.description.trim() || !editingOffre.dateExpiration || !editingOffre.localisation.trim()
+              : !nouvelleOffre.titre.trim() || !nouvelleOffre.description.trim() || !nouvelleOffre.dateExpiration || !nouvelleOffre.localisation.trim()
+          }
+          className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 shadow-md transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Plus className="h-5 w-5" />
+          <span>{editingOffre ? "Modifier" : "Ajouter"}</span>
+        </button>
+        
+        {editingOffre && (
+          <button
+            onClick={() => {
+              setEditingOffre(null);
+              setEditingExigences([""]);
+            }}
+            className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 shadow-md transition-all duration-200 font-medium"
+          >
+            Annuler
+          </button>
+        )}
+      </div>
+    </div>
+
+    {/* Liste des offres - reste inchangé */}
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-full table-auto" style={{ tableLayout: 'auto' }}>
+          <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Titre</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Localisation</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Salaire</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expiration</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {offres.map((offre) => (
+              <tr key={offre.id} className="hover:bg-gray-50 transition-colors duration-200">
+                <td className="px-4 py-3 font-medium text-gray-900 text-sm whitespace-nowrap">{offre.titre}</td>
+                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.type}</td>
+                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
+                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
+                <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
+                  {new Date(offre.dateExpiration).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  <span
+                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                      offre.statut === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {offre.statut}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditClick(offre)}
+                      className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      title="Modifier"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => supprimerOffre(offre.id)}
+                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+)}
 
 {activeTab === "candidatures" && (
   <section className="space-y-6">
@@ -3116,3 +3156,11 @@ const GestionUtilisateursView = () => {
 };
 
 export default DashboardAdmin;
+
+function handleEditingOffreChange(arg0: string, value: string): void {
+  throw new Error("Function not implemented.");
+}
+function handleNouvelleOffreChange(arg0: string, value: string): void {
+  throw new Error("Function not implemented.");
+}
+
