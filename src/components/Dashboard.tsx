@@ -216,7 +216,7 @@ const Dashboard = () => {
   });
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
-
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   // États pour les notifications
   const [notificationCounts, setNotificationCounts] = useState({
     candidatures: 0,
@@ -228,7 +228,6 @@ const Dashboard = () => {
   }, [token, navigate]);
 
   // Charger les données depuis localStorage au montage
- // Charger les données depuis localStorage au montage
 useEffect(() => {
   const savedCandidatures = localStorage.getItem('candidatures');
   if (savedCandidatures) {
