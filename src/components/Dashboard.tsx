@@ -76,6 +76,7 @@ interface Candidature {
   id: number;
   type: "emploi" | "stage" | "pfe" | "spontanee" | "stage_spontane";
   nom: string;
+  prenom?: string; // ← AJOUTER cette ligne
   email: string;
   cvUrl?: string;
   lettreMotivationUrl?: string;
@@ -85,7 +86,7 @@ interface Candidature {
   motivation?: string;
   telephone?: string;
   dateSoumission: string;
-  statut: "en_attente" | "acceptee" | "refusee" | "ignorer";
+  statut: "en_attente" | "acceptee" | "refusee";
   competenceScore?: number;
   poste?: string;
   diplome?: string;
@@ -348,7 +349,7 @@ useEffect(() => {
       console.log(`📊 ${normalizedData.length} candidatures normalisées`);
 
       // Fusion avec l'état existant
-// Dans le useEffect de fetchCandidatures, remplacez la fusion par :
+// Dans le useEffect de fetchCandidatures, remplacez toute la fusion par :
 setCandidatures(prevCandidatures => {
   const existingMap = new Map();
   prevCandidatures.forEach(c => {
@@ -364,10 +365,13 @@ setCandidatures(prevCandidatures => {
     return existingCand 
       ? { 
           ...newCand, 
-          statut: existingCand.statut,
+          statut: existingCand.statut, // ← Ici le type est préservé
           ignored: existingCand.ignored || false 
         }
-      : { ...newCand, ignored: false };
+      : { 
+          ...newCand, 
+          ignored: false 
+        };
   });
 
   return mergedCandidatures;
@@ -796,51 +800,76 @@ const handleLogout = () => {
   navigate("/login");
 };
 
-  const handleChangePassword = async () => {
+const handleChangePassword = async () => {
+  try {
+    setIsChangingPassword(true);
     setPasswordError("");
     setPasswordSuccess("");
 
-    try {
-      console.log("🔍 DEBUG - Données avant envoi:", {
-        currentPassword: passwordData.currentPassword ? "PRÉSENT" : "MANQUANT",
-        newPassword: passwordData.newPassword ? "PRÉSENT" : "MANQUANT",
-        confirmPassword: passwordData.confirmPassword ? "PRÉSENT" : "MANQUANT",
-        tokenLength: token ? token.length : "MANQUANT"
-      });
-
-      const response = await fetch(getApiUrl("/api/auth/change-password"), {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-          confirmPassword: passwordData.confirmPassword
-        }),
-      });
-
-      const data = await response.json();
-      console.log("📥 Réponse complète:", { status: response.status, data });
-
-      if (!response.ok) {
-        throw new Error(data.message || `Erreur HTTP ${response.status}`);
-      }
-
-      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-      
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-
-    } catch (error: any) {
-      console.error("❌ Erreur détaillée:", error);
-      setPasswordError(error.message || "Une erreur inconnue est survenue");
+    // Validation
+    if (!passwordData.currentPassword) {
+      setPasswordError("Le mot de passe actuel est requis");
+      return;
     }
-  };
+    if (!passwordData.newPassword) {
+      setPasswordError("Le nouveau mot de passe est requis");
+      return;
+    }
+    if (!passwordData.confirmPassword) {
+      setPasswordError("La confirmation du mot de passe est requise");
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    const requestBody = {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+      confirmPassword: passwordData.confirmPassword
+    };
+
+    const response = await fetch(getApiUrl("/api/auth/change-password"), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || `Erreur ${response.status}`);
+    }
+
+    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+    
+    // Réinitialiser
+    setPasswordData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+
+    setTimeout(() => {
+      setShowChangePassword(false);
+      setPasswordSuccess("");
+    }, 2000);
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Une erreur est survenue";
+    setPasswordError(message);
+  } finally {
+    setIsChangingPassword(false);
+  }
+};
 
   // Candidatures actives (non ignorées)
   const candidaturesActives = candidatures.filter(c => !c.ignored);

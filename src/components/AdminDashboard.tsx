@@ -62,6 +62,7 @@ interface Candidature {
   id: number;
   type: "emploi" | "stage" | "pfe" | "spontanee" | "stage_spontane";
   nom: string;
+  prenom?: string; // ← AJOUTER cette ligne
   email: string;
   cvUrl?: string;
   lettreMotivationUrl?: string;
@@ -413,7 +414,7 @@ const handleAddUser = async () => {
   try {
     setErrorUsers("");
 
-    // Validation...
+    // Validation CORRIGÉE - utiliser motDePasse au lieu de password
     if (!newUser.nom?.trim()) {
       setErrorUsers("Le nom est requis");
       return;
@@ -422,11 +423,11 @@ const handleAddUser = async () => {
       setErrorUsers("L'email est requis");
       return;
     }
-    if (!newUser.password) {
+    if (!newUser.motDePasse) { // ← CORRECTION ICI
       setErrorUsers("Le mot de passe est requis");
       return;
     }
-    if (newUser.password.length < 6) {
+    if (newUser.motDePasse.length < 6) { // ← CORRECTION ICI
       setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
@@ -439,29 +440,22 @@ const handleAddUser = async () => {
 
     const userType = newUser.role === "admin" ? "administrateurs" : "gestionnaires";
     
-    // FORMAT DES DONNÉES - VERSION DEBUG
+    // FORMAT DES DONNÉES CORRIGÉ
     const userData = {
       nom: newUser.nom.trim(),
       email: newUser.email.trim(),
-      motDePasse: newUser.password
+      motDePasse: newUser.motDePasse // ← CORRECTION ICI
     };
 
     console.log("🔄 DONNÉES ENVOYÉES:", {
       userType,
-      userData,
+      userData: {
+        ...userData,
+        motDePasse: "***" // Masquer le mot de passe dans les logs
+      },
       token: token ? "présent" : "manquant"
     });
 
-    // TEST AVEC DES DONNÉES FIXES POUR DEBUG
-    const testData = {
-      nom: "Test User",
-      email: `test${Date.now()}@test.com`,
-      motDePasse: "test123"
-    };
-
-    console.log("🧪 TEST AVEC DONNÉES FIXES:", testData);
-
-    // Essayer d'abord avec les données de test
     const { res, data } = await api.post(`/api/admin/${userType}`, userData, token);
     
     if (!res.ok) {
@@ -471,14 +465,14 @@ const handleAddUser = async () => {
         data: data
       });
       
-      const errorData = data as any;
-      throw new Error(errorData?.message || errorData?.error || `Erreur ${res.status}`);
+     const errorData = data as { message?: string; error?: string };
+     throw new Error(errorData?.message || errorData?.error || "Erreur lors de la suppression.");
     }
 
     console.log("✅ SUCCÈS:", data);
 
-    // Réinitialiser et fermer
-    setNewUser({ nom: "", email: "", password: "", role: "gestionnaire" });
+    // Réinitialiser et fermer - CORRECTION ICI
+    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" }); // ← motDePasse au lieu de password
     setShowAddUser(false);
     
     // Recharger la liste
@@ -760,80 +754,76 @@ const handleAddUser = async () => {
   };
 
   // Fonction de changement de mot de passe - COMPLÈTEMENT CORRIGÉE
-  const handleChangePassword = async () => {
-    try {
-      setIsChangingPassword(true);
-      setPasswordError("");
-      setPasswordSuccess("");
+const handleChangePassword = async () => {
+  try {
+    setIsChangingPassword(true);
+    setPasswordError("");
+    setPasswordSuccess("");
 
-      // Validation robuste
-      if (!passwordData.currentPassword) {
-        setPasswordError("Le mot de passe actuel est requis");
-        return;
-      }
-      if (!passwordData.newPassword) {
-        setPasswordError("Le nouveau mot de passe est requis");
-        return;
-      }
-      if (!passwordData.confirmPassword) {
-        setPasswordError("La confirmation du mot de passe est requise");
-        return;
-      }
-      if (passwordData.newPassword.length < 6) {
-        setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
-        return;
-      }
-      if (passwordData.newPassword !== passwordData.confirmPassword) {
-        setPasswordError("Les mots de passe ne correspondent pas");
-        return;
-      }
-
-      // Préparer les données pour l'API
-      const requestBody = {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-        confirmPassword: passwordData.confirmPassword
-      };
-
-      console.log("🔄 Envoi demande changement mot de passe...");
-
-      const response = await fetch(getApiUrl("/api/auth/change-password"), {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || `Erreur ${response.status}`);
-      }
-
-      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-      
-      // Réinitialiser le formulaire
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-
-      // Fermer automatiquement après 2 secondes
-      setTimeout(() => {
-        setShowChangePassword(false);
-        setPasswordSuccess("");
-      }, 2000);
-
-    } catch (err: any) {
-      console.error("❌ Erreur changement mot de passe:", err);
-      setPasswordError(err.message || "Une erreur est survenue lors du changement de mot de passe");
-    } finally {
-      setIsChangingPassword(false);
+    // Validation
+    if (!passwordData.currentPassword) {
+      setPasswordError("Le mot de passe actuel est requis");
+      return;
     }
-  };
+    if (!passwordData.newPassword) {
+      setPasswordError("Le nouveau mot de passe est requis");
+      return;
+    }
+    if (!passwordData.confirmPassword) {
+      setPasswordError("La confirmation du mot de passe est requise");
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    const requestBody = {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+      confirmPassword: passwordData.confirmPassword
+    };
+
+    const response = await fetch(getApiUrl("/api/auth/change-password"), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || `Erreur ${response.status}`);
+    }
+
+    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+    
+    // Réinitialiser
+    setPasswordData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+
+    setTimeout(() => {
+      setShowChangePassword(false);
+      setPasswordSuccess("");
+    }, 2000);
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Une erreur est survenue";
+    setPasswordError(message);
+  } finally {
+    setIsChangingPassword(false);
+  }
+};
 
   // Composants d'affichage
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
@@ -2761,9 +2751,9 @@ const GestionUtilisateursView = () => {
                           {cand.type === "stage_spontane" ? "Stage/PFE" : cand.type === "spontanee" ? "Candidature Générale" : cand.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">
-                        {cand.prenom ? `${cand.prenom} ${cand.nom}` : cand.nom}
-                      </td>
+<td className="px-4 py-3 text-gray-900 text-sm whitespace-nowrap">
+  {cand.prenom ? `${cand.prenom} ${cand.nom}` : cand.nom}
+</td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{cand.email}</td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                         <DisplayDiplome diplome={cand.diplome} />
