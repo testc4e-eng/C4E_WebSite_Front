@@ -883,52 +883,22 @@ const DashboardAdmin = () => {
   };
 
   // Composant ActionsSelect pour gérer les actions sur les candidatures
-  const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
-    if (candidature.ignored) {
-      return (
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => restaurerCandidature(candidature)}
-            className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
-          >
-            <RotateCcw className="h-3 w-3" />
-            <span>Restaurer</span>
-          </button>
-          <button
-            onClick={() => setSelectedCandidature(candidature)}
-            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
-            title="Voir détails"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => supprimerCandidature(candidature)}
-            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
-            title="Supprimer"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      );
-    }
-
+const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
+  if (candidature.ignored) {
     return (
       <div className="flex items-center space-x-2">
-        <select
-          value={candidature.statut}
-          onChange={(e) => {
-            const selectedValue = e.target.value as "en_attente" | "acceptee" | "refusee" | "ignorer";
-            changerStatut(candidature, selectedValue);
-          }}
-          className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
-        >
-          <option value="en_attente">En attente</option>
-          <option value="acceptee">Accepter</option>
-          <option value="refusee">Refuser</option>
-          <option value="ignorer">Ignorer</option>
-        </select>
         <button
-          onClick={() => setSelectedCandidature(candidature)}
+          onClick={() => restaurerCandidature(candidature)}
+          className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-all duration-200"
+        >
+          <RotateCcw className="h-3 w-3" />
+          <span>Restaurer</span>
+        </button>
+        <button
+          onClick={() => {
+            console.log("🟡 Clic sur visualiser candidature ignorée:", candidature);
+            setSelectedCandidature(candidature);
+          }}
           className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
           title="Voir détails"
         >
@@ -943,7 +913,43 @@ const DashboardAdmin = () => {
         </button>
       </div>
     );
-  };
+  }
+
+  return (
+    <div className="flex items-center space-x-2">
+      <select
+        value={candidature.statut}
+        onChange={(e) => {
+          const selectedValue = e.target.value as "en_attente" | "acceptee" | "refusee" | "ignorer";
+          changerStatut(candidature, selectedValue);
+        }}
+        className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+      >
+        <option value="en_attente">En attente</option>
+        <option value="acceptee">Accepter</option>
+        <option value="refusee">Refuser</option>
+        <option value="ignorer">Ignorer</option>
+      </select>
+      <button
+        onClick={() => {
+          console.log("🟡 Clic sur visualiser candidature active:", candidature);
+          setSelectedCandidature(candidature);
+        }}
+        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
+        title="Voir détails"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+      <button
+        onClick={() => supprimerCandidature(candidature)}
+        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
+        title="Supprimer"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
   // Filtrage des candidatures pour les différents onglets
   const candidaturesActives = candidatures.filter(c => !c.ignored);
@@ -1508,117 +1514,145 @@ const DashboardAdmin = () => {
           </div>
         )}
 
-        {selectedCandidature && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-              <div className="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 className="text-2xl font-bold text-gray-800">Détails de la candidature ignorée</h3>
-                <div className="flex items-center space-x-2">
-                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">Ignorée</span>
-                </div>
-              </div>
+// Modale pour afficher les détails des candidatures spontanées
+{selectedCandidature && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 className="text-2xl font-bold text-gray-800">
+          Détails de la candidature
+        </h3>
+        <div className="flex items-center space-x-2">
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              selectedCandidature.statut === "en_attente"
+                ? "bg-yellow-100 text-yellow-800"
+                : selectedCandidature.statut === "acceptee"
+                ? "bg-green-100 text-green-800"
+                : selectedCandidature.statut === "refusee"
+                ? "bg-red-100 text-red-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {selectedCandidature.statut === "en_attente" 
+              ? "En attente" 
+              : selectedCandidature.statut === "acceptee" 
+              ? "Acceptée" 
+              : selectedCandidature.statut === "refusee" 
+              ? "Refusée" 
+              : "Ignorée"
+            }
+          </span>
+        </div>
+      </div>
 
-              <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-                <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
-                <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
-                {selectedCandidature.telephone && <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>}
-                {selectedCandidature.diplome && <p><strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}</p>}
-                {selectedCandidature.experience && <p><strong>💼 Expérience :</strong> {selectedCandidature.experience}</p>}
-                {selectedCandidature.competenceScore && <p><strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%</p>}
-                <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+      <div className="space-y-4 overflow-y-auto pr-2 max-h-[60vh]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
+            <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
+            {selectedCandidature.telephone && (
+              <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>
+            )}
+          </div>
+          <div>
+            <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+            <p>
+              <strong>📋 Type :</strong>
+              <span
+                className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                  selectedCandidature.type === "emploi"
+                    ? "bg-blue-100 text-blue-800"
+                    : selectedCandidature.type === "stage"
+                    ? "bg-green-100 text-green-800"
+                    : selectedCandidature.type === "pfe"
+                    ? "bg-purple-100 text-purple-800"
+                    : selectedCandidature.type === "stage_spontane"
+                    ? "bg-teal-100 text-teal-800"
+                    : "bg-orange-100 text-orange-800"
+                }`}
+              >
+                {selectedCandidature.type === "spontanee"
+                  ? "Spontanée"
+                  : selectedCandidature.type === "emploi"
+                  ? "CDI/CDD"
+                  : selectedCandidature.type === "stage"
+                  ? "Stage"
+                  : selectedCandidature.type === "pfe"
+                  ? "PFE"
+                  : selectedCandidature.type === "stage_spontane"
+                  ? "Stage Spontané"
+                  : selectedCandidature.type}
+              </span>
+            </p>
+          </div>
+        </div>
 
-                <p>
-                  <strong>📋 Type :</strong>
-                  <span
-                    className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                      selectedCandidature.type === "emploi"
-                        ? "bg-blue-100 text-blue-800"
-                        : selectedCandidature.type === "stage"
-                        ? "bg-green-100 text-green-800"
-                        : selectedCandidature.type === "pfe"
-                        ? "bg-purple-100 text-purple-800"
-                        : selectedCandidature.type === "stage_spontane"
-                        ? "bg-teal-100 text-teal-800"
-                        : "bg-orange-100 text-orange-800"
-                    }`}
-                  >
-                    {selectedCandidature.type === "spontanee"
-                      ? "Spontanée"
-                      : selectedCandidature.type === "emploi"
-                      ? "CDI/CDD"
-                      : selectedCandidature.type === "stage"
-                      ? "Stage"
-                      : selectedCandidature.type === "pfe"
-                      ? "PFE"
-                      : selectedCandidature.type === "stage_spontane"
-                      ? "Stage Spontané"
-                      : selectedCandidature.type}
-                  </span>
-                </p>
-
-                {selectedCandidature.cvUrl && (
-                  <p>
-                    <strong>📎 CV :</strong>{" "}
-                    <a
-                      href={getFileUrl(selectedCandidature.cvUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center space-x-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span>Télécharger le CV</span>
-                    </a>
-                  </p>
-                )}
-
-                {selectedCandidature.lettreMotivationUrl && (
-                  <p>
-                    <strong>📝 Lettre de motivation :</strong>{" "}
-                    <a
-                      href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center space-x-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span>Télécharger la lettre</span>
-                    </a>
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => restaurerCandidature(selectedCandidature)}
-                  className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  <span>Restaurer</span>
-                </button>
-                <button
-                  onClick={() => changerStatut(selectedCandidature, "ignorer")}
-                  className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
-                >
-                  <Ban className="h-4 w-4" />
-                  <span>Ignorer</span>
-                </button>
-                <button
-                  onClick={() => supprimerCandidature(selectedCandidature)}
-                  className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Supprimer</span>
-                </button>
-                <button
-                  onClick={() => setSelectedCandidature(null)}
-                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
+        {selectedCandidature.diplome && (
+          <div>
+            <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
           </div>
         )}
+
+        {selectedCandidature.experience && (
+          <div>
+            <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+          </div>
+        )}
+
+        {selectedCandidature.competenceScore && (
+          <div>
+            <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+          </div>
+        )}
+
+        {selectedCandidature.motivation && (
+          <div>
+            <strong>📝 Motivation :</strong>
+            <p className="mt-1 p-3 bg-gray-50 rounded-lg text-sm">
+              {selectedCandidature.motivation}
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-col space-y-2">
+          {selectedCandidature.cvUrl && (
+            <a
+              href={getFileUrl(selectedCandidature.cvUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger le CV</span>
+            </a>
+          )}
+
+          {selectedCandidature.lettreMotivationUrl && (
+            <a
+              href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger la lettre de motivation</span>
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={() => setSelectedCandidature(null)}
+          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </section>
     );
   };
@@ -1785,95 +1819,145 @@ const DashboardAdmin = () => {
           </div>
         )}
 
-        {selectedCandidature && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-              <div className="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 className="text-2xl font-bold text-gray-800">Détails de la candidature traitée</h3>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      selectedCandidature.statut === "acceptee"
-                        ? "bg-green-100 text-green-800"
-                        : selectedCandidature.statut === "refusee"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {selectedCandidature.statut === "acceptee" ? "Acceptée" : selectedCandidature.statut === "refusee" ? "Refusée" : "Ignorée"}
-                  </span>
-                </div>
-              </div>
+// Modale pour afficher les détails des candidatures spontanées
+{selectedCandidature && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 className="text-2xl font-bold text-gray-800">
+          Détails de la candidature
+        </h3>
+        <div className="flex items-center space-x-2">
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              selectedCandidature.statut === "en_attente"
+                ? "bg-yellow-100 text-yellow-800"
+                : selectedCandidature.statut === "acceptee"
+                ? "bg-green-100 text-green-800"
+                : selectedCandidature.statut === "refusee"
+                ? "bg-red-100 text-red-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {selectedCandidature.statut === "en_attente" 
+              ? "En attente" 
+              : selectedCandidature.statut === "acceptee" 
+              ? "Acceptée" 
+              : selectedCandidature.statut === "refusee" 
+              ? "Refusée" 
+              : "Ignorée"
+            }
+          </span>
+        </div>
+      </div>
 
-              <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-                <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
-                <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
-                {selectedCandidature.telephone && <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>}
-                {selectedCandidature.diplome && <p><strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}</p>}
-                {selectedCandidature.experience && <p><strong>💼 Expérience :</strong> {selectedCandidature.experience}</p>}
-                {selectedCandidature.competenceScore && <p><strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%</p>}
-                <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
-                <p>
-                  <strong>📋 Type :</strong>
-                  <span
-                    className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                      selectedCandidature.type === "emploi"
-                        ? "bg-blue-100 text-blue-800"
-                        : selectedCandidature.type === "stage"
-                        ? "bg-green-100 text-green-800"
-                        : selectedCandidature.type === "pfe"
-                        ? "bg-purple-100 text-purple-800"
-                        : selectedCandidature.type === "stage_spontane"
-                        ? "bg-teal-100 text-teal-800"
-                        : "bg-orange-100 text-orange-800"
-                    }`}
-                  >
-                    {selectedCandidature.type === "spontanee" ? "Spontanée" : selectedCandidature.type === "emploi" ? "CDI/CDD" : selectedCandidature.type === "stage" ? "Stage" : selectedCandidature.type === "pfe" ? "PFE" : selectedCandidature.type === "stage_spontane" ? "Stage Spontané" : selectedCandidature.type}
-                  </span>
-                </p>
+      <div className="space-y-4 overflow-y-auto pr-2 max-h-[60vh]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
+            <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
+            {selectedCandidature.telephone && (
+              <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>
+            )}
+          </div>
+          <div>
+            <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+            <p>
+              <strong>📋 Type :</strong>
+              <span
+                className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                  selectedCandidature.type === "emploi"
+                    ? "bg-blue-100 text-blue-800"
+                    : selectedCandidature.type === "stage"
+                    ? "bg-green-100 text-green-800"
+                    : selectedCandidature.type === "pfe"
+                    ? "bg-purple-100 text-purple-800"
+                    : selectedCandidature.type === "stage_spontane"
+                    ? "bg-teal-100 text-teal-800"
+                    : "bg-orange-100 text-orange-800"
+                }`}
+              >
+                {selectedCandidature.type === "spontanee"
+                  ? "Spontanée"
+                  : selectedCandidature.type === "emploi"
+                  ? "CDI/CDD"
+                  : selectedCandidature.type === "stage"
+                  ? "Stage"
+                  : selectedCandidature.type === "pfe"
+                  ? "PFE"
+                  : selectedCandidature.type === "stage_spontane"
+                  ? "Stage Spontané"
+                  : selectedCandidature.type}
+              </span>
+            </p>
+          </div>
+        </div>
 
-                {selectedCandidature.cvUrl && (
-                  <p>
-                    <strong>📎 CV :</strong>{" "}
-                    <a
-                      href={getFileUrl(selectedCandidature.cvUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center space-x-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span>Télécharger le CV</span>
-                    </a>
-                  </p>
-                )}
-
-                {selectedCandidature.lettreMotivationUrl && (
-                  <p>
-                    <strong>📝 Lettre de motivation :</strong>{" "}
-                    <a
-                      href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center space-x-1"
-                    >
-                      <FileText className="h-4 w-4" />
-                      <span>Télécharger la lettre</span>
-                    </a>
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setSelectedCandidature(null)}
-                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
+        {selectedCandidature.diplome && (
+          <div>
+            <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
           </div>
         )}
+
+        {selectedCandidature.experience && (
+          <div>
+            <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+          </div>
+        )}
+
+        {selectedCandidature.competenceScore && (
+          <div>
+            <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+          </div>
+        )}
+
+        {selectedCandidature.motivation && (
+          <div>
+            <strong>📝 Motivation :</strong>
+            <p className="mt-1 p-3 bg-gray-50 rounded-lg text-sm">
+              {selectedCandidature.motivation}
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-col space-y-2">
+          {selectedCandidature.cvUrl && (
+            <a
+              href={getFileUrl(selectedCandidature.cvUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger le CV</span>
+            </a>
+          )}
+
+          {selectedCandidature.lettreMotivationUrl && (
+            <a
+              href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger la lettre de motivation</span>
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={() => setSelectedCandidature(null)}
+          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </section>
     );
   };
@@ -2779,121 +2863,145 @@ const DashboardAdmin = () => {
           {viewMode === "postes" && <PostesList filtreType={ongletCandidatures} />}
           {viewMode === "candidatures" && selectedOffre && <CandidaturesForPoste filtreType={ongletCandidatures} />}
 
-          {selectedCandidature && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-                <div className="flex justify-between items-center mb-4 border-b pb-2">
-                  <h3 className="text-2xl font-bold text-gray-800">
-                    Détails de la candidature ignorée
-                  </h3>
-                  <div className="flex items-center space-x-2">
-                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                      Ignorée
-                    </span>
-                  </div>
-                </div>
+// Modale pour afficher les détails des candidatures spontanées
+{selectedCandidature && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 className="text-2xl font-bold text-gray-800">
+          Détails de la candidature
+        </h3>
+        <div className="flex items-center space-x-2">
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              selectedCandidature.statut === "en_attente"
+                ? "bg-yellow-100 text-yellow-800"
+                : selectedCandidature.statut === "acceptee"
+                ? "bg-green-100 text-green-800"
+                : selectedCandidature.statut === "refusee"
+                ? "bg-red-100 text-red-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {selectedCandidature.statut === "en_attente" 
+              ? "En attente" 
+              : selectedCandidature.statut === "acceptee" 
+              ? "Acceptée" 
+              : selectedCandidature.statut === "refusee" 
+              ? "Refusée" 
+              : "Ignorée"
+            }
+          </span>
+        </div>
+      </div>
 
-                <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-                  <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
-                  <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
-                  {selectedCandidature.telephone && <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>}
-                  {selectedCandidature.diplome && <p><strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}</p>}
-                  {selectedCandidature.experience && <p><strong>💼 Expérience :</strong> {selectedCandidature.experience}</p>}
-                  {selectedCandidature.competenceScore && <p><strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%</p>}
-                  <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+      <div className="space-y-4 overflow-y-auto pr-2 max-h-[60vh]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p><strong>👤 Nom :</strong> {selectedCandidature.nom}</p>
+            <p><strong>📧 Email :</strong> {selectedCandidature.email}</p>
+            {selectedCandidature.telephone && (
+              <p><strong>📞 Téléphone :</strong> {selectedCandidature.telephone}</p>
+            )}
+          </div>
+          <div>
+            <p><strong>📅 Date de soumission :</strong> {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}</p>
+            <p>
+              <strong>📋 Type :</strong>
+              <span
+                className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                  selectedCandidature.type === "emploi"
+                    ? "bg-blue-100 text-blue-800"
+                    : selectedCandidature.type === "stage"
+                    ? "bg-green-100 text-green-800"
+                    : selectedCandidature.type === "pfe"
+                    ? "bg-purple-100 text-purple-800"
+                    : selectedCandidature.type === "stage_spontane"
+                    ? "bg-teal-100 text-teal-800"
+                    : "bg-orange-100 text-orange-800"
+                }`}
+              >
+                {selectedCandidature.type === "spontanee"
+                  ? "Spontanée"
+                  : selectedCandidature.type === "emploi"
+                  ? "CDI/CDD"
+                  : selectedCandidature.type === "stage"
+                  ? "Stage"
+                  : selectedCandidature.type === "pfe"
+                  ? "PFE"
+                  : selectedCandidature.type === "stage_spontane"
+                  ? "Stage Spontané"
+                  : selectedCandidature.type}
+              </span>
+            </p>
+          </div>
+        </div>
 
-                  <p>
-                    <strong>📋 Type :</strong>
-                    <span
-                      className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                        selectedCandidature.type === "emploi"
-                          ? "bg-blue-100 text-blue-800"
-                          : selectedCandidature.type === "stage"
-                          ? "bg-green-100 text-green-800"
-                          : selectedCandidature.type === "pfe"
-                          ? "bg-purple-100 text-purple-800"
-                          : selectedCandidature.type === "stage_spontane"
-                          ? "bg-teal-100 text-teal-800"
-                          : "bg-orange-100 text-orange-800"
-                      }`}
-                    >
-                      {selectedCandidature.type === "spontanee"
-                        ? "Spontanée"
-                        : selectedCandidature.type === "emploi"
-                        ? "CDI/CDD"
-                        : selectedCandidature.type === "stage"
-                        ? "Stage"
-                        : selectedCandidature.type === "pfe"
-                        ? "PFE"
-                        : selectedCandidature.type === "stage_spontane"
-                        ? "Stage Spontané"
-                        : selectedCandidature.type}
-                    </span>
-                  </p>
+        {selectedCandidature.diplome && (
+          <div>
+            <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
+          </div>
+        )}
 
-                  {selectedCandidature.cvUrl && (
-                    <p>
-                      <strong>📎 CV :</strong>{" "}
-                      <a
-                        href={getFileUrl(selectedCandidature.cvUrl)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline flex items-center space-x-1"
-                      >
-                        <FileText className="h-4 w-4" />
-                        <span>Télécharger le CV</span>
-                      </a>
-                    </p>
-                  )}
+        {selectedCandidature.experience && (
+          <div>
+            <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+          </div>
+        )}
 
-                  {selectedCandidature.lettreMotivationUrl && (
-                    <p>
-                      <strong>📝 Lettre de motivation :</strong>{" "}
-                      <a
-                        href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline flex items-center space-x-1"
-                      >
-                        <FileText className="h-4 w-4" />
-                        <span>Télécharger la lettre</span>
-                      </a>
-                    </p>
-                  )}
-                </div>
+        {selectedCandidature.competenceScore && (
+          <div>
+            <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+          </div>
+        )}
 
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button
-                    onClick={() => restaurerCandidature(selectedCandidature)}
-                    className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    <span>Restaurer</span>
-                  </button>
-                  <button
-                    onClick={() => changerStatut(selectedCandidature, "ignorer")}
-                    className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
-                  >
-                    <Ban className="h-4 w-4" />
-                    <span>Ignorer</span>
-                  </button>
-                  <button
-                    onClick={() => supprimerCandidature(selectedCandidature)}
-                    className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Supprimer</span>
-                  </button>
-                  <button
-                    onClick={() => setSelectedCandidature(null)}
-                    className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-                  >
-                    Fermer
-                  </button>
-                </div>
-              </div>
-            </div>
+        {selectedCandidature.motivation && (
+          <div>
+            <strong>📝 Motivation :</strong>
+            <p className="mt-1 p-3 bg-gray-50 rounded-lg text-sm">
+              {selectedCandidature.motivation}
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-col space-y-2">
+          {selectedCandidature.cvUrl && (
+            <a
+              href={getFileUrl(selectedCandidature.cvUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger le CV</span>
+            </a>
           )}
+
+          {selectedCandidature.lettreMotivationUrl && (
+            <a
+              href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200"
+            >
+              <FileText className="h-4 w-4" />
+              <span>Télécharger la lettre de motivation</span>
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={() => setSelectedCandidature(null)}
+          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         </section>
       )}
 
