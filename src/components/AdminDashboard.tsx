@@ -724,41 +724,32 @@ const DashboardAdmin = () => {
   };
 
   // === GESTION DES MOTS DE PASSE ===
-  const handleChangePassword = async () => {
+ const handleChangePassword = async () => {
+  try {
+    setIsChangingPassword(true);
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    console.log("🔄 Début changement mot de passe...");
+
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError("Tous les champs sont obligatoires");
+      return;
+    }
+
+    const requestBody = {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+      confirmPassword: passwordData.confirmPassword
+    };
+
+    console.log("📤 Envoi à:", `${API_BASE_URL}/api/auth/change-password`);
+
+    // TEST: Essayer d'abord avec la version simplifiée
+    let response;
     try {
-      setIsChangingPassword(true);
-      setPasswordError("");
-      setPasswordSuccess("");
-      
-      // Validation
-      if (!passwordData.currentPassword) {
-        setPasswordError("Le mot de passe actuel est requis");
-        return;
-      }
-      if (!passwordData.newPassword) {
-        setPasswordError("Le nouveau mot de passe est requis");
-        return;
-      }
-      if (!passwordData.confirmPassword) {
-        setPasswordError("La confirmation du mot de passe est requise");
-        return;
-      }
-      if (passwordData.newPassword.length < 6) {
-        setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
-        return;
-      }
-      if (passwordData.newPassword !== passwordData.confirmPassword) {
-        setPasswordError("Les mots de passe ne correspondent pas");
-        return;
-      }
-
-      const requestBody = {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
-        confirmPassword: passwordData.confirmPassword
-      };
-
-      const response = await fetch(getApiUrl("/api/auth/change-password"), {
+      response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -766,34 +757,65 @@ const DashboardAdmin = () => {
         },
         body: JSON.stringify(requestBody),
       });
-
-      const data = await response.json();
+      
+      console.log("📥 Réponse brute:", response);
       
       if (!response.ok) {
-        throw new Error(data.message || data.error || `Erreur ${response.status}`);
+        console.log("❌ Erreur HTTP:", response.status, response.statusText);
+        
+        // Essayer POST si PUT échoue
+        console.log("🔄 Essai avec POST...");
+        response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
       }
-
-      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-     
-      // Réinitialiser
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
       
-      setTimeout(() => {
-        setShowChangePassword(false);
-        setPasswordSuccess("");
-      }, 2000);
-      
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Une erreur est survenue";
-      setPasswordError(message);
-    } finally {
-      setIsChangingPassword(false);
+    } catch (fetchError) {
+      console.error("❌ Erreur fetch:", fetchError);
+      throw new Error(`Erreur réseau: ${fetchError.message}`);
     }
-  };
+
+    console.log("📊 Status final:", response.status, response.statusText);
+    
+    let data;
+    try {
+      data = await response.json();
+      console.log("📋 Données réponse:", data);
+    } catch (jsonError) {
+      console.error("❌ Erreur parsing JSON:", jsonError);
+      throw new Error("Réponse invalide du serveur");
+    }
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || `Erreur ${response.status}`);
+    }
+
+    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+    
+    setPasswordData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+
+    setTimeout(() => {
+      setShowChangePassword(false);
+      setPasswordSuccess("");
+    }, 3000);
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Une erreur est survenue";
+    console.error("❌ Erreur complète:", err);
+    setPasswordError(message);
+  } finally {
+    setIsChangingPassword(false);
+  }
+};
 
   const handleLogout = () => {
     localStorage.removeItem("token");

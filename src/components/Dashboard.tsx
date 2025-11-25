@@ -858,24 +858,11 @@ const handleChangePassword = async () => {
     setPasswordError("");
     setPasswordSuccess("");
 
-    if (!passwordData.currentPassword) {
-      setPasswordError("Le mot de passe actuel est requis");
-      return;
-    }
-    if (!passwordData.newPassword) {
-      setPasswordError("Le nouveau mot de passe est requis");
-      return;
-    }
-    if (!passwordData.confirmPassword) {
-      setPasswordError("La confirmation du mot de passe est requise");
-      return;
-    }
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError("Le nouveau mot de passe doit contenir au moins 6 caractères");
-      return;
-    }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("Les mots de passe ne correspondent pas");
+    console.log("🔄 Début changement mot de passe...");
+
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError("Tous les champs sont obligatoires");
       return;
     }
 
@@ -885,16 +872,52 @@ const handleChangePassword = async () => {
       confirmPassword: passwordData.confirmPassword
     };
 
-    const response = await fetch(getApiUrl("/api/auth/change-password"), {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
+    console.log("📤 Envoi à:", `${API_BASE_URL}/api/auth/change-password`);
 
-    const data = await response.json();
+    // TEST: Essayer d'abord avec la version simplifiée
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      console.log("📥 Réponse brute:", response);
+      
+      if (!response.ok) {
+        console.log("❌ Erreur HTTP:", response.status, response.statusText);
+        
+        // Essayer POST si PUT échoue
+        console.log("🔄 Essai avec POST...");
+        response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
+      }
+      
+    } catch (fetchError) {
+      console.error("❌ Erreur fetch:", fetchError);
+      throw new Error(`Erreur réseau: ${fetchError.message}`);
+    }
+
+    console.log("📊 Status final:", response.status, response.statusText);
+    
+    let data;
+    try {
+      data = await response.json();
+      console.log("📋 Données réponse:", data);
+    } catch (jsonError) {
+      console.error("❌ Erreur parsing JSON:", jsonError);
+      throw new Error("Réponse invalide du serveur");
+    }
 
     if (!response.ok) {
       throw new Error(data.message || data.error || `Erreur ${response.status}`);
@@ -911,10 +934,11 @@ const handleChangePassword = async () => {
     setTimeout(() => {
       setShowChangePassword(false);
       setPasswordSuccess("");
-    }, 2000);
+    }, 3000);
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Une erreur est survenue";
+    console.error("❌ Erreur complète:", err);
     setPasswordError(message);
   } finally {
     setIsChangingPassword(false);
