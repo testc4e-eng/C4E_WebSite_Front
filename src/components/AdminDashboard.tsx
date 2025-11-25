@@ -1,15 +1,6 @@
 // ============================================================
-// Fichier : /components/Dashboard.tsx
-// Description : Composant principal du Dashboard de gestion RH/Offres.
-// Rôle :
-// - Affiche les statistiques globales des candidatures et offres.
-// - Gère les onglets : Offres, Candidatures spontanées, Candidatures par postes, Archives, Réponses Candidatures.
-// - Permet l'ajout, la modification et la suppression des offres d'emploi.
-// - Permet la consultation, le tri et la gestion du statut des candidatures.
-// - Supporte plusieurs types de candidatures : emploi, stage, PFE, spontanee, stage_spontane.
-// - Intègre la recherche, le filtrage et le tri des candidatures et des archives.
-// - Gère dynamiquement les champs d'exigences pour les offres.
-// - Utilise React, TypeScript, fetch API pour interagir avec le backend et Lucide/Framer Motion pour les icônes et animations.
+// Fichier : /components/DashboardAdmin.tsx
+// Description : Composant principal du Dashboard de gestion RH/Offres avec gestion des utilisateurs.
 // ============================================================
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -39,8 +30,8 @@ import {
   Key,
   Ban,
   RotateCcw,
+  XCircle as XIcon,
 } from "lucide-react";
-import api from "../lib/api";
 
 // === Ajout pour API dynamique ===
 const API_BASE_URL =
@@ -98,6 +89,16 @@ interface Candidature {
   universite?: string;
   type_etablissement?: string;
   ignored?: boolean;
+}
+
+// === INTERFACE UTILISATEUR ===
+interface User {
+  id: number;
+  nom: string;
+  email: string;
+  role: "admin" | "gestionnaire";
+  dateCreation: string;
+  statut: "actif" | "inactif";
 }
 
 const diplomeOrder: Record<string, number> = {
@@ -183,13 +184,15 @@ function getSortedCandidatures(
   });
 }
 
-const Dashboard = () => {
+const DashboardAdmin = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
   const [activeTab, setActiveTab] = useState<
-    "offres" | "candidatures" | "candidatures-postes" | "archives" | "reponses-candidatures"
+    "offres" | "candidatures" | "candidatures-postes" | "archives" | "reponses-candidatures" | "utilisateurs"
   >("offres");
+  
+  // États existants
   const [offres, setOffres] = useState<OffreEmploi[]>([]);
   const [loadingOffres, setLoadingOffres] = useState(true);
   const [errorOffres, setErrorOffres] = useState("");
@@ -238,69 +241,102 @@ const Dashboard = () => {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
   // États pour les notifications
   const [notificationCounts, setNotificationCounts] = useState({
     candidatures: 0,
     candidaturesPostes: 0
   });
 
+  // === NOUVEAUX ÉTATS POUR LA GESTION DES UTILISATEURS ===
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [errorUsers, setErrorUsers] = useState("");
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({
+    nom: "",
+    email: "",
+    motDePasse: "",
+    role: "gestionnaire" as "admin" | "gestionnaire"
+  });
+  const [userRole, setUserRole] = useState<"admin" | "gestionnaire">("gestionnaire");
+
   useEffect(() => {
     if (!token) navigate("/login");
+    
+    // Simulation du rôle utilisateur - À adapter selon votre API
+    const userData = localStorage.getItem("userData");
+    if (userData) {
+      try {
+        const parsedData = JSON.parse(userData);
+        setUserRole(parsedData.role || "gestionnaire");
+      } catch {
+        setUserRole("gestionnaire");
+      }
+    }
   }, [token, navigate]);
 
   // Charger les données depuis localStorage au montage
-useEffect(() => {
-  const savedCandidatures = localStorage.getItem('candidatures');
-  if (savedCandidatures) {
-    try {
-      const parsedCandidatures = JSON.parse(savedCandidatures);
-      setCandidatures(parsedCandidatures);
-    } catch (error) {
-      console.error('Erreur parsing localStorage:', error);
+  useEffect(() => {
+    const savedCandidatures = localStorage.getItem('candidatures');
+    if (savedCandidatures) {
+      try {
+        const parsedCandidatures = JSON.parse(savedCandidatures);
+        setCandidatures(parsedCandidatures);
+      } catch (error) {
+        console.error('Erreur parsing localStorage:', error);
+      }
     }
-  }
-}, []);
+  }, []);
 
-// Sauvegarder les candidatures dans localStorage à chaque modification
-useEffect(() => {
-  localStorage.setItem('candidatures', JSON.stringify(candidatures));
-  
-  // Calculer les notifications
-  const candidaturesEnAttente = candidatures.filter(c => 
-    c.statut === "en_attente" && !c.ignored
-  );
-  
-  const candidaturesSpontaneesEnAttente = candidaturesEnAttente.filter(c => 
-    c.type === "spontanee" || c.type === "stage_spontane"
-  ).length;
-  
-  const candidaturesPostesEnAttente = candidaturesEnAttente.filter(c => 
-    c.type === "emploi" || c.type === "stage" || c.type === "pfe"
-  ).length;
+  // Sauvegarder les candidatures dans localStorage à chaque modification
+  useEffect(() => {
+    localStorage.setItem('candidatures', JSON.stringify(candidatures));
+    
+    // Calculer les notifications
+    const candidaturesEnAttente = candidatures.filter(c => 
+      c.statut === "en_attente" && !c.ignored
+    );
+    
+    const candidaturesSpontaneesEnAttente = candidaturesEnAttente.filter(c => 
+      c.type === "spontanee" || c.type === "stage_spontane"
+    ).length;
+    
+    const candidaturesPostesEnAttente = candidaturesEnAttente.filter(c => 
+      c.type === "emploi" || c.type === "stage" || c.type === "pfe"
+    ).length;
 
-  setNotificationCounts({
-    candidatures: candidaturesSpontaneesEnAttente,
-    candidaturesPostes: candidaturesPostesEnAttente
-  });
-}, [candidatures]);
+    setNotificationCounts({
+      candidatures: candidaturesSpontaneesEnAttente,
+      candidaturesPostes: candidaturesPostesEnAttente
+    });
+  }, [candidatures]);
 
+  // Charger les offres
   useEffect(() => {
     const fetchOffres = async () => {
       try {
         setLoadingOffres(true);
         setErrorOffres("");
 
-        const { res, data } = await api.get<OffreEmploi[]>("/api/offres", token);
+        const response = await fetch(getApiUrl("/api/offres"), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-        if (!res.ok) throw new Error("Erreur lors du chargement des offres.");
+        if (!response.ok) throw new Error("Erreur lors du chargement des offres.");
+
+        const data = await response.json();
 
         setOffres(
-          data.map((o) => ({
+          data.map((o: any) => ({
             id: o.id,
             titre: o.titre,
             description: o.description,
             salaire: o.salaire,
-            dateExpiration: o.dateExpiration,
+            dateExpiration: o.date_expiration,
             statut: o.statut,
             type: o.type,
             localisation: o.localisation,
@@ -320,118 +356,224 @@ useEffect(() => {
       fetchOffres();
   }, [activeTab, token]);
 
-useEffect(() => {
-  const fetchCandidatures = async () => {
-    try {
-      setLoadingCandidatures(true);
-      setErrorCandidatures("");
+  // Charger les candidatures
+  useEffect(() => {
+    const fetchCandidatures = async () => {
+      try {
+        setLoadingCandidatures(true);
+        setErrorCandidatures("");
 
-      let url = "";
-      if (activeTab === "candidatures") {
-        url = "/api/candidatures/spontanees/toutes";
-      } else if (activeTab === "candidatures-postes" || activeTab === "archives" || activeTab === "reponses-candidatures") {
-        url = "/api/candidatures";
+        let url = "";
+        if (activeTab === "candidatures") {
+          url = "/api/candidatures/spontanees/toutes";
+        } else if (activeTab === "candidatures-postes" || activeTab === "archives" || activeTab === "reponses-candidatures") {
+          url = "/api/candidatures";
+        }
+
+        console.log("🔄 Chargement des candidatures depuis:", url);
+
+        const response = await fetch(getApiUrl(url), {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("📥 Réponse API brute:", data);
+
+        // Normaliser les données
+        let normalizedData: Candidature[] = [];
+
+        if (Array.isArray(data.candidatures)) {
+          normalizedData = data.candidatures;
+        } else if (Array.isArray(data)) {
+          normalizedData = data;
+        } else if (data.candidature && typeof data.candidature === 'object') {
+          normalizedData = [data.candidature];
+        } else {
+          normalizedData = [];
+        }
+
+        // Fusion des données
+        setCandidatures(prevCandidatures => {
+          const localMap = new Map();
+          
+          prevCandidatures.forEach(c => {
+            const key = `${c.id}-${c.type}`;
+            localMap.set(key, {
+              ...c,
+              ignored: c.ignored,
+              statut: c.statut,
+              dateSoumission: c.dateSoumission
+            });
+          });
+
+          const merged = normalizedData.map((apiCand: Candidature) => {
+            const key = `${apiCand.id}-${apiCand.type}`;
+            const localCand = localMap.get(key);
+            
+            if (localCand) {
+              return {
+                ...apiCand,
+                ignored: localCand.ignored,
+                statut: localCand.statut,
+                dateSoumission: localCand.dateSoumission
+              };
+            }
+            
+            return {
+              ...apiCand,
+              ignored: false,
+              statut: apiCand.statut || "en_attente"
+            };
+          });
+
+          const localOnlyCandidates = prevCandidatures.filter(localCand => {
+            const key = `${localCand.id}-${localCand.type}`;
+            return !normalizedData.some(apiCand => 
+              `${apiCand.id}-${apiCand.type}` === key
+            );
+          });
+
+          const finalMerged = [...merged, ...localOnlyCandidates];
+          
+          console.log(`✅ Fusion finale: ${finalMerged.length} total, ${finalMerged.filter(c => c.ignored).length} ignorées`);
+          return finalMerged;
+        });
+
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Erreur inconnue";
+        console.error("❌ Erreur fetchCandidatures:", err);
+        setErrorCandidatures(message);
+      } finally {
+        setLoadingCandidatures(false);
       }
+    };
 
-      console.log("🔄 Chargement des candidatures depuis:", url);
+    if (["candidatures", "candidatures-postes", "archives", "reponses-candidatures"].includes(activeTab)) {
+      fetchCandidatures();
+    }
+  }, [activeTab, token]);
 
-      const response = await fetch(getApiUrl(url), {
-        headers: { 
+  // === FONCTIONS POUR LA GESTION DES UTILISATEURS ===
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      setErrorUsers("");
+
+      const response = await fetch(getApiUrl("/api/admin/utilisateurs"), {
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP ${response.status}`);
-      }
-
+      await handleApiError(response);
       const data = await response.json();
-      console.log("📥 Réponse API brute:", data);
-
-      // Normaliser les données
-      let normalizedData: Candidature[] = [];
-
-      if (Array.isArray(data.candidatures)) {
-        normalizedData = data.candidatures;
-      } else if (Array.isArray(data)) {
-        normalizedData = data;
-      } else if (data.candidature && typeof data.candidature === 'object') {
-        normalizedData = [data.candidature];
-      } else {
-        normalizedData = [];
-      }
-
-      // CORRECTION : Fusion améliorée qui préserve mieux l'état local
-setCandidatures(prevCandidatures => {
-  const localMap = new Map();
-  
-  // Créer un Map avec TOUTES les données locales
-  prevCandidatures.forEach(c => {
-    const key = `${c.id}-${c.type}`;
-    localMap.set(key, {
-      ...c,
-      // Préserver tous les états locaux importants
-      ignored: c.ignored,
-      statut: c.statut,
-      dateSoumission: c.dateSoumission
-    });
-  });
-
-  const merged = normalizedData.map((apiCand: Candidature) => {
-    const key = `${apiCand.id}-${apiCand.type}`;
-    const localCand = localMap.get(key);
-    
-    if (localCand) {
-      console.log(`✅ Fusion: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
       
-      // Fusionner intelligemment : priorité aux données locales
-      return {
-        ...apiCand,           // données de base de l'API
-        ignored: localCand.ignored, // TOUJOURS prendre l'état local
-        statut: localCand.statut,   // TOUJOURS prendre l'état local
-        dateSoumission: localCand.dateSoumission // garder la date locale
-      };
-    }
-    
-    // Nouvelle candidature depuis l'API
-    return {
-      ...apiCand,
-      ignored: false, // par défaut non ignorée
-      statut: apiCand.statut || "en_attente"
-    };
-  });
-
-  // Ajouter les candidatures locales qui ne sont pas dans l'API (au cas où)
-  const localOnlyCandidates = prevCandidatures.filter(localCand => {
-    const key = `${localCand.id}-${localCand.type}`;
-    return !normalizedData.some(apiCand => 
-      `${apiCand.id}-${apiCand.type}` === key
-    );
-  });
-
-  const finalMerged = [...merged, ...localOnlyCandidates];
-  
-  console.log(`✅ Fusion finale: ${finalMerged.length} total, ${finalMerged.filter(c => c.ignored).length} ignorées`);
-  return finalMerged;
-});
+      setUsers(data.utilisateurs || data);
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur fetchCandidatures:", err);
-      setErrorCandidatures(message);
+      setErrorUsers(message);
     } finally {
-      setLoadingCandidatures(false);
+      setLoadingUsers(false);
     }
   };
 
-  if (["candidatures", "candidatures-postes", "archives", "reponses-candidatures"].includes(activeTab)) {
-    fetchCandidatures();
-  }
-}, [activeTab, token]);
+  const handleAddUser = async () => {
+    try {
+      setErrorUsers("");
+      
+      // Validation
+      if (!newUser.nom?.trim()) {
+        setErrorUsers("Le nom est requis");
+        return;
+      }
+      if (!newUser.email?.trim()) {
+        setErrorUsers("L'email est requis");
+        return;
+      }
+      if (!newUser.motDePasse) {
+        setErrorUsers("Le mot de passe est requis");
+        return;
+      }
+      if (newUser.motDePasse.length < 6) {
+        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+        return;
+      }
 
+      const userData = {
+        nom: newUser.nom.trim(),
+        email: newUser.email.trim(),
+        motDePasse: newUser.motDePasse,
+        role: newUser.role
+      };
 
+      const response = await fetch(getApiUrl("/api/admin/utilisateurs"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(userData),
+      });
 
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || responseData.error || `Erreur ${response.status}`);
+      }
+
+      // Réinitialisation et fermeture
+      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+      setShowAddUser(false);
+      setErrorUsers("");
+     
+      // Rechargement de la liste
+      fetchUsers();
+      
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
+      setErrorUsers(`Erreur: ${message}`);
+    }
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.nom} ?`)) return;
+    
+    try {
+      const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
+      const response = await fetch(getApiUrl(`/api/admin/${userType}/${user.id}`), {
+        method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      await handleApiError(response);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setErrorUsers(message);
+    }
+  };
+
+  // Charger les utilisateurs quand l'onglet est actif et que l'utilisateur est admin
+  useEffect(() => {
+    if (activeTab === "utilisateurs" && userRole === "admin") {
+      fetchUsers();
+    }
+  }, [activeTab, userRole]);
+
+  // Fonctions existantes pour la gestion des offres et candidatures...
   const ajouterChampExigence = () => {
     setExigencesFields([...exigencesFields, ""]);
   };
@@ -598,130 +740,144 @@ setCandidatures(prevCandidatures => {
     }
   };
 
-const supprimerCandidature = async (candidature: Candidature) => {
-  if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`))
-    return;
+  const supprimerCandidature = async (candidature: Candidature) => {
+    if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`))
+      return;
 
-  try {
-    const { id, type } = candidature;
+    try {
+      const { id, type } = candidature;
 
-    // Essayer les deux endpoints possibles
-    const endpoints = [
-      `/api/candidatures/${id}`,
-      `/api/candidatures/spontanees/${id}`
-    ];
+      const endpoints = [
+        `/api/candidatures/${id}`,
+        `/api/candidatures/spontanees/${id}`
+      ];
 
-    let lastError = null;
+      let lastError = null;
 
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`🗑️ Tentative suppression: ${endpoint}`);
-        
-        const response = await fetch(getApiUrl(endpoint), {
-          method: "DELETE",
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🗑️ Tentative suppression: ${endpoint}`);
+          
+          const response = await fetch(getApiUrl(endpoint), {
+            method: "DELETE",
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            setCandidatures((prev) =>
+              prev.filter((c) => !(c.id === id && c.type === type))
+            );
+
+            const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+            const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
+              !(c.id === id && c.type === type)
+            );
+            localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
+
+            if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
+              setSelectedCandidature(null);
+            }
+
+            console.log("✅ Candidature supprimée avec succès");
+            setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+            setTimeout(() => setErrorCandidatures(""), 3000);
+            return;
+          } else {
+            lastError = `Erreur ${response.status} pour ${endpoint}`;
           }
-        });
-
-        if (response.ok) {
-          // Suppression réussie
-          setCandidatures((prev) =>
-            prev.filter((c) => !(c.id === id && c.type === type))
-          );
-
-          // Mettre à jour localStorage
-          const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
-          const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
-            !(c.id === id && c.type === type)
-          );
-          localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
-
-          if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
-            setSelectedCandidature(null);
-          }
-
-          console.log("✅ Candidature supprimée avec succès");
-          setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
-          setTimeout(() => setErrorCandidatures(""), 3000);
-          return;
-        } else {
-          lastError = `Erreur ${response.status} pour ${endpoint}`;
+        } catch (err) {
+          lastError = err;
         }
-      } catch (err) {
-        lastError = err;
       }
+
+      throw new Error(lastError instanceof Error ? lastError.message : "Tous les endpoints ont échoué");
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      console.error("❌ Erreur suppression:", err);
+      setErrorCandidatures(`❌ Erreur: ${message}`);
     }
+  };
 
-    // Si on arrive ici, toutes les tentatives ont échoué
-    throw new Error(lastError instanceof Error ? lastError.message : "Tous les endpoints ont échoué");
-
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("❌ Erreur suppression:", err);
-    setErrorCandidatures(`❌ Erreur: ${message}`);
-  }
-};
-const envoyerEmailCandidature = async (
-  candidature: Candidature,
-  statut: "acceptee" | "refusee"
-) => {
-  try {
-    console.log("📧 Fonction email appelée (simulation):", { 
-      candidatureId: candidature.id, 
-      statut,
-      email: candidature.email 
-    });
-
-    console.log(`✅ Simulation email ${statut} pour ${candidature.nom} (${candidature.email})`);
+  const restaurerCandidature = (candidature: Candidature) => {
+    const updatedCandidature = { ...candidature, ignored: false };
     
-    return true;
+    setCandidatures((prev) =>
+      prev.map((c) =>
+        c.id === candidature.id && c.type === candidature.type ? updatedCandidature : c
+      )
+    );
 
-  } catch (error: unknown) {
-    console.warn("⚠️ Note: Fonctionnalité email non disponible pour le moment");
-    return true;
-  }
-};
-
-const restaurerCandidature = (candidature: Candidature) => {
-  const updatedCandidature = { ...candidature, ignored: false };
-  
-  setCandidatures((prev) =>
-    prev.map((c) =>
+    const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+    const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
       c.id === candidature.id && c.type === candidature.type ? updatedCandidature : c
-    )
-  );
+    );
+    localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-  const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
-  const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
-    c.id === candidature.id && c.type === candidature.type ? updatedCandidature : c
-  );
-  localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
-
-  console.log(`✅ Candidature de ${candidature.nom} restaurée`);
-  setErrorCandidatures(`✅ Candidature de ${candidature.nom} restaurée`);
-  setTimeout(() => setErrorCandidatures(""), 3000);
-};
+    console.log(`✅ Candidature de ${candidature.nom} restaurée`);
+    setErrorCandidatures(`✅ Candidature de ${candidature.nom} restaurée`);
+    setTimeout(() => setErrorCandidatures(""), 3000);
+  };
   
-const changerStatut = async (
-  candidature: Candidature,
-  nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
-) => {
-  try {
-    const { id, type } = candidature;
+  const changerStatut = async (
+    candidature: Candidature,
+    nouveauStatut: "en_attente" | "acceptee" | "refusee" | "ignorer"
+  ) => {
+    try {
+      const { id, type } = candidature;
 
-    console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut, currentIgnored: candidature.ignored });
+      console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut, currentIgnored: candidature.ignored });
 
-    // Pour "ignorer", on gère uniquement en local
-    if (nouveauStatut === "ignorer") {
+      if (nouveauStatut === "ignorer") {
+        const updatedCandidature = { 
+          ...candidature, 
+          statut: "en_attente",
+          ignored: true 
+        };
+        
+        console.log(`🔕 Ignorer: ${candidature.nom}, nouveau ignored=${updatedCandidature.ignored}`);
+        
+        setCandidatures((prev) =>
+          prev.map((c) =>
+            c.id === id && c.type === type ? updatedCandidature : c
+          )
+        );
+
+        const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+        const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
+          c.id === id && c.type === type ? updatedCandidature : c
+        );
+        localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
+
+        setErrorCandidatures(`✅ Candidature de ${candidature.nom} ignorée`);
+        setTimeout(() => setErrorCandidatures(""), 3000);
+        return;
+      }
+
+      const response = await fetch(getApiUrl(`/api/candidatures/statut/${type}/${id}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          statut: nouveauStatut
+        }),
+      });
+
+      await handleApiError(response);
+
+      const result = await response.json();
+      console.log("✅ Réponse backend:", result);
+
       const updatedCandidature = { 
         ...candidature, 
-        statut: "en_attente", // IMPORTANT: statut reste "en_attente"
-        ignored: true 
+        statut: nouveauStatut,
+        ignored: false
       };
-      
-      console.log(`🔕 Ignorer: ${candidature.nom}, nouveau ignored=${updatedCandidature.ignored}`);
       
       setCandidatures((prev) =>
         prev.map((c) =>
@@ -729,66 +885,23 @@ const changerStatut = async (
         )
       );
 
-      // Sauvegarder dans localStorage IMMÉDIATEMENT
       const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
       const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
         c.id === id && c.type === type ? updatedCandidature : c
       );
       localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-      setErrorCandidatures(`✅ Candidature de ${candidature.nom} ignorée`);
+      const message = result.message || `✅ Statut de ${candidature.nom} mis à jour avec succès`;
+      setErrorCandidatures(message);
+      
       setTimeout(() => setErrorCandidatures(""), 3000);
-      return;
+
+    } catch (err: unknown) {
+      console.error("❌ Erreur détaillée:", err);
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setErrorCandidatures(`❌ Erreur: ${message}`);
     }
-
-    // Pour les autres statuts, appeler l'API
-    const response = await fetch(getApiUrl(`/api/candidatures/statut/${type}/${id}`), {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        statut: nouveauStatut
-      }),
-    });
-
-    await handleApiError(response);
-
-    const result = await response.json();
-    console.log("✅ Réponse backend:", result);
-
-    // Mettre à jour l'état local
-    const updatedCandidature = { 
-      ...candidature, 
-      statut: nouveauStatut,
-      ignored: false // Une candidature acceptée/refusée n'est pas ignorée
-    };
-    
-    setCandidatures((prev) =>
-      prev.map((c) =>
-        c.id === id && c.type === type ? updatedCandidature : c
-      )
-    );
-
-    // Sauvegarder dans localStorage
-    const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
-    const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
-      c.id === id && c.type === type ? updatedCandidature : c
-    );
-    localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
-
-    const message = result.message || `✅ Statut de ${candidature.nom} mis à jour avec succès`;
-    setErrorCandidatures(message);
-    
-    setTimeout(() => setErrorCandidatures(""), 3000);
-
-  } catch (err: unknown) {
-    console.error("❌ Erreur détaillée:", err);
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    setErrorCandidatures(`❌ Erreur: ${message}`);
-  }
-};
+  };
 
   const ActionsSelect = ({ candidature }: { candidature: Candidature }) => {
     if (candidature.ignored) {
@@ -853,103 +966,101 @@ const changerStatut = async (
     );
   };
 
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  navigate("/login");
-};
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userData");
+    navigate("/login");
+  };
 
-const handleChangePassword = async () => {
-  try {
-    setIsChangingPassword(true);
-    setPasswordError("");
-    setPasswordSuccess("");
-
-    console.log("🔄 Début changement mot de passe...");
-
-    // Validation
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      setPasswordError("Tous les champs sont obligatoires");
-      return;
-    }
-
-    const requestBody = {
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword,
-      confirmPassword: passwordData.confirmPassword
-    };
-
-    console.log("📤 Envoi à:", `${API_BASE_URL}/api/auth/change-password`);
-
-    // TEST: Essayer d'abord avec la version simplifiée
-    let response;
+  const handleChangePassword = async () => {
     try {
-      response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
-      
-      console.log("📥 Réponse brute:", response);
-      
-      if (!response.ok) {
-        console.log("❌ Erreur HTTP:", response.status, response.statusText);
-        
-        // Essayer POST si PUT échoue
-        console.log("🔄 Essai avec POST...");
+      setIsChangingPassword(true);
+      setPasswordError("");
+      setPasswordSuccess("");
+
+      console.log("🔄 Début changement mot de passe...");
+
+      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+        setPasswordError("Tous les champs sont obligatoires");
+        return;
+      }
+
+      const requestBody = {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword
+      };
+
+      console.log("📤 Envoi à:", `${API_BASE_URL}/api/auth/change-password`);
+
+      let response;
+      try {
         response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
-          method: "POST",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify(requestBody),
         });
+        
+        console.log("📥 Réponse brute:", response);
+        
+        if (!response.ok) {
+          console.log("❌ Erreur HTTP:", response.status, response.statusText);
+          
+          console.log("🔄 Essai avec POST...");
+          response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify(requestBody),
+          });
+        }
+        
+      } catch (fetchError) {
+        console.error("❌ Erreur fetch:", fetchError);
+        throw new Error(`Erreur réseau: ${fetchError.message}`);
       }
+
+      console.log("📊 Status final:", response.status, response.statusText);
       
-    } catch (fetchError) {
-      console.error("❌ Erreur fetch:", fetchError);
-      throw new Error(`Erreur réseau: ${fetchError.message}`);
+      let data;
+      try {
+        data = await response.json();
+        console.log("📋 Données réponse:", data);
+      } catch (jsonError) {
+        console.error("❌ Erreur parsing JSON:", jsonError);
+        throw new Error("Réponse invalide du serveur");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Erreur ${response.status}`);
+      }
+
+      setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+      
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess("");
+      }, 3000);
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue";
+      console.error("❌ Erreur complète:", err);
+      setPasswordError(message);
+    } finally {
+      setIsChangingPassword(false);
     }
-
-    console.log("📊 Status final:", response.status, response.statusText);
-    
-    let data;
-    try {
-      data = await response.json();
-      console.log("📋 Données réponse:", data);
-    } catch (jsonError) {
-      console.error("❌ Erreur parsing JSON:", jsonError);
-      throw new Error("Réponse invalide du serveur");
-    }
-
-    if (!response.ok) {
-      throw new Error(data.message || data.error || `Erreur ${response.status}`);
-    }
-
-    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
-    
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-
-    setTimeout(() => {
-      setShowChangePassword(false);
-      setPasswordSuccess("");
-    }, 3000);
-
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Une erreur est survenue";
-    console.error("❌ Erreur complète:", err);
-    setPasswordError(message);
-  } finally {
-    setIsChangingPassword(false);
-  }
-};
+  };
 
   // Candidatures actives (non ignorées)
   const candidaturesActives = candidatures.filter(c => !c.ignored);
@@ -1628,149 +1739,148 @@ const handleChangePassword = async () => {
           </div>
         )}
 
-{selectedCandidature && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
-      <div className="flex justify-between items-center mb-4 border-b pb-2">
-        <h3 className="text-2xl font-bold text-gray-800">
-          Détails de la candidature ignorée
-        </h3>
-        <div className="flex items-center space-x-2">
-          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-            Ignorée
-          </span>
-        </div>
-      </div>
+        {selectedCandidature && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
+              <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  Détails de la candidature ignorée
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    Ignorée
+                  </span>
+                </div>
+              </div>
 
-      <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
-        <p>
-          <strong>👤 Nom :</strong> {selectedCandidature.nom}
-        </p>
-        <p>
-          <strong>📧 Email :</strong> {selectedCandidature.email}
-        </p>
-        {selectedCandidature.telephone && (
-          <p>
-            <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
-          </p>
-        )}
-        {selectedCandidature.diplome && (
-          <p>
-            <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
-          </p>
-        )}
-        {selectedCandidature.experience && (
-          <p>
-            <strong>💼 Expérience :</strong> {selectedCandidature.experience}
-          </p>
-        )}
-        {selectedCandidature.competenceScore && (
-          <p>
-            <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
-          </p>
-        )}
-        <p>
-          <strong>📅 Date de soumission :</strong>{" "}
-          {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
-        </p>
-        <p>
-          <strong>📋 Type :</strong>
-          <span
-            className={`ml-2 px-2 py-1 rounded-full text-xs ${
-              selectedCandidature.type === "emploi"
-                ? "bg-blue-100 text-blue-800"
-                : selectedCandidature.type === "stage"
-                ? "bg-green-100 text-green-800"
-                : selectedCandidature.type === "pfe"
-                ? "bg-purple-100 text-purple-800"
-                : selectedCandidature.type === "stage_spontane"
-                ? "bg-teal-100 text-teal-800"
-                : "bg-orange-100 text-orange-800"
-            }`}
-          >
-            {selectedCandidature.type === "spontanee"
-              ? "Spontanée"
-              : selectedCandidature.type === "emploi"
-              ? "CDI/CDD"
-              : selectedCandidature.type === "stage"
-              ? "Stage"
-              : selectedCandidature.type === "pfe"
-              ? "PFE"
-              : selectedCandidature.type === "stage_spontane"
-              ? "Stage Spontané"
-              : selectedCandidature.type}
-          </span>
-        </p>
+              <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
+                <p>
+                  <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                </p>
+                <p>
+                  <strong>📧 Email :</strong> {selectedCandidature.email}
+                </p>
+                {selectedCandidature.telephone && (
+                  <p>
+                    <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
+                  </p>
+                )}
+                {selectedCandidature.diplome && (
+                  <p>
+                    <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
+                  </p>
+                )}
+                {selectedCandidature.experience && (
+                  <p>
+                    <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+                  </p>
+                )}
+                {selectedCandidature.competenceScore && (
+                  <p>
+                    <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+                  </p>
+                )}
+                <p>
+                  <strong>📅 Date de soumission :</strong>{" "}
+                  {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
+                </p>
+                <p>
+                  <strong>📋 Type :</strong>
+                  <span
+                    className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                      selectedCandidature.type === "emploi"
+                        ? "bg-blue-100 text-blue-800"
+                        : selectedCandidature.type === "stage"
+                        ? "bg-green-100 text-green-800"
+                        : selectedCandidature.type === "pfe"
+                        ? "bg-purple-100 text-purple-800"
+                        : selectedCandidature.type === "stage_spontane"
+                        ? "bg-teal-100 text-teal-800"
+                        : "bg-orange-100 text-orange-800"
+                    }`}
+                  >
+                    {selectedCandidature.type === "spontanee"
+                      ? "Spontanée"
+                      : selectedCandidature.type === "emploi"
+                      ? "CDI/CDD"
+                      : selectedCandidature.type === "stage"
+                      ? "Stage"
+                      : selectedCandidature.type === "pfe"
+                      ? "PFE"
+                      : selectedCandidature.type === "stage_spontane"
+                      ? "Stage Spontané"
+                      : selectedCandidature.type}
+                  </span>
+                </p>
 
-        {selectedCandidature.cvUrl && (
-          <p>
-            <strong>📎 CV :</strong>{" "}
-            <a
-              href={getFileUrl(selectedCandidature.cvUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline flex items-center space-x-1"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Télécharger le CV</span>
-            </a>
-          </p>
-        )}
+                {selectedCandidature.cvUrl && (
+                  <p>
+                    <strong>📎 CV :</strong>{" "}
+                    <a
+                      href={getFileUrl(selectedCandidature.cvUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger le CV</span>
+                    </a>
+                  </p>
+                )}
 
-        {selectedCandidature.lettreMotivationUrl && (
-          <p>
-            <strong>📝 Lettre de motivation :</strong>{" "}
-            <a
-              href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline flex items-center space-x-1"
-            >
-              <FileText className="h-4 w-4" />
-              <span>Télécharger la lettre</span>
-            </a>
-          </p>
-        )}
-      </div>
+                {selectedCandidature.lettreMotivationUrl && (
+                  <p>
+                    <strong>📝 Lettre de motivation :</strong>{" "}
+                    <a
+                      href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Télécharger la lettre</span>
+                    </a>
+                  </p>
+                )}
+              </div>
 
-      <div className="mt-6 flex justify-end space-x-3">
-        <button
-          onClick={() => restaurerCandidature(selectedCandidature)}
-          className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-        >
-          <RotateCcw className="h-4 w-4" />
-          <span>Restaurer</span>
-        </button>
-        <button
-          onClick={() => changerStatut(selectedCandidature, "ignorer")}
-          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
-        >
-          <Ban className="h-4 w-4" />
-          <span>Ignorer</span>
-        </button>
-        <button
-          onClick={() => supprimerCandidature(selectedCandidature)}
-          className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>Supprimer</span>
-        </button>
-        <button
-          onClick={() => setSelectedCandidature(null)}
-          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
-        >
-          Fermer
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => restaurerCandidature(selectedCandidature)}
+                  className="flex items-center space-x-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Restaurer</span>
+                </button>
+                <button
+                  onClick={() => changerStatut(selectedCandidature, "ignorer")}
+                  className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
+                >
+                  <Ban className="h-4 w-4" />
+                  <span>Ignorer</span>
+                </button>
+                <button
+                  onClick={() => supprimerCandidature(selectedCandidature)}
+                  className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Supprimer</span>
+                </button>
+                <button
+                  onClick={() => setSelectedCandidature(null)}
+                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     );
   };
 
   const ReponsesCandidaturesList = () => {
-    // CORRECTION : Utiliser toutes les candidatures pour les réponses
     const candidaturesArchivees = candidatures.filter((c) => 
       (c.statut === "acceptee" || c.statut === "refusee") && !c.ignored
     );
@@ -2128,6 +2238,207 @@ const handleChangePassword = async () => {
     );
   };
 
+  // === COMPOSANT POUR LA GESTION DES UTILISATEURS ===
+  const GestionUtilisateurs = () => {
+    return (
+      <section className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h2>
+          <button
+            onClick={() => setShowAddUser(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 font-medium shadow-lg"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Ajouter un utilisateur</span>
+          </button>
+        </div>
+
+        {errorUsers && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {errorUsers}
+          </div>
+        )}
+
+        {/* Modal d'ajout d'utilisateur */}
+        {showAddUser && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-gray-800">Ajouter un utilisateur</h3>
+                <button
+                  onClick={() => {
+                    setShowAddUser(false);
+                    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+                    setErrorUsers("");
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                >
+                  <XIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nom complet *
+                  </label>
+                  <input
+                    type="text"
+                    value={newUser.nom}
+                    onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Entrez le nom complet"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Entrez l'email"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Mot de passe *
+                  </label>
+                  <input
+                    type="password"
+                    value={newUser.motDePasse}
+                    onChange={(e) => setNewUser({ ...newUser, motDePasse: e.target.value })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Minimum 6 caractères"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rôle *
+                  </label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "gestionnaire" })}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  >
+                    <option value="gestionnaire">Gestionnaire</option>
+                    <option value="admin">Administrateur</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowAddUser(false);
+                    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
+                    setErrorUsers("");
+                  }}
+                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleAddUser}
+                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+                >
+                  Créer l'utilisateur
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tableau des utilisateurs */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {loadingUsers ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Chargement des utilisateurs...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h4 className="text-lg font-semibold text-gray-700 mb-2">Aucun utilisateur</h4>
+              <p className="text-gray-500">Commencez par ajouter votre premier utilisateur.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-full table-auto">
+                <thead className="bg-gradient-to-r from-blue-50 to-blue-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Utilisateur</th>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Email</th>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Rôle</th>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Date de création</th>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Statut</th>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 transition-colors duration-200">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 font-semibold">
+                              {user.nom.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{user.nom}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          user.role === "admin" 
+                            ? "bg-purple-100 text-purple-800" 
+                            : "bg-green-100 text-green-800"
+                        }`}>
+                          {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {new Date(user.dateCreation).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                          user.statut === "actif" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {user.statut === "actif" ? "Actif" : "Inactif"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all duration-200"
+                            title="Supprimer l'utilisateur"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   const getCandidatureStats = (offreId: number) => {
     const candidaturesOffre = candidaturesParPostes.filter((c) => {
       return c.offre_id === offreId;
@@ -2163,7 +2474,7 @@ const handleChangePassword = async () => {
               />
             </Link>
             <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Dashboard Gestionnaire
+              {userRole === "admin" ? "Dashboard Administrateur" : "Dashboard Gestionnaire"}
             </h1>
           </div>
 
@@ -2214,7 +2525,7 @@ const handleChangePassword = async () => {
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
               >
-                <XCircle className="h-6 w-6" />
+                <XIcon className="h-6 w-6" />
               </button>
             </div>
 
@@ -2335,7 +2646,7 @@ const handleChangePassword = async () => {
             }`}
           >
             <Users className="h-5 w-5" />
-            <span>Candidatures Spontanées - Stage/PFE</span>
+            <span>Candidatures Spontanées</span>
             {notificationCounts.candidatures > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
                 {notificationCounts.candidatures}
@@ -2385,6 +2696,21 @@ const handleChangePassword = async () => {
             <Archive className="h-5 w-5" />
             <span>Archives</span>
           </button>
+          
+          {/* Onglet réservé aux administrateurs */}
+          {userRole === "admin" && (
+            <button
+              onClick={() => setActiveTab("utilisateurs")}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                activeTab === "utilisateurs"
+                  ? "bg-purple-500 text-white shadow-lg"
+                  : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+              }`}
+            >
+              <Users className="h-5 w-5" />
+              <span>Gestion Utilisateurs</span>
+            </button>
+          )}
         </div>
 
         {(activeTab === "candidatures" ||
@@ -3067,12 +3393,12 @@ const handleChangePassword = async () => {
 
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
-          onClick={() => changerStatut(selectedCandidature, "ignorer")}
-          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
-        >
-          <Ban className="h-4 w-4" />
-          <span>Ignorer</span>
-        </button>
+                      onClick={() => changerStatut(selectedCandidature, "ignorer")}
+                      className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
+                    >
+                      <Ban className="h-4 w-4" />
+                      <span>Ignorer</span>
+                    </button>
                     <button
                       onClick={() => supprimerCandidature(selectedCandidature)}
                       className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
@@ -3305,13 +3631,13 @@ const handleChangePassword = async () => {
                   </div>
 
                   <div className="mt-6 flex justify-end space-x-3">
-                                       <button
-          onClick={() => changerStatut(selectedCandidature, "ignorer")}
-          className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
-        >
-          <Ban className="h-4 w-4" />
-          <span>Ignorer</span>
-        </button>
+                    <button
+                      onClick={() => changerStatut(selectedCandidature, "ignorer")}
+                      className="flex items-center space-x-2 px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all font-medium"
+                    >
+                      <Ban className="h-4 w-4" />
+                      <span>Ignorer</span>
+                    </button>
                     <button
                       onClick={() => supprimerCandidature(selectedCandidature)}
                       className="flex items-center space-x-2 px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium"
@@ -3335,9 +3661,11 @@ const handleChangePassword = async () => {
         {activeTab === "archives" && <ArchivesList />}
 
         {activeTab === "reponses-candidatures" && <ReponsesCandidaturesList />}
+
+        {activeTab === "utilisateurs" && userRole === "admin" && <GestionUtilisateurs />}
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default DashboardAdmin;
