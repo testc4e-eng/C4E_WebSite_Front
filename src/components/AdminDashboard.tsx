@@ -622,68 +622,62 @@ const supprimerCandidature = async (candidature: Candidature) => {
   try {
     const { id, type } = candidature;
 
-    // CORRECTION : URLs de suppression basées sur le type exact
-    let url = "";
-    if (type === "spontanee" || type === "stage_spontane") {
-      // Pour les candidatures spontanées
-      url = `/api/candidatures/spontanees/${id}`;
-    } else if (type === "emploi" || type === "stage" || type === "pfe") {
-      // Pour les candidatures par postes - CORRECTION ICI
-      url = `/api/candidatures/${id}`;
-    } else {
-      throw new Error(`Type de candidature non supporté: ${type}`);
-    }
+    // Essayer les deux endpoints possibles
+    const endpoints = [
+      `/api/candidatures/${id}`,
+      `/api/candidatures/spontanees/${id}`
+    ];
 
-    console.log(`🗑️ Suppression: ${url}, type: ${type}, id: ${id}`);
+    let lastError = null;
 
-    const response = await fetch(getApiUrl(url), {
-      method: "DELETE",
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`🗑️ Tentative suppression: ${endpoint}`);
+        
+        const response = await fetch(getApiUrl(endpoint), {
+          method: "DELETE",
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          // Suppression réussie
+          setCandidatures((prev) =>
+            prev.filter((c) => !(c.id === id && c.type === type))
+          );
+
+          // Mettre à jour localStorage
+          const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+          const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
+            !(c.id === id && c.type === type)
+          );
+          localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
+
+          if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
+            setSelectedCandidature(null);
+          }
+
+          console.log("✅ Candidature supprimée avec succès");
+          setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+          setTimeout(() => setErrorCandidatures(""), 3000);
+          return;
+        } else {
+          lastError = `Erreur ${response.status} pour ${endpoint}`;
+        }
+      } catch (err) {
+        lastError = err;
       }
-    });
-
-    // Vérification plus robuste du statut HTTP
-    if (response.status === 404) {
-      throw new Error("Route non trouvée - Vérifiez l'URL de l'API");
-    }
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Erreur ${response.status}: ${errorText}`);
     }
 
-    // Supprimer de l'état React
-    setCandidatures((prev) =>
-      prev.filter((c) => !(c.id === id && c.type === type))
-    );
-
-    // Supprimer de localStorage
-    const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
-    const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
-      !(c.id === id && c.type === type)
-    );
-    localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
-
-    if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
-      setSelectedCandidature(null);
-    }
-
-    console.log("✅ Candidature supprimée avec succès");
-    setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
-    setTimeout(() => setErrorCandidatures(""), 3000);
+    // Si on arrive ici, toutes les tentatives ont échoué
+    throw new Error(lastError instanceof Error ? lastError.message : "Tous les endpoints ont échoué");
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
     console.error("❌ Erreur suppression:", err);
-    
-    // Message d'erreur plus informatif
-    if (message.includes("404") || message.includes("Route non trouvée")) {
-      setErrorCandidatures(`❌ Erreur: La route de suppression n'existe pas. Contactez l'administrateur.`);
-    } else {
-      setErrorCandidatures(`❌ Erreur: ${message}`);
-    }
+    setErrorCandidatures(`❌ Erreur: ${message}`);
   }
 };
 
