@@ -2157,7 +2157,7 @@ const handleChangePassword = async () => {
               />
             </Link>
             <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Dashboard Gestionnaire
+              Dashboard Gestionnaireeeeee
             </h1>
           </div>
 
