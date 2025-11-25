@@ -615,37 +615,77 @@ const DashboardAdmin = () => {
   };
 
   // === GESTION DES CANDIDATURES - CORRIGÉE ===
-  const supprimerCandidature = async (candidature: Candidature) => {
-    if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`)) return;
-    
-    try {
-      const { id, type } = candidature;
-      
-      const url = type === "spontanee" || type === "stage_spontane" 
-        ? `/api/candidatures/spontanees/${id}`
-        : `/api/candidatures/${id}`;
+const supprimerCandidature = async (candidature: Candidature) => {
+  if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`))
+    return;
 
-      const response = await fetch(getApiUrl(url), {
-        method: "DELETE",
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-      });
+  try {
+    const { id, type } = candidature;
 
-      await handleApiError(response);
-      
-      setCandidatures((prev) => prev.filter((c) => !(c.id === id && c.type === type)));
-      
-      if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
-        setSelectedCandidature(null);
-      }
-      
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      setErrorCandidatures(`Échec: ${message}`);
+    // CORRECTION : URLs de suppression basées sur le type exact
+    let url = "";
+    if (type === "spontanee" || type === "stage_spontane") {
+      // Pour les candidatures spontanées
+      url = `/api/candidatures/spontanees/${id}`;
+    } else if (type === "emploi" || type === "stage" || type === "pfe") {
+      // Pour les candidatures par postes - CORRECTION ICI
+      url = `/api/candidatures/${id}`;
+    } else {
+      throw new Error(`Type de candidature non supporté: ${type}`);
     }
-  };
+
+    console.log(`🗑️ Suppression: ${url}, type: ${type}, id: ${id}`);
+
+    const response = await fetch(getApiUrl(url), {
+      method: "DELETE",
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Vérification plus robuste du statut HTTP
+    if (response.status === 404) {
+      throw new Error("Route non trouvée - Vérifiez l'URL de l'API");
+    }
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erreur ${response.status}: ${errorText}`);
+    }
+
+    // Supprimer de l'état React
+    setCandidatures((prev) =>
+      prev.filter((c) => !(c.id === id && c.type === type))
+    );
+
+    // Supprimer de localStorage
+    const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+    const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
+      !(c.id === id && c.type === type)
+    );
+    localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
+
+    if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
+      setSelectedCandidature(null);
+    }
+
+    console.log("✅ Candidature supprimée avec succès");
+    setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+    setTimeout(() => setErrorCandidatures(""), 3000);
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("❌ Erreur suppression:", err);
+    
+    // Message d'erreur plus informatif
+    if (message.includes("404") || message.includes("Route non trouvée")) {
+      setErrorCandidatures(`❌ Erreur: La route de suppression n'existe pas. Contactez l'administrateur.`);
+    } else {
+      setErrorCandidatures(`❌ Erreur: ${message}`);
+    }
+  }
+};
 
   const changerStatut = async (
     candidature: Candidature,
