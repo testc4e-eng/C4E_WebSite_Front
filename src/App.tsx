@@ -23,7 +23,8 @@ function App() {
   // 👉 Pages sans Header et Footer
   const isProtectedPage =
     location.pathname === "/dashboard" ||
-    location.pathname === "/admin-dashboard";
+    location.pathname === "/admin-dashboard" ||
+    location.pathname === "/login";
 
   return (
     <div className="App">
@@ -47,7 +48,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/login" element={<Login />} />
-        
+
         <Route path="*" element={<NotFound />} />
       </Routes>
 
