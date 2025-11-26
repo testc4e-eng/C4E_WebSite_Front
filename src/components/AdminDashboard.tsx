@@ -261,27 +261,32 @@ const DashboardAdmin = () => {
   });
 const [userRole, setUserRole] = useState<"admin" | "gestionnaire">("admin");
 useEffect(() => {
-  if (!token) navigate("/login");
-  
-  // Récupérer le rôle depuis localStorage ou déterminer depuis l'URL
+  if (!token) {
+    navigate("/login");
+    return;
+  }
+
+  // Logique de détermination du rôle UNE SEULE FOIS au montage
   const userData = localStorage.getItem("userData");
   const userType = localStorage.getItem("userType");
-  
+
+  let determinedRole: "admin" | "gestionnaire" = "gestionnaire";
+
   if (userData) {
     try {
       const parsedData = JSON.parse(userData);
-      setUserRole(parsedData.role || parsedData.type || "gestionnaire");
+      determinedRole = parsedData.role || parsedData.type || "gestionnaire";
     } catch {
-      // Si pas de userData, vérifier l'URL ou utiliser une valeur par défaut
-      setUserRole(window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire");
+      determinedRole = window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire";
     }
   } else if (userType) {
-    setUserRole(userType === "administrateur" ? "admin" : "gestionnaire");
+    determinedRole = userType === "administrateur" ? "admin" : "gestionnaire";
   } else {
-    // Déterminer basé sur l'URL actuelle
-    setUserRole(window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire");
+    determinedRole = window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire";
   }
-}, [token, navigate]);
+
+  setUserRole(determinedRole);
+}, []);
 
   // Charger les données depuis localStorage au montage
   useEffect(() => {
@@ -493,63 +498,80 @@ useEffect(() => {
     }
   };
 
-  const handleAddUser = async () => {
-    try {
-      setErrorUsers("");
-      
-      // Validation
-      if (!newUser.nom?.trim()) {
-        setErrorUsers("Le nom est requis");
-        return;
-      }
-      if (!newUser.email?.trim()) {
-        setErrorUsers("L'email est requis");
-        return;
-      }
-      if (!newUser.motDePasse) {
-        setErrorUsers("Le mot de passe est requis");
-        return;
-      }
-      if (newUser.motDePasse.length < 6) {
-        setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
-        return;
-      }
-
-      const userData = {
-        nom: newUser.nom.trim(),
-        email: newUser.email.trim(),
-        motDePasse: newUser.motDePasse,
-        role: newUser.role
-      };
-
-      const response = await fetch(getApiUrl("/api/admin/utilisateurs"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(userData),
-      });
-
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || responseData.error || `Erreur ${response.status}`);
-      }
-
-      // Réinitialisation et fermeture
-      setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
-      setShowAddUser(false);
-      setErrorUsers("");
-     
-      // Rechargement de la liste
-      fetchUsers();
-      
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-      setErrorUsers(`Erreur: ${message}`);
+const handleAddUser = async () => {
+  try {
+    setErrorUsers("");
+    
+    // Validation améliorée
+    if (!newUser.nom?.trim()) {
+      setErrorUsers("Le nom est requis");
+      return;
     }
-  };
+    if (!newUser.email?.trim()) {
+      setErrorUsers("L'email est requis");
+      return;
+    }
+    if (!newUser.motDePasse) {
+      setErrorUsers("Le mot de passe est requis");
+      return;
+    }
+    if (newUser.motDePasse.length < 6) {
+      setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
+    // Validation email basique
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUser.email)) {
+      setErrorUsers("Veuillez entrer un email valide");
+      return;
+    }
+
+    const userData = {
+      nom: newUser.nom.trim(),
+      email: newUser.email.trim().toLowerCase(),
+      motDePasse: newUser.motDePasse,
+      role: newUser.role
+    };
+
+    console.log("🔄 Création utilisateur:", userData);
+
+    const response = await fetch(getApiUrl("/api/admin/utilisateurs"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(responseData.message || responseData.error || `Erreur ${response.status}`);
+    }
+
+    // Réinitialisation complète
+    setNewUser({ 
+      nom: "", 
+      email: "", 
+      motDePasse: "", 
+      role: "gestionnaire" 
+    });
+    setShowAddUser(false);
+    setErrorUsers("");
+   
+    // Rechargement de la liste
+    await fetchUsers();
+    
+    console.log("✅ Utilisateur créé avec succès");
+    
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
+    console.error("❌ Erreur création utilisateur:", err);
+    setErrorUsers(`Erreur: ${message}`);
+  }
+};
 
   const handleDeleteUser = async (user: User) => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.nom} ?`)) return;
@@ -747,67 +769,63 @@ useEffect(() => {
     }
   };
 
-  const supprimerCandidature = async (candidature: Candidature) => {
-    if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`))
-      return;
+const supprimerCandidature = async (candidature: Candidature) => {
+  if (!window.confirm(`Confirmer la suppression de la candidature de ${candidature.nom} ?`))
+    return;
 
-    try {
-      const { id, type } = candidature;
+  try {
+    const { id, type } = candidature;
 
-      const endpoints = [
-        `/api/candidatures/${id}`,
-        `/api/candidatures/spontanees/${id}`
-      ];
+    // Déterminer le bon endpoint en fonction du type
+    let endpoint = '';
+    if (type === 'spontanee' || type === 'stage_spontane') {
+      endpoint = `/api/candidatures/spontanees/${id}`;
+    } else {
+      endpoint = `/api/candidatures/${id}`;
+    }
 
-      let lastError = null;
+    console.log(`🗑️ Tentative suppression: ${endpoint}`);
+    
+    const response = await fetch(getApiUrl(endpoint), {
+      method: "DELETE",
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🗑️ Tentative suppression: ${endpoint}`);
-          
-          const response = await fetch(getApiUrl(endpoint), {
-            method: "DELETE",
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
+    if (response.ok) {
+      // Supprimer de l'état local
+      setCandidatures((prev) =>
+        prev.filter((c) => !(c.id === id && c.type === type))
+      );
 
-          if (response.ok) {
-            setCandidatures((prev) =>
-              prev.filter((c) => !(c.id === id && c.type === type))
-            );
+      // Supprimer du localStorage
+      const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+      const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
+        !(c.id === id && c.type === type)
+      );
+      localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-            const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
-            const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
-              !(c.id === id && c.type === type)
-            );
-            localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
-
-            if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
-              setSelectedCandidature(null);
-            }
-
-            console.log("✅ Candidature supprimée avec succès");
-            setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
-            setTimeout(() => setErrorCandidatures(""), 3000);
-            return;
-          } else {
-            lastError = `Erreur ${response.status} pour ${endpoint}`;
-          }
-        } catch (err) {
-          lastError = err;
-        }
+      // Fermer les modals ouverts
+      if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
+        setSelectedCandidature(null);
       }
 
-      throw new Error(lastError instanceof Error ? lastError.message : "Tous les endpoints ont échoué");
-
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur suppression:", err);
-      setErrorCandidatures(`❌ Erreur: ${message}`);
+      console.log("✅ Candidature supprimée avec succès");
+      setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+      setTimeout(() => setErrorCandidatures(""), 3000);
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Erreur ${response.status}`);
     }
-  };
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
+    console.error("❌ Erreur suppression:", err);
+    setErrorCandidatures(`❌ Erreur: ${message}`);
+  }
+};
 
   const restaurerCandidature = (candidature: Candidature) => {
     const updatedCandidature = { ...candidature, ignored: false };
@@ -2267,99 +2285,113 @@ useEffect(() => {
         )}
 
         {/* Modal d'ajout d'utilisateur */}
-        {showAddUser && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-bold text-gray-800">Ajouter un utilisateur</h3>
-                <button
-                  onClick={() => {
-                    setShowAddUser(false);
-                    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
-                    setErrorUsers("");
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                >
-                  <XIcon className="h-6 w-6" />
-                </button>
-              </div>
+// Dans le composant GestionUtilisateurs, modifiez le modal d'ajout :
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nom complet *
-                  </label>
-                  <input
-                    type="text"
-                    value={newUser.nom}
-                    onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Entrez le nom complet"
-                  />
-                </div>
+{showAddUser && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-2xl font-bold text-gray-800">Ajouter un utilisateur</h3>
+        <button
+          onClick={() => {
+            setShowAddUser(false);
+            setNewUser({ 
+              nom: "", 
+              email: "", 
+              motDePasse: "", 
+              role: "gestionnaire" 
+            });
+            setErrorUsers("");
+          }}
+          className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+        >
+          <XIcon className="h-6 w-6" />
+        </button>
+      </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Entrez l'email"
-                  />
-                </div>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Nom complet *
+          </label>
+          <input
+            type="text"
+            value={newUser.nom}
+            onChange={(e) => setNewUser({ ...newUser, nom: e.target.value })}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            placeholder="Entrez le nom complet"
+          />
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mot de passe *
-                  </label>
-                  <input
-                    type="password"
-                    value={newUser.motDePasse}
-                    onChange={(e) => setNewUser({ ...newUser, motDePasse: e.target.value })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder="Minimum 6 caractères"
-                  />
-                </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Email *
+          </label>
+          <input
+            type="email"
+            value={newUser.email}
+            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            placeholder="Entrez l'email"
+          />
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rôle *
-                  </label>
-                  <select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "gestionnaire" })}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  >
-                    <option value="gestionnaire">Gestionnaire</option>
-                    <option value="admin">Administrateur</option>
-                  </select>
-                </div>
-              </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Mot de passe *
+          </label>
+          <input
+            type="password"
+            value={newUser.motDePasse}
+            onChange={(e) => setNewUser({ ...newUser, motDePasse: e.target.value })}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            placeholder="Minimum 6 caractères"
+            minLength={6}
+          />
+        </div>
 
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowAddUser(false);
-                    setNewUser({ nom: "", email: "", motDePasse: "", role: "gestionnaire" });
-                    setErrorUsers("");
-                  }}
-                  className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleAddUser}
-                  className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-                >
-                  Créer l'utilisateur
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Rôle *
+          </label>
+          <select
+            value={newUser.role}
+            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "gestionnaire" })}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+          >
+            <option value="gestionnaire">Gestionnaire</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end space-x-3">
+        <button
+          onClick={() => {
+            setShowAddUser(false);
+            setNewUser({ 
+              nom: "", 
+              email: "", 
+              motDePasse: "", 
+              role: "gestionnaire" 
+            });
+            setErrorUsers("");
+          }}
+          className="px-5 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+        >
+          Annuler
+        </button>
+        <button
+          onClick={handleAddUser}
+          disabled={!newUser.nom || !newUser.email || !newUser.motDePasse || newUser.motDePasse.length < 6}
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium"
+        >
+          Créer l'utilisateur
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Tableau des utilisateurs */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
