@@ -259,22 +259,29 @@ const DashboardAdmin = () => {
     motDePasse: "",
     role: "gestionnaire" as "admin" | "gestionnaire"
   });
-  const [userRole, setUserRole] = useState<"admin" | "gestionnaire">("gestionnaire");
-
-  useEffect(() => {
-    if (!token) navigate("/login");
-    
-    // Simulation du rôle utilisateur - À adapter selon votre API
-    const userData = localStorage.getItem("userData");
-    if (userData) {
-      try {
-        const parsedData = JSON.parse(userData);
-        setUserRole(parsedData.role || "gestionnaire");
-      } catch {
-        setUserRole("gestionnaire");
-      }
+const [userRole, setUserRole] = useState<"admin" | "gestionnaire">("admin");
+useEffect(() => {
+  if (!token) navigate("/login");
+  
+  // Récupérer le rôle depuis localStorage ou déterminer depuis l'URL
+  const userData = localStorage.getItem("userData");
+  const userType = localStorage.getItem("userType");
+  
+  if (userData) {
+    try {
+      const parsedData = JSON.parse(userData);
+      setUserRole(parsedData.role || parsedData.type || "gestionnaire");
+    } catch {
+      // Si pas de userData, vérifier l'URL ou utiliser une valeur par défaut
+      setUserRole(window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire");
     }
-  }, [token, navigate]);
+  } else if (userType) {
+    setUserRole(userType === "administrateur" ? "admin" : "gestionnaire");
+  } else {
+    // Déterminer basé sur l'URL actuelle
+    setUserRole(window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire");
+  }
+}, [token, navigate]);
 
   // Charger les données depuis localStorage au montage
   useEffect(() => {
