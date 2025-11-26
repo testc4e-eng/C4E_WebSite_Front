@@ -41,19 +41,19 @@ function App() {
         <Route path="/formulaire-stage" element={<FormulaireStage />} />
         <Route path="/formulaire-candidature" element={<FormulaireCandidature />} />
         <Route path="/formulaire-emploi" element={<FormulaireEmploi />} />
-        
-        {/* Login normal (garde Header/Footer) */}
-        <Route path="/login" element={<Login />} />
+      
 
         {/* Dashboards sans Header/Footer */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
-
+        <Route path="/login" element={<Login />} />
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
 
       {/* Footer invisible sur pages protégées */}
       {!isProtectedPage && <Footer />}
+
     </div>
   );
 }
