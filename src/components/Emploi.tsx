@@ -340,7 +340,7 @@ const Emploi = () => {
                 <div className="bg-blue-50 rounded-xl p-4">
                   <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                     <Briefcase className="h-5 w-5 text-blue-600" />
-                    Rémunération
+                    Salaire
                   </h3>
                   <p className="text-gray-700">{offreSpecifique.salaire}</p>
                 </div>
