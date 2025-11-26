@@ -604,58 +604,63 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
   try {
     const { id, type } = candidature;
+    console.log("🗑️ Suppression:", { id, type, nom: candidature.nom });
 
-    // Essayer les deux endpoints possibles
-    const endpoints = [
-      `/api/candidatures/${id}`,
-      `/api/candidatures/spontanees/${id}`
-    ];
-
-    let lastError = null;
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`🗑️ Tentative suppression: ${endpoint}`);
-        
-        const response = await fetch(getApiUrl(endpoint), {
-          method: "DELETE",
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          // Suppression réussie
-          setCandidatures((prev) =>
-            prev.filter((c) => !(c.id === id && c.type === type))
-          );
-
-          // Mettre à jour localStorage
-          const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
-          const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
-            !(c.id === id && c.type === type)
-          );
-          localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
-
-          if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
-            setSelectedCandidature(null);
-          }
-
-          console.log("✅ Candidature supprimée avec succès");
-          setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
-          setTimeout(() => setErrorCandidatures(""), 3000);
-          return;
-        } else {
-          lastError = `Erreur ${response.status} pour ${endpoint}`;
-        }
-      } catch (err) {
-        lastError = err;
-      }
+    // Déterminer le bon endpoint
+    let endpoint = '';
+    if (type === 'spontanee' || type === 'stage_spontane') {
+      endpoint = `/api/candidatures/spontanees/${id}`;
+    } else {
+      endpoint = `/api/candidatures/${id}`;
     }
 
-    // Si on arrive ici, toutes les tentatives ont échoué
-    throw new Error(lastError instanceof Error ? lastError.message : "Tous les endpoints ont échoué");
+    console.log(`🔗 Endpoint: ${endpoint}`);
+
+    const response = await fetch(getApiUrl(endpoint), {
+      method: "DELETE",
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log(`📊 Réponse: ${response.status}`);
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log("✅ Suppression réussie:", result);
+
+      // Mettre à jour l'état local
+      setCandidatures((prev) =>
+        prev.filter((c) => !(c.id === id && c.type === type))
+      );
+
+      // Mettre à jour le localStorage
+      const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
+      const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
+        !(c.id === id && c.type === type)
+      );
+      localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
+
+      // Fermer le modal si ouvert
+      if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
+        setSelectedCandidature(null);
+      }
+
+      setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+      setTimeout(() => setErrorCandidatures(""), 3000);
+
+    } else {
+      // Essayer de récupérer le message d'erreur
+      let errorMessage = `Erreur ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Erreur ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";

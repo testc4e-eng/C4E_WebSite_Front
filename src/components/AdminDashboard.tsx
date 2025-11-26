@@ -775,8 +775,9 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
   try {
     const { id, type } = candidature;
+    console.log("🗑️ Suppression:", { id, type, nom: candidature.nom });
 
-    // Déterminer le bon endpoint en fonction du type
+    // Déterminer le bon endpoint
     let endpoint = '';
     if (type === 'spontanee' || type === 'stage_spontane') {
       endpoint = `/api/candidatures/spontanees/${id}`;
@@ -784,8 +785,8 @@ const supprimerCandidature = async (candidature: Candidature) => {
       endpoint = `/api/candidatures/${id}`;
     }
 
-    console.log(`🗑️ Tentative suppression: ${endpoint}`);
-    
+    console.log(`🔗 Endpoint: ${endpoint}`);
+
     const response = await fetch(getApiUrl(endpoint), {
       method: "DELETE",
       headers: {
@@ -794,30 +795,42 @@ const supprimerCandidature = async (candidature: Candidature) => {
       }
     });
 
+    console.log(`📊 Réponse: ${response.status}`);
+
     if (response.ok) {
-      // Supprimer de l'état local
+      const result = await response.json();
+      console.log("✅ Suppression réussie:", result);
+
+      // Mettre à jour l'état local
       setCandidatures((prev) =>
         prev.filter((c) => !(c.id === id && c.type === type))
       );
 
-      // Supprimer du localStorage
+      // Mettre à jour le localStorage
       const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
       const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
         !(c.id === id && c.type === type)
       );
       localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-      // Fermer les modals ouverts
+      // Fermer le modal si ouvert
       if (selectedCandidature?.id === id && selectedCandidature?.type === type) {
         setSelectedCandidature(null);
       }
 
-      console.log("✅ Candidature supprimée avec succès");
       setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
       setTimeout(() => setErrorCandidatures(""), 3000);
+
     } else {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Erreur ${response.status}`);
+      // Essayer de récupérer le message d'erreur
+      let errorMessage = `Erreur ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Erreur ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
     }
 
   } catch (err: unknown) {
