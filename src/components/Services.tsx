@@ -27,8 +27,8 @@ const Services = () => {
       description: 'Solutions complètes pour la gestion des ressources hydriques',
       features: [
         'Modélisation hydrologique',
-        'Modélisation Qualité de l\'eau',
-        'Assainissement AEP',
+        'Qualité de l\'eau',
+        'Assainissement AED',
         'Optimisation et Gestion intégrée de l\'eau',
         'Barrage et Inondation'
       ],
@@ -75,35 +75,35 @@ const Services = () => {
     }
   ];
 
-  const projects = [
-    {
-      title: "Étude d'élaboration d'un système d'aide à la décision (SAD) destiné à la gestion de la qualité des eaux de surface",
-      category: "Eau",
-      country: "Maroc",
-      image: "/Projets/pg1.png",
-      description: "Conception et développement d'un système d'aide à la décision (SAD) pour le suivi, l'évaluation et l'amélioration de la qualité des eaux de surface au Maroc, intégrant des indicateurs de performance environnementale et des outils de modélisation.",
-      annee: "2025"
-    },
-    {
-      title: "Élaboration de l'atlas des zones inondables (Province de Zagora)",
-      category: "Eau",
-      country: "Maroc",
-      image: "/Projets/projet2.png",
-      description: "Réalisation d'un inventaire et d'une modélisation des zones inondables de la province de Zagora, avec analyse hydrologique et hydraulique, afin de produire un atlas opérationnel pour la prévention des risques et la gestion durable du territoire.",
-      annee: "2022-2024"
-    },
-    {
-      title: "Élaboration d'une plateforme d'alerte précoce aux crues et d'amélioration de la gestion du domaine public hydraulique par télédétection dans le bassin du Haut Ziz",
-      category: "Eau",
-      country: "Maroc",
-      image: "/Projets/projet19.png",
-      description: "Développement d'une plateforme numérique intégrant la télédétection, les données hydrométéorologiques et des modèles hydrologiques pour anticiper les crues, suivre le domaine public hydraulique et renforcer la gestion durable des ressources en eau dans le bassin du Haut Ziz.",
-      annee: "2021"
-    }
-  ];
+ const projects = [
+  {
+    title: "Étude d’élaboration d'un système d'aide à la décision (SAD) destiné à la gestion de la qualité des eaux de surface",
+    category: "Eau",
+    country: "Maroc",
+    image: "../public/Projets/pg1.png",
+    description: "Conception et développement d’un système d’aide à la décision (SAD) pour le suivi, l’évaluation et l’amélioration de la qualité des eaux de surface au Maroc, intégrant des indicateurs de performance environnementale et des outils de modélisation.",
+    annee: "2025"
+  },
+  {
+    title: "Élaboration de l’atlas des zones inondables (Province de Zagora)",
+    category: "Eau",
+    country: "Maroc",
+    image: "../public/Projets/projet2.png",
+    description: "Réalisation d’un inventaire et d’une modélisation des zones inondables de la province de Zagora, avec analyse hydrologique et hydraulique, afin de produire un atlas opérationnel pour la prévention des risques et la gestion durable du territoire.",
+    annee: "2022-2024"
+  },
+  {
+    title: "Élaboration d’une plateforme d’alerte précoce aux crues et d’amélioration de la gestion du domaine public hydraulique par télédétection dans le bassin du Haut Ziz",
+    category: "Eau",
+    country: "Maroc",
+    image: "../public/Projets/projet19.png",
+    description: "Développement d’une plateforme numérique intégrant la télédétection, les données hydrométéorologiques et des modèles hydrologiques pour anticiper les crues, suivre le domaine public hydraulique et renforcer la gestion durable des ressources en eau dans le bassin du Haut Ziz.",
+    annee: "2021"
+  }
+];
 
   return (
-    <section id="services" className="scroll-mt-20 py-20 bg-background">
+    <section id="services" className="py-20 bg-background">
       <div className="container mx-auto px-6">
         {/* --- Domaines d'Expertise --- */}
         <div className="text-center mb-16">
@@ -250,13 +250,15 @@ const Services = () => {
                     <span className="mr-1">📍</span>
                     {project.country}
                   </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-3 group-hover:text-accent transition-colors duration-300">
+                  <h3 className="text-xl font-semibold text-foreground mb-3 group-hover:text-accent transition-colors">
                     {project.title}
                   </h3>
                   <p className="text-muted-foreground mb-4 leading-relaxed">{project.description}</p>
                   <div className="bg-secondary/50 rounded-lg p-3">
-                    <div className="text-sm font-medium text-accent mb-1">Période :</div>
-                    <div className="text-sm text-foreground">{project.annee}</div>
+                    <div className="bg-secondary/50 rounded-lg p-3">
+  <div className="text-sm font-medium text-accent mb-1">Période :</div>
+  <div className="text-sm text-foreground">{project.annee}</div>
+</div>
                   </div>
                 </div>
               </motion.div>
@@ -280,196 +282,111 @@ const Services = () => {
         <div className="my-16 border-t border-accent/20"></div>
 
         {/* --- Équipe --- */}
-        <div 
-          id="team" 
-          className="scroll-mt-20 text-center bg-gradient-to-b from-gray-50 to-gray-100 py-12 rounded-2xl mb-16"
-        >
-          <motion.h2 
-            className="text-4xl md:text-5xl font-bold text-foreground mb-6"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
-            Notre <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">Équipe</span>
-          </motion.h2>
-          <motion.p 
-            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            viewport={{ once: true }}
-          >
-            Des experts passionnés conjuguant savoir-faire scientifique et innovation technologique 
-            pour relever les défis de l'eau, de l'environnement et du développement durable.
-          </motion.p>
+<div 
+  id="team" 
+  className="text-center bg-gradient-to-b from-gray-50 to-gray-100 py-12 rounded-2xl mb-16"
+>
+  <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+    Notre <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">Équipe</span>
+  </h2>
+  <p className="text-lg text-muted-foreground max-w-3xl mx-auto mb-12">
+    Des experts passionnés conjuguant savoir-faire scientifique et innovation technologique 
+    pour relever les défis de l'eau, de l'environnement et du développement durable.
+  </p>
+ 
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12 max-w-4xl mx-auto">
+    {/* Équipe Ressource en Eau */}
+    <motion.div 
+      className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-4 min-h-[160px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-blue-300 flex flex-col justify-center"
+      whileHover={{ scale: 1.02 }}
+    >
+      <h3 className="text-2xl font-bold text-blue-900 mb-2">Équipe Ressource en Eau</h3>
+      <p className="text-base text-gray-800 leading-relaxed">
+        Spécialisée dans la gestion intégrée des ressources en eau, l’hydrologie, la modélisation et 
+        la planification durable des systèmes hydriques.
+      </p>
+    </motion.div>
 
-          {/* Grille des équipes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12 max-w-4xl mx-auto">
-            {/* Équipe Ressources en Eau */}
-            <motion.div 
-              className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-6 min-h-[160px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-blue-300 flex flex-col justify-center"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <h3 className="text-2xl font-bold text-blue-900 mb-2">Ressources en Eau</h3>
-              <p className="text-base text-gray-800 leading-relaxed">
-                Gestion intégrée des ressources hydriques, hydrologie, modélisation et planification durable.
-              </p>
-            </motion.div>
+    {/* Équipe Génie Civile */}
+    <motion.div 
+      className="bg-gradient-to-br from-teal-100 to-teal-200 rounded-2xl p-4 min-h-[160px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-teal-300 flex flex-col justify-center"
+      whileHover={{ scale: 1.02 }}
+    >
+      <h3 className="text-2xl font-bold text-teal-900 mb-2">Équipe Génie Civile</h3>
+      <p className="text-base text-gray-800 leading-relaxed">
+        Experte en infrastructures hydrauliques, génie rural, aménagements, et ouvrages 
+        de protection contre les inondations.
+      </p>
+    </motion.div>
+  </div>
+</div>
 
-            {/* Équipe Génie Civil */}
-            <motion.div 
-              className="bg-gradient-to-br from-teal-100 to-teal-200 rounded-2xl p-6 min-h-[160px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-teal-300 flex flex-col justify-center"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <h3 className="text-2xl font-bold text-teal-900 mb-2">Génie Civil</h3>
-              <p className="text-base text-gray-800 leading-relaxed">
-                Infrastructures hydrauliques, aménagements, génie rural et protection contre les inondations.
-              </p>
-            </motion.div>
-
-            {/* Équipe SIG et Développement */}
-            <motion.div 
-              className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl p-6 min-h-[160px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-purple-300 flex flex-col justify-center"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <h3 className="text-2xl font-bold text-purple-900 mb-2">SIG et Développement</h3>
-              <p className="text-base text-gray-800 leading-relaxed">
-                Développement d'outils SIG, cartographie interactive, analyse spatiale et solutions innovantes.
-              </p>
-            </motion.div>
-
-            {/* Équipe Innovation et R&D */}
-            <motion.div 
-              className="bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-2xl p-6 min-h-[160px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-yellow-300 flex flex-col justify-center"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              viewport={{ once: true }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <h3 className="text-2xl font-bold text-yellow-900 mb-2">Innovation et R&D</h3>
-              <p className="text-base text-gray-800 leading-relaxed">
-                Recherche et développement, nouvelles technologies, prototypes et solutions innovantes pour l'environnement et l'ingénierie.
-              </p>
-            </motion.div>
-          </div>
-        </div>
 
         {/* --- Séparateur --- */}
         <div className="my-16 border-t border-accent/20"></div>
 
         {/* --- Emploi --- */}
-<div 
-  id="emploi" 
-  className="scroll-mt-20 text-center bg-gradient-to-b from-amber-50 to-orange-100 py-12 rounded-2xl"
->
-  <motion.h2 
-    className="text-4xl md:text-5xl font-bold text-foreground mb-6"
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.6 }}
-    viewport={{ once: true }}
-  >
-    Opportunités <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-400">d'Emploi</span>
-  </motion.h2>
-  <motion.p 
-    className="text-lg text-muted-foreground max-w-3xl mx-auto mb-12"
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.6, delay: 0.2 }}
-    viewport={{ once: true }}
-  >
-    Rejoignez une équipe dynamique et contribuez à des projets impactants en développement durable.
-  </motion.p>
-  
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-5xl mx-auto">
-    {/* Offre d'emploi, Stage et PFE */}
-    <motion.div 
-      className="bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-amber-300 flex flex-col justify-center items-center"
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.1 }}
-      viewport={{ once: true }}
-      whileHover={{ scale: 1.02 }}
-    >
-      <Briefcase className="h-8 w-8 text-amber-600 mb-3" />
-      <h3 className="text-xl font-bold text-amber-900 mb-2">Offre d'emploi, Stage et PFE</h3>
-      <p className="text-sm text-gray-700 leading-relaxed text-center mb-3">
-        Découvrez nos opportunités de carrière et de stages pré-embauche.
-      </p>
-      <motion.button
-        onClick={() => navigate('/Emploi')}
-        className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        Voir les Offres
-      </motion.button>
-    </motion.div>
-
-    {/* Candidature Spontanée : Stage/PFE */}
-    <motion.div 
-      className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-blue-300 flex flex-col justify-center items-center"
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
-      viewport={{ once: true }}
-      whileHover={{ scale: 1.02 }}
-    >
-      <Users className="h-8 w-8 text-blue-600 mb-3" />
-      <h3 className="text-xl font-bold text-blue-900 mb-2">Candidature Spontanée : Stage/PFE</h3>
-      <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
-        Envoyez votre candidature pour des stages ou PFE même si aucune offre ne correspond à votre profil.
-      </p>
-      <motion.button
-        onClick={() => navigate('/formulaire-stage')}
-        className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        Postuler
-      </motion.button>
-    </motion.div>
-
-    {/* Candidature Spontanée : Emploi */}
-    <motion.div 
-      className="bg-gradient-to-br from-green-100 to-green-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-green-300 flex flex-col justify-center items-center"
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.3 }}
-      viewport={{ once: true }}
-      whileHover={{ scale: 1.02 }}
-    >
-      <FileText className="h-8 w-8 text-green-600 mb-3" />
-      <h3 className="text-xl font-bold text-green-900 mb-2">Candidature Spontanée : Emploi</h3>
-      <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
-        Envoyez votre candidature pour un emploi même si aucune offre ne correspond à votre profil.
-      </p>
-      <motion.button
-        onClick={() => navigate('/formulaire-candidature')}
-        className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        Postuler
-      </motion.button>
-    </motion.div>
-  </div>
-</div>
-
+        <div 
+          id="emploi" 
+          className="text-center bg-gradient-to-b from-amber-50 to-orange-100 py-12 rounded-2xl"
+        >
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+            Opportunités <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-orange-400">d'Emploi</span>
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto mb-12">
+            Rejoignez une équipe dynamique et contribuez à des projets impactants en développement durable.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-5xl mx-auto">
+            <motion.div 
+              className="bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-amber-300 flex flex-col justify-center items-center"
+              whileHover={{ scale: 1.02 }}
+            >
+              <Briefcase className="h-8 w-8 text-amber-600 mb-3" />
+              <h3 className="text-xl font-bold text-amber-900 mb-2">Offres d'emploi et stages pré-embauche</h3>
+              <p className="text-sm text-gray-700 leading-relaxed text-center mb-3">
+                Découvrez nos opportunités de carrière et de stages pré-embauche.
+              </p>
+              <button
+                onClick={() => navigate('/Emploi')}
+                className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
+              >
+                Voir les Offres
+              </button>
+            </motion.div>
+            <motion.div 
+              className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-blue-300 flex flex-col justify-center items-center"
+              whileHover={{ scale: 1.02 }}
+            >
+              <Users className="h-8 w-8 text-blue-600 mb-3" />
+              <h3 className="text-xl font-bold text-blue-900 mb-2">Stage et PFE</h3>
+              <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
+                Opportunités de stages et Projets de Fin d'Etudes pour étudiants motivés.
+              </p>
+              <button
+                onClick={() => navigate('/formulaire-stage')}
+                className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
+              >
+                Voir les Stages
+              </button>
+            </motion.div>
+            <motion.div 
+              className="bg-gradient-to-br from-green-100 to-green-200 rounded-2xl p-6 min-h-[200px] hover:-translate-y-1 hover:shadow-lg transition-all duration-300 shadow-md border border-green-300 flex flex-col justify-center items-center"
+              whileHover={{ scale: 1.02 }}
+            >
+              <FileText className="h-8 w-8 text-green-600 mb-3" />
+              <h3 className="text-xl font-bold text-green-900 mb-2">Candidature spontanée</h3>
+              <p className="text-sm text-gray-700 leading-relaxed text-center mb-4">
+                Envoyez votre candidature même si aucune offre ne correspond à votre profil.
+              </p>
+              <button
+                onClick={() => navigate('/formulaire-candidature')}
+                className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-sm"
+              >
+                Postuler
+              </button>
+            </motion.div>
+          </div>
+        </div>
       </div>
     </section>
   );

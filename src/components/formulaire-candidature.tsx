@@ -14,7 +14,7 @@ interface CompetencesType {
   travailEquipe: number;
   leadership: number;
   problemSolving: number;
-  créativité: number;
+  creativite: number;
 }
 
 interface FormDataType {
@@ -53,7 +53,7 @@ const FormulaireCandidature = () => {
       travailEquipe: 0,
       leadership: 0,
       problemSolving: 0,
-      créativité: 0,
+      creativite: 0,
     },
     type_etablissement: '',
     diplome: '',
@@ -120,18 +120,13 @@ const calculerScore = (competences: CompetencesType) => {
       formToSend.append('cv', formData.cv);
       formToSend.append('lettre_motivation', formData.lettre_motivation);
 
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
       const score = calculerScore(formData.competences);
       console.log('Score calculé:', score);
 
-      let url = "";
-      if (type === "emploi") {
-        url = `${API_BASE_URL}/api/candidature-emploi`;
-      } else if (type === "stage") {
-        url = `${API_BASE_URL}/api/candidature-stage`;
-      } else {
-        url = `${API_BASE_URL}/api/candidature-spontanee`;
-      }
+      let url = '';
+      if (type === 'emploi') url = 'http://localhost:3001/api/candidature-emploi';
+      else if (type === 'stage') url = 'http://localhost:3001/api/candidature-stage';
+      else url = 'http://localhost:3001/api/candidature-spontanee';
 
       const response = await fetch(url, {
         method: 'POST',
@@ -150,7 +145,7 @@ const calculerScore = (competences: CompetencesType) => {
           cv: null,
           lettre_motivation: null,
           poste: type === 'emploi' ? posteFromState : '',
-          competences: { communication: 0, travailEquipe: 0, leadership: 0, problemSolving: 0, créativité: 0 },
+          competences: { communication: 0, travailEquipe: 0, leadership: 0, problemSolving: 0, creativite: 0 },
           type_etablissement: '',
           diplome: '',
           experience: '',

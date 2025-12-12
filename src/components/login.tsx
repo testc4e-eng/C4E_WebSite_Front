@@ -1,74 +1,51 @@
-// src/components/login.tsx
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Mail, Lock, LogIn } from "lucide-react";
-import { motion } from "framer-motion";
-import { postJson } from "../lib/api"; // ← Import modifié
+// 📂 Chemin : Frontend\src\components\login.tsx
+// 🎯 Rôle : Composant Login avec intégration backend sur port 3001 pour PostgreSQL.
 
-// Interface pour la réponse de l'API
-interface LoginResponse {
-  token: string;
-  user: {
-    id: string;
-    email: string;
-    role: string;
-    type: "gestionnaire" | "administrateur";
-  };
-}
+// =========================
+// Importation des dépendances
+// =========================
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Mail, Lock, LogIn } from 'lucide-react';
 
-// Interface pour l'erreur
-interface ApiError {
-  response?: {
-    data?: {
-      message: string;
-    };
-  };
-  message: string;
-}
-
+// =========================
+// Composant principal Login
+// =========================
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [motDePasse, setMotDePasse] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
+    setError('');
 
+    // Requête vers le backend sur port 3001
     try {
-      console.log("Payload envoyé:", { email, motDePasse });
+      const response = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          motDePasse: password,
+        }),
+      });
 
-      // ✅ UTILISEZ postJson au lieu de api.post
-      const { data } = await postJson<LoginResponse>(
-        "/api/auth/login",
-        null, // token (null pour login)
-        { email, motDePasse } // Corps de la requête
-      );
+      const data = await response.json();
 
-      // ✅ Utilisation correcte de 'data'
-      if (data.token && data.user) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("userType", data.user.type);
-        localStorage.setItem("userRole", data.user.role);
-
-        // ✅ Redirection automatique selon le rôle de l'utilisateur
-        if (data.user.type === "administrateur") {
-          navigate("/admin-dashboard");
-        } else {
-          navigate("/dashboard");
-        }
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        navigate('/dashboard'); // Ajustez si votre route dashboard est différente
+      } else {
+        setError(data.message || 'Erreur lors de la connexion.');
       }
-    } catch (err: unknown) {
-      const error = err as ApiError;
-      // Adaptation pour l'erreur fetch
-      const msg =
-        error?.message ||
-        "Erreur réseau. Vérifie la connexion au serveur.";
-      setError(msg);
-      console.error("Login error:", error);
+    } catch (err) {
+      setError('Erreur de connexion au serveur. Vérifiez que le backend est lancé sur le port 3001.');
     } finally {
       setIsLoading(false);
     }
@@ -77,35 +54,24 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        <motion.div 
-          className="text-center"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <Link to="/" className="inline-block">
-            <motion.img
-              src="/logo.png"
-              alt="C4E Africa Logo"
-              className="mx-auto h-24 w-24 cursor-pointer hover:scale-105 transition-transform duration-300"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            />
-          </Link>
+        {/* Logo de l'entreprise */}
+        <div className="text-center">
+          <img
+            src="/logo.png"
+            alt="C4E Africa Logo"
+            className="mx-auto h-24 w-24 transition-transform duration-500 hover:rotate-12"
+          />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">C4E AFRICA</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Connexion pour Gestionnaire des Sites
+          </p>
+        </div>
 
-        </motion.div>
-
-        <motion.form
-          className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-lg border border-gray-200"
-          onSubmit={handleSubmit}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          {/* Champs Email */}
+        {/* Formulaire de connexion */}
+        <form className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-lg border border-gray-200" onSubmit={handleSubmit}>
+          {/* Champ Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Adresse Email
             </label>
             <div className="relative">
@@ -113,19 +79,21 @@ const Login = () => {
                 <Mail className="h-5 w-5 text-gray-400" />
               </div>
               <input
+                id="email"
+                name="email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                className="pl-10 w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
                 placeholder="votre.email@exemple.com"
               />
             </div>
           </div>
 
-          {/* Champs Mot de passe */}
+          {/* Champ Mot de passe */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Mot de Passe
             </label>
             <div className="relative">
@@ -133,57 +101,51 @@ const Login = () => {
                 <Lock className="h-5 w-5 text-gray-400" />
               </div>
               <input
+                id="password"
+                name="password"
                 type="password"
                 required
-                value={motDePasse}
-                onChange={(e) => setMotDePasse(e.target.value)}
-                className="pl-10 w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pl-10 w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
                 placeholder="••••••••"
               />
             </div>
           </div>
 
-          {/* Affichage des erreurs */}
+          {/* Message d'erreur */}
           {error && (
-            <motion.div
-              className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg border border-red-200"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
+            <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
               {error}
-            </motion.div>
+            </div>
           )}
 
-          {/* Bouton de connexion */}
-          <motion.button
-            type="submit"
-            disabled={isLoading}
-            className="group relative w-full flex justify-center py-3 px-4 rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all duration-300 shadow-lg hover:shadow-xl"
-            whileHover={{ scale: isLoading ? 1 : 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {isLoading ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Connexion en cours...
-              </div>
-            ) : (
-              <>
-                <LogIn className="h-5 w-5 mr-2" />
-                Se Connecter
-              </>
-            )}
-          </motion.button>
-
-          <div className="text-center pt-4 border-t border-gray-200">
-            <Link
-              to="/"
-              className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-300"
+          {/* Bouton de soumission */}
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ← Retour à la page d'accueil
-            </Link>
+              {isLoading ? (
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <LogIn className="h-5 w-5 mr-2" />
+              )}
+              {isLoading ? 'Connexion en cours...' : 'Se Connecter'}
+            </button>
           </div>
-        </motion.form>
+
+          {/* Lien mot de passe oublié (optionnel) */}
+          <div className="text-center">
+            <a href="#" className="text-sm text-indigo-600 hover:text-indigo-500 transition-colors duration-200">
+              Mot de passe oublié ?
+            </a>
+          </div>
+        </form>
       </div>
     </div>
   );

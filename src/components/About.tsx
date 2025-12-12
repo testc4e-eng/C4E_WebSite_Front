@@ -15,23 +15,23 @@ const About = () => {
   ];
   
   const partners = [
-    { name: "Direction de la recherche et la planification de l'eau", image: "/partenaires/img1.jpg" },
-    { name: "ABHGZR", image: "/partenaires/img2.jpg" },
-    { name: "STAVOM", image: "/partenaires/img3.jpg" },
-    { name: "ABHDON", image: "/partenaires/img4.jpg" },
-    { name: "ABHSM", image: "/partenaires/img5.jpg" },
-    { name: "ABHL", image: "/partenaires/img6.jpg" },
-    { name: "ABHS", image: "/partenaires/img7.jpg" },
-    { name: "CDG INVEST", image: "/partenaires/img8.jpg" },
-    { name: "ABHOER", image: "/partenaires/img9.jpg" },
-    { name: "ABHT", image: "/partenaires/img11.jpg" },
-    { name: "CM", image: "/partenaires/img12.jpg" },
-    { name: "CBM", image: "/partenaires/img13.jpg" },
-    { name: "Hydrauleader", image: "/partenaires/img14.jpg" },
-    { name: "WWF", image: "/partenaires/img16.jpg" },
-    { name: "Cid", image: "/partenaires/img17.jpg" },
-    { name: "ABHBC", image: "/partenaires/img15.jpg" },
-    { name: "Invest international", image: "/partenaires/img10.jpg" }
+    { name: "Direction de la recherche et la planification de l'eau", image: "../../public/partenaires/img1.jpg" },
+    { name: "ABHGZR", image: "../../public/partenaires/img2.jpg" },
+    { name: "STAVOM", image: "../../public/partenaires/img3.jpg" },
+    { name: "ABHDON", image: "../../public/partenaires/img4.jpg" },
+    { name: "ABHSM", image: "../../public/partenaires/img5.jpg" },
+    { name: "ABHL", image: "../../public/partenaires/img6.jpg" },
+    { name: "ABHS", image: "../../public/partenaires/img7.jpg" },
+    { name: "CDG INVEST", image: "../../public/partenaires/img8.jpg" },
+    { name: "ABHOER", image: "../../public/partenaires/img9.jpg" },
+    { name: "Conseil provincial de Sidi Ifni", image: "../../public/partenaires/img10.jpg" },
+    { name: "ABHT", image: "../../public/partenaires/img11.jpg" },
+    { name: "CM", image: "../../public/partenaires/img12.jpg" },
+    { name: "CBM", image: "../../public/partenaires/img13.jpg" },
+    { name: "Hydrauleader", image: "../../public/partenaires/img14.jpg" },
+    { name: "ABHM", image: "../../public/partenaires/img15.jpg" },
+    { name: "WWF", image: "../../public/partenaires/img16.jpg" },
+    { name: "Cid", image: "../../public/partenaires/img17.jpg" }
   ];
 
   // Diviser les partenaires en deux groupes
@@ -56,6 +56,7 @@ const About = () => {
               </p>
               <div className="w-24 h-1 bg-gradient-accent mx-auto rounded-full"></div>
             </div>
+
 
             {/* Présentation */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20 px-4 lg:px-0">
@@ -93,29 +94,11 @@ const About = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 viewport={{ once: true }}
               >
-                {/* LOGO CORRIGÉ - NET ET STYLÉ */}
-                <div className="relative group">
-                  {/* Halo de fond (sans blur excessif) */}
-                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-green-100 to-blue-100 opacity-60 group-hover:opacity-80 transition-opacity duration-500"></div>
-                  
-                  {/* Conteneur principal */}
-                  <div className="relative w-72 h-72 rounded-3xl shadow-2xl border-4 border-white bg-white flex items-center justify-center p-8 transform group-hover:scale-105 transition-all duration-500">
-                    
-                    {/* Logo NET et bien défini */}
-                    <img
-                      src="/logo1.png"
-                      alt="Notre Société"
-                      className="w-full h-full object-contain scale-110 filter brightness-105 contrast-105"
-                    />
-                    
-                    {/* Effet de réflexion subtil */}
-                    <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-white/20 to-transparent rounded-3xl"></div>
-                  </div>
-
-                  {/* Points décoratifs discrets */}
-                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-400 rounded-full opacity-70"></div>
-                  <div className="absolute -bottom-2 -left-2 w-3 h-3 bg-blue-400 rounded-full opacity-70"></div>
-                </div>
+                <img
+                  src="/logo1.png"
+                  alt="Notre Société"
+                  className="rounded-3xl shadow-xl border-4 border-green-200 w-[350px] max-w-full h-auto hover:scale-105 transition-transform duration-500"
+                />
               </motion.div>
             </div>
 
@@ -180,7 +163,7 @@ const About = () => {
                   {[...firstHalf, ...firstHalf].map((partner, idx) => (
                     <motion.div
                       key={idx}
-                      className="flex-shrink-0 w-64 h-40 bg-white/95 rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
+                      className="flex-shrink-0 w-64 h-40 bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
                       whileHover={{ 
                         scale: 1.08,
                         y: -8,
@@ -190,7 +173,7 @@ const About = () => {
                       <img
                         src={partner.image}
                         alt={partner.name}
-                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-110"
+                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-125"
                       />
                     </motion.div>
                   ))}
@@ -221,7 +204,7 @@ const About = () => {
                   {[...secondHalf, ...secondHalf].map((partner, idx) => (
                     <motion.div
                       key={idx}
-                      className="flex-shrink-0 w-64 h-40 bg-white/95 rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
+                      className="flex-shrink-0 w-64 h-40 bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-200/70 hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center group"
                       whileHover={{ 
                         scale: 1.08,
                         y: -8,
@@ -231,7 +214,7 @@ const About = () => {
                       <img
                         src={partner.image}
                         alt={partner.name}
-                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-110"
+                        className="w-full h-full object-contain transition-all duration-500 max-w-[180px] max-h-[100px] group-hover:scale-125"
                       />
                     </motion.div>
                   ))}

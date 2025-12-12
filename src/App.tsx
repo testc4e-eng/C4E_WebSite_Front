@@ -1,4 +1,5 @@
-// 📂 src/App.tsx
+// 📂 Chemin : src/App.tsx
+// Mise à jour pour exclure Header et Footer sur la page Dashboard (et Login pour cohérence).
 
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
@@ -14,24 +15,19 @@ import FormulaireCandidature from './components/formulaire-candidature';
 import Emploi from './components/Emploi';
 import FormulaireEmploi from './components/formulaire-emploi';
 import Login from './components/login';
-import Dashboard from './components/Dashboard';
-import AdminDashboard from './components/AdminDashboard';
+import Dashboard from './components/Dashboard'; // Nouveau import
+import TrainingPage from "./pages/TrainingPage";
 
 function App() {
   const location = useLocation();
-
-  // 👉 Pages sans Header et Footer
-  const isProtectedPage =
-    location.pathname === "/dashboard" ||
-    location.pathname === "/admin-dashboard" ||
-    location.pathname === "/login";
+  const isProtectedPage = location.pathname === '/dashboard' || location.pathname === '/login';
 
   return (
     <div className="App">
-
-      {/* Header invisble sur pages protégées */}
+      {/* --- Header global (exclu sur pages protégées) --- */}
       {!isProtectedPage && <Header />}
-
+      
+      {/* --- Définition des routes --- */}
       <Routes>
         <Route path="/" element={<Hero />} />
         <Route path="/about" element={<About />} />
@@ -42,19 +38,14 @@ function App() {
         <Route path="/formulaire-stage" element={<FormulaireStage />} />
         <Route path="/formulaire-candidature" element={<FormulaireCandidature />} />
         <Route path="/formulaire-emploi" element={<FormulaireEmploi />} />
-      
-
-        {/* Dashboards sans Header/Footer */}
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/training/:formationId" element={<TrainingPage />} />
         <Route path="/login" element={<Login />} />
-
+        <Route path="/dashboard" element={<Dashboard />} /> {/* Route Dashboard sans Header/Footer */}
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {/* Footer invisible sur pages protégées */}
+      {/* --- Footer global (exclu sur pages protégées) --- */}
       {!isProtectedPage && <Footer />}
-
     </div>
   );
 }
