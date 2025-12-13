@@ -116,10 +116,22 @@ const TrainingPage = () => {
         prerequis: "Ordinateur portable (Windows)"
       },
 
-      pricing: [
-        { label: "Académiciens & Chercheurs", price: "10 000 DH" },
-        { label: "Secteur Privé (Bureaux d’études, Indépendants)", price: "15 000 DH" }
-      ],
+pricing: {
+  individuel: [
+    { label: "Académiciens & Chercheurs", price: "10 000 DH" },
+    { label: "Secteur Privé (Bureaux d’études, Indépendants)", price: "15 000 DH" }
+  ],
+  groupe: [
+    {
+      label: "Binôme chercheurs (2 personnes)",
+      price: "15 000 DH"
+    },
+    {
+      label: "Même société (2 personnes)",
+      price: "25 000 DH"
+    }
+  ]
+},
 
       formLink:
         "https://docs.google.com/forms/d/e/1FAIpQLSeza98C57atNG6cYrqI5CCqodd4OjtcHorVSu3d_L826R6B-A/viewform"
@@ -199,20 +211,37 @@ const TrainingPage = () => {
           <Info label="Pré-requis" value={training.logistics.prerequis} />
         </section>
 
-        {/* ================= TARIFS ================= */}
-        <section className="bg-white rounded-2xl shadow p-8 mb-12">
-          <h2 className="text-2xl font-bold mb-6">5. Frais de participation</h2>
-          <table className="w-full border">
-            <tbody>
-              {training.pricing.map((p, i) => (
-                <tr key={i} className="border-b">
-                  <td className="p-4">{p.label}</td>
-                  <td className="p-4 font-semibold">{p.price}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+{/* ================= TARIFS ================= */}
+<section className="bg-white rounded-2xl shadow p-8 mb-12">
+  <h2 className="text-2xl font-bold mb-6">5. Frais de participation</h2>
+
+  {/* Tarifs individuels */}
+  <h3 className="font-semibold mb-3">Tarifs individuels</h3>
+  <table className="w-full border mb-6">
+    <tbody>
+      {training.pricing.individuel.map((p, i) => (
+        <tr key={i} className="border-b">
+          <td className="p-4">{p.label}</td>
+          <td className="p-4 font-semibold">{p.price}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  {/* Tarifs groupés */}
+  <h3 className="font-semibold mb-3">Tarifs groupés</h3>
+  <table className="w-full border">
+    <tbody>
+      {training.pricing.groupe.map((p, i) => (
+        <tr key={i} className="border-b bg-blue-50/40">
+          <td className="p-4">{p.label}</td>
+          <td className="p-4 font-semibold">{p.price}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</section>
+
 
         {/* ================= FORMULAIRE ================= */}
         <section className="text-center mb-24">

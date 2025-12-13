@@ -38,8 +38,8 @@ const FlashNewsBar = () => {
       description: "Modélisation hydraulique expert"
     },
     {
-      id: "hms",
-      title: "Formation HSM - Bientôt",
+      id: "hec-hms",
+      title: "Formation HEC-HMS - Bientôt",
       status: "Bientôt",
       statusColor: "bg-purple-500",
       link: "/training/hms",

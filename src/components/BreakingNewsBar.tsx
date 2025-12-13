@@ -30,8 +30,8 @@ const BreakingNewsBar = () => {
       clickable: false
     },
     {
-      id: "hms",
-      text: "💧 Formation HSM - Simulation hydrologique complète",
+      id: "hec-hms",
+      text: "💧 Formation HEC-HMS - Simulation hydrologique complète",
       date: "à venir",
       link: "/training/hms",
       clickable: false
