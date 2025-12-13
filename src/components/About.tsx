@@ -14,25 +14,25 @@ const About = () => {
     { icon: Target, title: 'Durabilité', description: "Nos solutions sont conçues pour avoir un impact positif à long terme sur l'environnement et les communautés." },
   ];
   
-  const partners = [
-    { name: "Direction de la recherche et la planification de l'eau", image: "../../public/partenaires/img1.jpg" },
-    { name: "ABHGZR", image: "../../public/partenaires/img2.jpg" },
-    { name: "STAVOM", image: "../../public/partenaires/img3.jpg" },
-    { name: "ABHDON", image: "../../public/partenaires/img4.jpg" },
-    { name: "ABHSM", image: "../../public/partenaires/img5.jpg" },
-    { name: "ABHL", image: "../../public/partenaires/img6.jpg" },
-    { name: "ABHS", image: "../../public/partenaires/img7.jpg" },
-    { name: "CDG INVEST", image: "../../public/partenaires/img8.jpg" },
-    { name: "ABHOER", image: "../../public/partenaires/img9.jpg" },
-    { name: "Conseil provincial de Sidi Ifni", image: "../../public/partenaires/img10.jpg" },
-    { name: "ABHT", image: "../../public/partenaires/img11.jpg" },
-    { name: "CM", image: "../../public/partenaires/img12.jpg" },
-    { name: "CBM", image: "../../public/partenaires/img13.jpg" },
-    { name: "Hydrauleader", image: "../../public/partenaires/img14.jpg" },
-    { name: "ABHM", image: "../../public/partenaires/img15.jpg" },
-    { name: "WWF", image: "../../public/partenaires/img16.jpg" },
-    { name: "Cid", image: "../../public/partenaires/img17.jpg" }
-  ];
+const partners = [
+  { name: "Direction de la recherche et la planification de l'eau", image: "/partenaires/img1.jpg" },
+  { name: "ABHGZR", image: "/partenaires/img2.jpg" },
+  { name: "STAVOM", image: "/partenaires/img3.jpg" },
+  { name: "ABHDON", image: "/partenaires/img4.jpg" },
+  { name: "ABHSM", image: "/partenaires/img5.jpg" },
+  { name: "ABHL", image: "/partenaires/img6.jpg" },
+  { name: "ABHS", image: "/partenaires/img7.jpg" },
+  { name: "CDG INVEST", image: "/partenaires/img8.jpg" },
+  { name: "ABHOER", image: "/partenaires/img9.jpg" },
+  { name: "Conseil provincial de Sidi Ifni", image: "/partenaires/img10.jpg" },
+  { name: "ABHT", image: "/partenaires/img11.jpg" },
+  { name: "CM", image: "/partenaires/img12.jpg" },
+  { name: "CBM", image: "/partenaires/img13.jpg" },
+  { name: "Hydrauleader", image: "/partenaires/img14.jpg" },
+  { name: "ABHM", image: "/partenaires/img15.jpg" },
+  { name: "WWF", image: "/partenaires/img16.jpg" },
+  { name: "Cid", image: "/partenaires/img17.jpg" }
+];
 
   // Diviser les partenaires en deux groupes
   const firstHalf = partners.slice(0, Math.ceil(partners.length / 2));
