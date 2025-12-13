@@ -25,9 +25,51 @@ const Projects = () => {
   // 📌 Liste des projets (mock data, pourrait être remplacée par une API plus tard)
 const projects = [
 
+  // 🌿 Domaine : Environnement
+  {
+    title: "Étude d’évaluation de l’envasement de la retenue du barrage Ahmed El Hansali",
+    category: "Environnement",
+    country: "Maroc",
+    image: "/Projets/projet16.png",
+    description: "Évaluation de l’envasement du barrage Ahmed El Hansali à travers des analyses bathymétriques et une modélisation sédimentaire, visant à proposer des mesures de gestion et de lutte antiérosive pour préserver la capacité utile de la retenue.",
+    annee: "2023"
+  },
+  {
+    title: "Étude d’évaluation des apports solides sur la section aménagée d’oued Martil entre le pont de Tamuda et le pont de Torreta à Tétouan",
+    category: "Environnement",
+    country: "Maroc",
+    image: "/Projets/projet15.png",
+    description: "Analyse des apports solides et de la dynamique sédimentaire dans la section aménagée de l’oued Martil afin de proposer des solutions techniques de gestion, réduire les risques d’inondation et améliorer l’intégration paysagère du site.",
+    annee: "2023"
+  },
+  {
+    title: "Étude de détermination du transport solide au niveau du barrage Sidi Mohamed Ben Abdellah (SMBA)",
+    category: "Environnement",
+    country: "Maroc",
+    image: "/Projets/projet17.png",
+    description: "Analyse et quantification du transport solide vers la retenue du barrage SMBA afin d’identifier les zones sources de sédiments et définir des mesures de lutte contre l’envasement pour prolonger la durée de vie du barrage.",
+    annee: "2022"
+  },
+
   // 💧 Domaine : Eau
   {
-    title: "Élaboration de l’atlas des zones inondables – Province de Zagora",
+    title: "Étude de faisabilité de sites potentiels de petits barrages dans la zone d’action de l’Agence du Bassin Hydraulique du Sebou",
+    category: "Eau",
+    country: "Maroc",
+    image: "/Projets/projet5.png",
+    description: "Identification et évaluation des sites favorables à la réalisation de petits barrages dans le bassin du Sebou, incluant étude hydrologique, géotechnique, conception sommaire et évaluation environnementale pour soutenir la gestion durable des ressources en eau.",
+    annee: "2024–2025"
+  },
+  {
+    title: "Élaboration d’une plateforme d’alerte précoce aux crues et d’amélioration de la gestion du domaine public hydraulique par télédétection dans le bassin du Haut Ziz",
+    category: "Eau",
+    country: "Maroc",
+    image: "/Projets/projet19.png",
+    description: "Développement d’une plateforme numérique intégrant télédétection, données hydrométéorologiques et modèles hydrologiques pour anticiper les crues, suivre le domaine public hydraulique et renforcer la gestion durable des ressources en eau dans le bassin du Haut Ziz.",
+    annee: "2021"
+  },
+  {
+    title: "Élaboration de l’atlas des zones inondables – Lot 02 (Province de Zagora)",
     category: "Eau",
     country: "Maroc",
     image: "/Projets/projet2.png",
@@ -37,11 +79,19 @@ const projects = [
 
   // ⚡ Domaine : Énergie
   {
+    title: "Évaluation technique et étude du marché du projet SUNAIR FOUNTAIN",
+    category: "Énergie",
+    country: "Maroc",
+    image: "/Projets/prjEnergie2.png",
+    description: "Évaluation technique et étude du marché d’un système innovant de production d’eau potable à partir de l’humidité atmosphérique, alimenté par énergie solaire. Analyse de la performance, du rendement, de la qualité de l’eau et de la viabilité économique du dispositif.",
+    annee: "2024"
+  },
+  {
     title: "Cartographie des panneaux solaires par image satellitaire",
     category: "Énergie",
     country: "Maroc",
     image: "/Projets/prjEnergie1.jpg",
-    description: "Utilisation d’images satellitaires open source pour repérer les installations photovoltaïques et analyser leur évolution, en évaluant l’impact de l’énergie solaire sur les ressources en eau.",
+    description: "Utilisation d’images satellitaires open source pour repérer les installations photovoltaïques et analyser leur évolution. Le projet évalue l’impact de l’énergie solaire sur les nappes souterraines et soutient la gestion durable des ressources en eau.",
     annee: "2024"
   },
 
@@ -51,12 +101,19 @@ const projects = [
     category: "Éducation",
     country: "Maroc",
     image: "/Projets/prjEducation1.jpg",
-    description: "Analyse de la vulnérabilité hydrologique du bassin du Sebou face aux scénarios climatiques futurs et formation des cadres à l’évaluation et la gestion des impacts climatiques.",
+    description: "Analyse de la vulnérabilité hydrologique du bassin du Sebou face aux scénarios climatiques futurs et formation des cadres de l’Agence du Bassin Hydraulique du Sebou sur l’évaluation et la gestion des impacts climatiques.",
+    annee: "2023"
+  },
+  {
+    title: "Développement des curriculums d’un cycle d’ingénieur filière Eau pour l’IAV Agadir",
+    category: "Éducation",
+    country: "Maroc",
+    image: "/Projets/prjEducation2.jpg",
+    description: "Conception et structuration d’une nouvelle filière d’ingénierie en gestion et développement des ressources en eau à l’IAV Agadir, incluant les programmes, objectifs pédagogiques et approches de formation pratique et de recherche.",
     annee: "2023"
   }
 
 ];
-
 
 
 

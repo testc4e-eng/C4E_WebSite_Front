@@ -75,31 +75,38 @@ const Services = () => {
     }
   ];
 
- const projects = [
+const projects = [
+
+  // 💧 Domaine : Eau
   {
-    title: "Étude d’élaboration d'un système d'aide à la décision (SAD) destiné à la gestion de la qualité des eaux de surface",
+    title: "Élaboration de l’atlas des zones inondables – Province de Zagora",
     category: "Eau",
     country: "Maroc",
-    image: "../public/Projets/pg1.png",
-    description: "Conception et développement d’un système d’aide à la décision (SAD) pour le suivi, l’évaluation et l’amélioration de la qualité des eaux de surface au Maroc, intégrant des indicateurs de performance environnementale et des outils de modélisation.",
-    annee: "2025"
-  },
-  {
-    title: "Élaboration de l’atlas des zones inondables (Province de Zagora)",
-    category: "Eau",
-    country: "Maroc",
-    image: "../public/Projets/projet2.png",
+    image: "/Projets/projet2.png",
     description: "Réalisation d’un inventaire et d’une modélisation des zones inondables de la province de Zagora, avec analyse hydrologique et hydraulique, afin de produire un atlas opérationnel pour la prévention des risques et la gestion durable du territoire.",
-    annee: "2022-2024"
+    annee: "2022–2024"
   },
+
+  // ⚡ Domaine : Énergie
   {
-    title: "Élaboration d’une plateforme d’alerte précoce aux crues et d’amélioration de la gestion du domaine public hydraulique par télédétection dans le bassin du Haut Ziz",
-    category: "Eau",
+    title: "Cartographie des panneaux solaires par image satellitaire",
+    category: "Énergie",
     country: "Maroc",
-    image: "../public/Projets/projet19.png",
-    description: "Développement d’une plateforme numérique intégrant la télédétection, les données hydrométéorologiques et des modèles hydrologiques pour anticiper les crues, suivre le domaine public hydraulique et renforcer la gestion durable des ressources en eau dans le bassin du Haut Ziz.",
-    annee: "2021"
+    image: "/Projets/prjEnergie1.jpg",
+    description: "Utilisation d’images satellitaires open source pour repérer les installations photovoltaïques et analyser leur évolution, en évaluant l’impact de l’énergie solaire sur les ressources en eau.",
+    annee: "2024"
+  },
+
+  // 🎓 Domaine : Éducation
+  {
+    title: "Étude d’évaluation des impacts des changements climatiques sur les ressources en eau du bassin du Sebou",
+    category: "Éducation",
+    country: "Maroc",
+    image: "/Projets/prjEducation1.jpg",
+    description: "Analyse de la vulnérabilité hydrologique du bassin du Sebou face aux scénarios climatiques futurs et formation des cadres à l’évaluation et la gestion des impacts climatiques.",
+    annee: "2023"
   }
+
 ];
 
   return (
