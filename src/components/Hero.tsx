@@ -145,15 +145,27 @@ const Hero = () => {
           <div className="max-w-4xl mx-auto">
 
             {/* LOGO */}
-            <div className="flex justify-center mb-12">
-              <div className="w-36 h-36 md:w-40 md:h-40 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-2xl border-4 border-white">
-                <img
-                  src="/logo1.png"
-                  alt="C4E Africa"
-                  className="w-3/4 h-3/4 object-contain rounded-full"
-                />
-              </div>
-            </div>
+<div className="flex justify-center mb-12">
+  <div
+    className="
+      w-36 h-36 md:w-40 md:h-40
+      rounded-full
+      bg-gradient-to-tr from-cyan-500 to-blue-600
+      flex items-center justify-center
+      shadow-2xl
+      border-4 border-white
+    "
+  >
+    {/* CERCLE INTERNE – CARRÉ */}
+    <div className="w-[82%] h-[82%] bg-white rounded-full overflow-hidden flex items-center justify-center">
+      <img
+        src="/logoC4E.png"
+        alt="C4E Africa"
+        className="w-full h-full object-contain"
+      />
+    </div>
+  </div>
+</div>
 
             {/* TITLE */}
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
