@@ -1,5 +1,5 @@
 // 📂 Chemin : Frontend\src\components\login.tsx
-// 🎯 Rôle : Composant Login avec intégration backend sur port 3001 pour PostgreSQL.
+// 🎯 Rôle : Composant Login avec intégration backend sur port 5001 pour PostgreSQL.
 
 // =========================
 // Importation des dépendances
@@ -23,9 +23,9 @@ const Login = () => {
     setIsLoading(true);
     setError('');
 
-    // Requête vers le backend sur port 3001
+    // Requête vers le backend sur port 5001
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch('http://localhost:5001/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ const Login = () => {
         setError(data.message || 'Erreur lors de la connexion.');
       }
     } catch (err) {
-      setError('Erreur de connexion au serveur. Vérifiez que le backend est lancé sur le port 3001.');
+      setError('Erreur de connexion au serveur. Vérifiez que le backend est lancé sur le port 5001.');
     } finally {
       setIsLoading(false);
     }

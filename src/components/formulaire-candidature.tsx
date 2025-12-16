@@ -124,9 +124,9 @@ const calculerScore = (competences: CompetencesType) => {
       console.log('Score calculé:', score);
 
       let url = '';
-      if (type === 'emploi') url = 'http://localhost:3001/api/candidature-emploi';
-      else if (type === 'stage') url = 'http://localhost:3001/api/candidature-stage';
-      else url = 'http://localhost:3001/api/candidature-spontanee';
+      if (type === 'emploi') url = 'http://localhost:5001/api/candidature-emploi';
+      else if (type === 'stage') url = 'http://localhost:5001/api/candidature-stage';
+      else url = 'http://localhost:5001/api/candidature-spontanee';
 
       const response = await fetch(url, {
         method: 'POST',

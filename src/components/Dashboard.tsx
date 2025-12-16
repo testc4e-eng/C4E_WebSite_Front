@@ -87,7 +87,7 @@ const diplomeOrder: Record<string, number> = {
 const getFileUrl = (filePath: string | undefined) => {
   if (!filePath) return null;
   if (filePath.startsWith('http')) return filePath;
-  return `http://localhost:3001${filePath.startsWith('/') ? filePath : '/' + filePath}`;
+  return `http://localhost:5001${filePath.startsWith('/') ? filePath : '/' + filePath}`;
 };
 
 // Fonction de tri des candidatures
@@ -172,7 +172,7 @@ const Dashboard = () => {
       try {
         setLoadingOffres(true);
         setErrorOffres('');
-        const res = await fetch('http://localhost:3001/api/offres', {
+        const res = await fetch('http://localhost:5001/api/offres', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des offres.');
@@ -208,7 +208,7 @@ useEffect(() => {
       
       if (activeTab === 'candidatures') {
         // 🔹 Charger UNIQUEMENT les candidatures spontanées
-        const res = await fetch('http://localhost:3001/api/candidatures/spontanees/toutes', {
+        const res = await fetch('http://localhost:5001/api/candidatures/spontanees/toutes', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des candidatures spontanées.');
@@ -231,7 +231,7 @@ useEffect(() => {
         
       } else if (activeTab === 'candidatures-postes') {
         // 🔹 CORRECTION : Utiliser la route principale et filtrer pour avoir UNIQUEMENT les candidatures sur offres
-        const res = await fetch('http://localhost:3001/api/candidatures', {
+        const res = await fetch('http://localhost:5001/api/candidatures', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des candidatures par offres.');
@@ -262,7 +262,7 @@ useEffect(() => {
         
       } else if (activeTab === 'archives') {
         // Pour les archives, charger toutes les candidatures
-        const res = await fetch('http://localhost:3001/api/candidatures', {
+        const res = await fetch('http://localhost:5001/api/candidatures', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Erreur lors du chargement des archives.');
@@ -335,7 +335,7 @@ useEffect(() => {
     }
     try {
       const exigencesArray = exigencesFields.filter(req => req.trim() !== '');
-      const res = await fetch('http://localhost:3001/api/offres', {
+      const res = await fetch('http://localhost:5001/api/offres', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -387,7 +387,7 @@ useEffect(() => {
     }
     try {
       const exigencesArray = editingExigences.filter(req => req.trim() !== '');
-      const res = await fetch(`http://localhost:3001/api/offres/${offre.id}`, {
+      const res = await fetch(`http://localhost:5001/api/offres/${offre.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -424,7 +424,7 @@ useEffect(() => {
   const supprimerOffre = async (id: number) => {
     if (!window.confirm('Confirmer la suppression ?')) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/offres/${id}`, {
+      const res = await fetch(`http://localhost:5001/api/offres/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -444,7 +444,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
     const { id, type } = candidature;
     
     // CORRECTION : Utiliser la route principale avec paramètres
-    const url = `http://localhost:3001/api/candidatures/${type}/${id}`;
+    const url = `http://localhost:5001/api/candidatures/${type}/${id}`;
     console.log('🔗 URL de suppression:', url);
 
     const res = await fetch(url, {
@@ -488,7 +488,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         typeAPI = 'stage'; // Table candidatures_stage
       }
 
-      const res = await fetch(`http://localhost:3001/api/candidatures/statut/${typeAPI}/${id}`, {
+      const res = await fetch(`http://localhost:5001/api/candidatures/statut/${typeAPI}/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -512,7 +512,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
       
       const fetchCandidatures = async () => {
         try {
-          const res = await fetch('http://localhost:3001/api/candidatures', {
+          const res = await fetch('http://localhost:5001/api/candidatures', {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (res.ok) {

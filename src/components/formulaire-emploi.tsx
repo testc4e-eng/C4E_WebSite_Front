@@ -46,7 +46,7 @@ const FormulaireEmploi = () => {
   useEffect(() => {
     const fetchOffres = async () => {
       try {
-        const response = await axios.get<Offre[]>('http://localhost:3001/api/offres');
+        const response = await axios.get<Offre[]>('http://localhost:5001/api/offres');
         setOffres(response.data);
 
         if (location.state?.offreId) {
@@ -150,7 +150,7 @@ const FormulaireEmploi = () => {
       form.append('poste', selectedOffre?.titre || '');
       form.append('competences', JSON.stringify(formData.competences));
 
-      await axios.post('http://localhost:3001/api/candidature-emploi', form, {
+      await axios.post('http://localhost:5001/api/candidature-emploi', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 

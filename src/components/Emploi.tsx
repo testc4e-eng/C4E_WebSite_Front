@@ -41,7 +41,7 @@ const Emploi = () => {
       try {
         setLoading(true);
         setError('');
-        const response = await fetch('http://localhost:3001/api/offres');
+        const response = await fetch('http://localhost:5001/api/offres');
         if (!response.ok) throw new Error('Erreur lors du chargement des offres.');
         const data: OffreDB[] = await response.json();
         setOffres(data);
