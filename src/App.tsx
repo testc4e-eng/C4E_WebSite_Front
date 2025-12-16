@@ -16,6 +16,7 @@ import FormulaireEmploi from './components/formulaire-emploi';
 import Login from './components/login';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
+import TrainingPage from "./pages/TrainingPage";
 
 function App() {
   const location = useLocation();
@@ -41,7 +42,8 @@ function App() {
         <Route path="/formulaire-stage" element={<FormulaireStage />} />
         <Route path="/formulaire-candidature" element={<FormulaireCandidature />} />
         <Route path="/formulaire-emploi" element={<FormulaireEmploi />} />
-      
+        <Route path="/training/:formationId" element={<TrainingPage />} />
+
 
         {/* Dashboards sans Header/Footer */}
         <Route path="/dashboard" element={<Dashboard />} />
