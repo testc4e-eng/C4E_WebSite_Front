@@ -17,6 +17,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const API_BASE = import.meta.env.VITE_API_BASE;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,16 +26,16 @@ const Login = () => {
 
     // Requête vers le backend sur port 5001
     try {
-      const response = await fetch('http://localhost:5001/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          motDePasse: password,
-        }),
-      });
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    email,
+    motDePasse: password,
+  }),
+});
 
       const data = await response.json();
 
