@@ -1,4 +1,4 @@
-// Import des bibliothèques et fichiers essentiels : React pour JSX, ReactDOM pour le rendu, 
+﻿// Import des bibliothèques et fichiers essentiels : React pour JSX, ReactDOM pour le rendu,
 // BrowserRouter pour le routage, App comme composant principal, et les styles globaux.
 
 import React from 'react';

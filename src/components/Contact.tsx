@@ -6,9 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-
-// Configuration de l'API
-const API_BASE_URL = 'https://c4e-website-back.onrender.com'; 
+import { apiUrl } from '../lib/api';
 
 // ------------------------------------------------------------
 // Composant popup moderne affiché après succès de l'envoi
@@ -57,7 +55,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   setIsSubmitting(true);
   
   // ⚠️ DEBUG - Affichez l'URL exacte
-  const url = `${API_BASE_URL}/api/contact`;
+  const url = apiUrl('/api/contact');
   console.log('🔄 URL exacte:', url);
   console.log('📦 Données envoyées:', formData);
   

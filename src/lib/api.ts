@@ -18,12 +18,15 @@ type CustomHeadersInit = HeadersInit & {
   Authorization?: string;
 };
 
+const explicitApiBaseUrl = (import.meta.env.VITE_API_URL || "").trim();
+
 /**
- * Base URL de l'API : priorise VITE (build-time), sinon fallback Render.
+ * Base URL de l'API : priorise VITE (build-time), sinon fallback same-origin.
  * ⚠️ Ne pas mettre de slash final dans VITE_API_URL.
  */
 export const API_BASE_URL: string =
-  import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
+  explicitApiBaseUrl ||
+  (typeof window !== "undefined" ? window.location.origin : "http://localhost");
 
 /**
  * Concaténation sûre d'URL via URL()
@@ -75,16 +78,44 @@ async function safeJson<T>(res: Response): Promise<T> {
   }
 }
 
-/**
- * Vérifie ok et jette une erreur claire sinon.
- */
-function assertOk(res: Response, context?: string) {
-  if (!res.ok) {
-    const msg = `${context || "Requête échouée"} (HTTP ${res.status})`;
-    const err = new Error(msg) as Error & { status?: number; url?: string };
+async function buildHttpError(res: Response, context?: string) {
+  const fallback = `${context || 'Requête échouée'} (HTTP ${res.status})`;
+
+  try {
+    const text = await res.text();
+    if (!text) {
+      const err = new Error(fallback) as Error & { status?: number; url?: string; body?: unknown };
+      err.status = res.status;
+      err.url = res.url;
+      return err;
+    }
+
+    let parsed: any = text;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // on garde le texte brut
+    }
+
+    const message =
+      (parsed && typeof parsed === 'object' && (parsed.message || parsed.error)) ||
+      (typeof parsed === 'string' ? parsed : '') ||
+      fallback;
+
+    const err = new Error(`${context || 'Requête échouée'}: ${message} (HTTP ${res.status})`) as Error & {
+      status?: number;
+      url?: string;
+      body?: unknown;
+    };
     err.status = res.status;
     err.url = res.url;
-    throw err;
+    err.body = parsed;
+    return err;
+  } catch {
+    const err = new Error(fallback) as Error & { status?: number; url?: string };
+    err.status = res.status;
+    err.url = res.url;
+    return err;
   }
 }
 
@@ -117,7 +148,9 @@ export async function httpGet<T = unknown>(
       ...rest,
     });
 
-    assertOk(res, `GET ${path}`);
+    if (!res.ok) {
+      throw await buildHttpError(res, `GET ${path}`);
+    }
     const data = await safeJson<T>(res);
     return { res, data };
   } finally {
@@ -158,7 +191,9 @@ export async function httpJson<T = unknown>(
       ...rest,
     });
 
-    assertOk(res, `${method} ${path}`);
+    if (!res.ok) {
+      throw await buildHttpError(res, `${method} ${path}`);
+    }
     const data = await safeJson<T>(res);
     return { res, data };
   } finally {

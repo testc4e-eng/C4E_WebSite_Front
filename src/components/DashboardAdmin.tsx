@@ -5,6 +5,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { formatDateForDisplay } from "../lib/date";
+import { API_BASE_URL, apiUrl as getApiUrl } from "../lib/api";
 import {
   LogOut,
   Plus,
@@ -32,12 +34,6 @@ import {
   RotateCcw,
   XCircle as XIcon,
 } from "lucide-react";
-
-// === Ajout pour API dynamique ===
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
-const getApiUrl = (path: string) =>
-  `${API_BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
 
 interface OffreEmploi {
   id: number;
@@ -1375,7 +1371,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                       <div className="flex items-center text-sm text-gray-600">
                         <span className="mr-2">📅</span>
                         Expire le{" "}
-                        {new Date(offre.dateExpiration).toLocaleDateString()}
+                        {formatDateForDisplay(offre.dateExpiration)}
                       </div>
                     </div>
 
@@ -1607,7 +1603,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <DisplayExperience experience={cand.experience} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
@@ -1737,7 +1733,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -1820,7 +1816,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                 )}
                 <p>
                   <strong>📅 Date de soumission :</strong>{" "}
-                  {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
+                  {formatDateForDisplay(selectedCandidature.dateSoumission)}
                 </p>
                 <p>
                   <strong>📋 Type :</strong>
@@ -2091,7 +2087,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
@@ -2195,9 +2191,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                 )}
                 <p>
                   <strong>📅 Date de soumission :</strong>{" "}
-                  {new Date(
-                    selectedCandidature.dateSoumission
-                  ).toLocaleDateString()}
+                  {formatDateForDisplay(selectedCandidature.dateSoumission)}
                 </p>
                 <p>
                   <strong>📋 Type :</strong>
@@ -2458,7 +2452,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {new Date(user.dateCreation).toLocaleDateString()}
+                        {formatDateForDisplay(user.dateCreation)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
@@ -3105,7 +3099,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                          {new Date(offre.dateExpiration).toLocaleDateString()}
+                          {formatDateForDisplay(offre.dateExpiration)}
                         </td>
                         <td className="px-4 py-3 text-sm whitespace-nowrap">
                           <span
@@ -3302,7 +3296,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                                 <DisplayExperience experience={cand.experience} />
                               </td>
                               <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                                {new Date(cand.dateSoumission).toLocaleDateString()}
+                                {formatDateForDisplay(cand.dateSoumission)}
                               </td>
                               <td className="px-4 py-3 text-sm whitespace-nowrap">
                                 <span
@@ -3380,9 +3374,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                     )}
                     <p>
                       <strong>📅 Date de soumission :</strong>{" "}
-                      {new Date(
-                        selectedCandidature.dateSoumission
-                      ).toLocaleDateString()}
+                      {formatDateForDisplay(selectedCandidature.dateSoumission)}
                     </p>
 
                     <p>
@@ -3603,9 +3595,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                     )}
                     <p>
                       <strong>📅 Date de soumission :</strong>{" "}
-                      {new Date(
-                        selectedCandidature.dateSoumission
-                      ).toLocaleDateString()}
+                      {formatDateForDisplay(selectedCandidature.dateSoumission)}
                     </p>
 
                     {selectedCandidature.cvUrl && (

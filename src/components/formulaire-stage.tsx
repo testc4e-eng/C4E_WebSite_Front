@@ -5,10 +5,12 @@
  * Gère les informations personnelles, CV, lettre de motivation, domaine, durée, poste, établissement,
  * diplôme, expérience et compétences évaluées.
  * Soumet les données à l'API correspondante et affiche un message de succès ou d'erreur.
- */import { useState, useRef } from 'react';
+ */
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Mail, Phone, File, MessageSquare, Star, BookOpen, Briefcase } from 'lucide-react';
 import axios from 'axios';
+import { apiUrl } from '../lib/api';
 
 const FormulaireStage = () => {
   const navigate = useNavigate();
@@ -100,9 +102,7 @@ const FormulaireStage = () => {
       form.append('cv', formData.cv);
       form.append('lettre_motivation', formData.lettre_motivation);
       
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
-      
-      const response = await axios.post(`${API_BASE_URL}/api/candidature-stage`, form, {
+      const response = await axios.post(apiUrl('/api/candidature-stage'), form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

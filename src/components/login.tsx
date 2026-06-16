@@ -8,11 +8,13 @@ import { postJson } from "../lib/api"; // ← Import modifié
 // Interface pour la réponse de l'API
 interface LoginResponse {
   token: string;
+  forcePasswordChange?: boolean;
   user: {
     id: string;
     email: string;
     role: string;
-    type: "gestionnaire" | "administrateur";
+    type: string;
+    force_password_change?: boolean;
   };
 }
 
@@ -24,6 +26,27 @@ interface ApiError {
     };
   };
   message: string;
+}
+
+function getPostLoginPath(role?: string | null, type?: string | null) {
+  const normalizedRole = String(role || '').toLowerCase().trim();
+  const normalizedType = String(type || '').toLowerCase().trim();
+
+  if (normalizedRole === 'admin' || normalizedType === 'administrateur') {
+    return '/admin/dashboard';
+  }
+
+  if (
+    normalizedRole === 'dg' ||
+    normalizedRole === 'gestionnaire' ||
+    normalizedType === 'dg' ||
+    normalizedType === 'direction generale' ||
+    normalizedType === 'direction générale'
+  ) {
+    return '/dashboard/task-analytics/dg';
+  }
+
+  return '/dashboard/personnel';
 }
 
 const Login = () => {
@@ -53,13 +76,17 @@ const Login = () => {
         localStorage.setItem("token", data.token);
         localStorage.setItem("userType", data.user.type);
         localStorage.setItem("userRole", data.user.role);
-
-        // ✅ Redirection automatique selon le rôle de l'utilisateur
-        if (data.user.type === "administrateur") {
-          navigate("/admin-dashboard");
-        } else {
-          navigate("/dashboard");
+        localStorage.setItem("userData", JSON.stringify(data.user));
+        const mustChangePassword = Boolean(data.forcePasswordChange || data.user.force_password_change);
+        if (mustChangePassword) {
+          localStorage.setItem("mustChangePassword", "true");
+          navigate("/profile?forcePasswordChange=1");
+          return;
         }
+        localStorage.removeItem("mustChangePassword");
+
+        // ✅ Redirection adaptée au rôle
+        navigate(getPostLoginPath(data.user.role, data.user.type));
       }
     } catch (err: unknown) {
       const error = err as ApiError;

@@ -125,6 +125,33 @@
     scroll-behavior: smooth;
   }
 
+  /* Lisibilite formulaires: fond blanc opaque partout */
+  input,
+  select,
+  textarea {
+    background-color: #ffffff;
+    opacity: 1;
+    backdrop-filter: none;
+  }
+
+  option {
+    background-color: #ffffff;
+    color: inherit;
+    opacity: 1;
+  }
+
+  /* Dropdowns Radix (Select) au-dessus des modales et sans transparence */
+  [data-radix-select-content] {
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
+    opacity: 1 !important;
+    z-index: 90 !important;
+  }
+
+  [data-radix-select-viewport] {
+    background-color: #ffffff !important;
+  }
+
   /* Padding uniquement pour les pages avec header fixe */
   .page-with-header main {
     padding-top: 80px; /* Hauteur du header fixe */

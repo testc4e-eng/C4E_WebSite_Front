@@ -1,17 +1,18 @@
-// ============================================================
+﻿// ============================================================
 // Fichier : /components/Dashboard.tsx
 // Description : Composant principal du Dashboard de gestion RH/Offres.
-// Rôle :
+// RÃ´le :
 // - Affiche les statistiques globales des candidatures et offres.
-// - Gère les onglets : Offres, Candidatures spontanées, Candidatures par postes, Archives, Réponses Candidatures.
+// - GÃ¨re les onglets : Offres, Candidatures spontanÃ©es, Candidatures par postes, Archives, RÃ©ponses Candidatures.
 // - Permet l'ajout, la modification et la suppression des offres d'emploi.
 // - Permet la consultation, le tri et la gestion du statut des candidatures.
 // - Supporte plusieurs types de candidatures : emploi, stage, PFE, spontanee, stage_spontane.
-// - Intègre la recherche, le filtrage et le tri des candidatures et des archives.
-// - Gère dynamiquement les champs d'exigences pour les offres.
-// - Utilise React, TypeScript, fetch API pour interagir avec le backend et Lucide/Framer Motion pour les icônes et animations.
+// - IntÃ¨gre la recherche, le filtrage et le tri des candidatures et des archives.
+// - GÃ¨re dynamiquement les champs d'exigences pour les offres.
+// - Utilise React, TypeScript, fetch API pour interagir avec le backend et Lucide/Framer Motion pour les icÃ´nes et animations.
 // ============================================================
 import { useState, useEffect } from "react";
+import { formatDateForDisplay } from "../lib/date";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import {
@@ -40,13 +41,7 @@ import {
   Ban,
   RotateCcw,
 } from "lucide-react";
-import api from "../lib/api";
-
-// === Ajout pour API dynamique ===
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
-const getApiUrl = (path: string) =>
-  `${API_BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
+import api, { API_BASE_URL, apiUrl as getApiUrl } from "../lib/api";
 
 interface OffreEmploi {
   id: number;
@@ -105,7 +100,7 @@ const diplomeOrder: Record<string, number> = {
   licence: 2,
   master: 3,
   master_ingenieur: 3,
-  "cycle d'ingénieur": 3,
+  "cycle d'ingÃ©nieur": 3,
   ingenieur: 3,
   doctorat: 4,
   bac: 0,
@@ -124,7 +119,7 @@ const getFileUrl = (filePath?: string) => {
   }`;
 };
 
-// Fonction utilitaire pour gérer les erreurs API
+// Fonction utilitaire pour gÃ©rer les erreurs API
 const handleApiError = async (response: Response) => {
   if (!response.ok) {
     let errorMessage = `Erreur HTTP ${response.status}`;
@@ -139,7 +134,7 @@ const handleApiError = async (response: Response) => {
     }
     
     const fullError = errorDetails ? `${errorMessage} - ${errorDetails}` : errorMessage;
-    console.error(`❌ Erreur API ${response.status}:`, fullError);
+    console.error(`âŒ Erreur API ${response.status}:`, fullError);
     throw new Error(fullError);
   }
   return response;
@@ -238,7 +233,7 @@ const Dashboard = () => {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  // États pour les notifications
+  // Ã‰tats pour les notifications
   const [notificationCounts, setNotificationCounts] = useState({
     candidatures: 0,
     candidaturesPostes: 0
@@ -248,7 +243,7 @@ const Dashboard = () => {
     if (!token) navigate("/login");
   }, [token, navigate]);
 
-  // Charger les données depuis localStorage au montage
+  // Charger les donnÃ©es depuis localStorage au montage
 useEffect(() => {
   const savedCandidatures = localStorage.getItem('candidatures');
   if (savedCandidatures) {
@@ -261,7 +256,7 @@ useEffect(() => {
   }
 }, []);
 
-// Sauvegarder les candidatures dans localStorage à chaque modification
+// Sauvegarder les candidatures dans localStorage Ã  chaque modification
 useEffect(() => {
   localStorage.setItem('candidatures', JSON.stringify(candidatures));
   
@@ -333,7 +328,7 @@ useEffect(() => {
         url = "/api/candidatures";
       }
 
-      console.log("🔄 Chargement des candidatures depuis:", url);
+      console.log("ðŸ”„ Chargement des candidatures depuis:", url);
 
       const response = await fetch(getApiUrl(url), {
         headers: { 
@@ -347,9 +342,9 @@ useEffect(() => {
       }
 
       const data = await response.json();
-      console.log("📥 Réponse API brute:", data);
+      console.log("ðŸ“¥ RÃ©ponse API brute:", data);
 
-      // Normaliser les données
+      // Normaliser les donnÃ©es
       let normalizedData: Candidature[] = [];
 
       if (Array.isArray(data.candidatures)) {
@@ -362,16 +357,16 @@ useEffect(() => {
         normalizedData = [];
       }
 
-      // CORRECTION : Fusion améliorée qui préserve mieux l'état local
+      // CORRECTION : Fusion amÃ©liorÃ©e qui prÃ©serve mieux l'Ã©tat local
 setCandidatures(prevCandidatures => {
   const localMap = new Map();
   
-  // Créer un Map avec TOUTES les données locales
+  // CrÃ©er un Map avec TOUTES les donnÃ©es locales
   prevCandidatures.forEach(c => {
     const key = `${c.id}-${c.type}`;
     localMap.set(key, {
       ...c,
-      // Préserver tous les états locaux importants
+      // PrÃ©server tous les Ã©tats locaux importants
       ignored: c.ignored,
       statut: c.statut,
       dateSoumission: c.dateSoumission
@@ -383,13 +378,13 @@ setCandidatures(prevCandidatures => {
     const localCand = localMap.get(key);
     
     if (localCand) {
-      console.log(`✅ Fusion: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
+      console.log(`âœ… Fusion: ${apiCand.nom} - ignored=${localCand.ignored}, statut=${localCand.statut}`);
       
-      // Fusionner intelligemment : priorité aux données locales
+      // Fusionner intelligemment : prioritÃ© aux donnÃ©es locales
       return {
-        ...apiCand,           // données de base de l'API
-        ignored: localCand.ignored, // TOUJOURS prendre l'état local
-        statut: localCand.statut,   // TOUJOURS prendre l'état local
+        ...apiCand,           // donnÃ©es de base de l'API
+        ignored: localCand.ignored, // TOUJOURS prendre l'Ã©tat local
+        statut: localCand.statut,   // TOUJOURS prendre l'Ã©tat local
         dateSoumission: localCand.dateSoumission // garder la date locale
       };
     }
@@ -397,12 +392,12 @@ setCandidatures(prevCandidatures => {
     // Nouvelle candidature depuis l'API
     return {
       ...apiCand,
-      ignored: false, // par défaut non ignorée
+      ignored: false, // par dÃ©faut non ignorÃ©e
       statut: apiCand.statut || "en_attente"
     };
   });
 
-  // Ajouter les candidatures locales qui ne sont pas dans l'API (au cas où)
+  // Ajouter les candidatures locales qui ne sont pas dans l'API (au cas oÃ¹)
   const localOnlyCandidates = prevCandidatures.filter(localCand => {
     const key = `${localCand.id}-${localCand.type}`;
     return !normalizedData.some(apiCand => 
@@ -412,13 +407,13 @@ setCandidatures(prevCandidatures => {
 
   const finalMerged = [...merged, ...localOnlyCandidates];
   
-  console.log(`✅ Fusion finale: ${finalMerged.length} total, ${finalMerged.filter(c => c.ignored).length} ignorées`);
+  console.log(`âœ… Fusion finale: ${finalMerged.length} total, ${finalMerged.filter(c => c.ignored).length} ignorÃ©es`);
   return finalMerged;
 });
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
-      console.error("❌ Erreur fetchCandidatures:", err);
+      console.error("âŒ Erreur fetchCandidatures:", err);
       setErrorCandidatures(message);
     } finally {
       setLoadingCandidatures(false);
@@ -604,9 +599,9 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
   try {
     const { id, type } = candidature;
-    console.log("🗑️ Suppression:", { id, type, nom: candidature.nom });
+    console.log("ðŸ—‘ï¸ Suppression:", { id, type, nom: candidature.nom });
 
-    // Déterminer le bon endpoint
+    // DÃ©terminer le bon endpoint
     let endpoint = '';
     if (type === 'spontanee' || type === 'stage_spontane') {
       endpoint = `/api/candidatures/spontanees/${id}`;
@@ -614,7 +609,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
       endpoint = `/api/candidatures/${id}`;
     }
 
-    console.log(`🔗 Endpoint: ${endpoint}`);
+    console.log(`ðŸ”— Endpoint: ${endpoint}`);
 
     const response = await fetch(getApiUrl(endpoint), {
       method: "DELETE",
@@ -624,18 +619,18 @@ const supprimerCandidature = async (candidature: Candidature) => {
       }
     });
 
-    console.log(`📊 Réponse: ${response.status}`);
+    console.log(`ðŸ“Š RÃ©ponse: ${response.status}`);
 
     if (response.ok) {
       const result = await response.json();
-      console.log("✅ Suppression réussie:", result);
+      console.log("âœ… Suppression rÃ©ussie:", result);
 
-      // Mettre à jour l'état local
+      // Mettre Ã  jour l'Ã©tat local
       setCandidatures((prev) =>
         prev.filter((c) => !(c.id === id && c.type === type))
       );
 
-      // Mettre à jour le localStorage
+      // Mettre Ã  jour le localStorage
       const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
       const updatedCandidatures = savedCandidatures.filter((c: Candidature) =>
         !(c.id === id && c.type === type)
@@ -647,11 +642,11 @@ const supprimerCandidature = async (candidature: Candidature) => {
         setSelectedCandidature(null);
       }
 
-      setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+      setErrorCandidatures(`âœ… Candidature de ${candidature.nom} supprimÃ©e avec succÃ¨s`);
       setTimeout(() => setErrorCandidatures(""), 3000);
 
     } else {
-      // Essayer de récupérer le message d'erreur
+      // Essayer de rÃ©cupÃ©rer le message d'erreur
       let errorMessage = `Erreur ${response.status}`;
       try {
         const errorData = await response.json();
@@ -664,8 +659,8 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("❌ Erreur suppression:", err);
-    setErrorCandidatures(`❌ Erreur: ${message}`);
+    console.error("âŒ Erreur suppression:", err);
+    setErrorCandidatures(`âŒ Erreur: ${message}`);
   }
 };
 const envoyerEmailCandidature = async (
@@ -673,18 +668,18 @@ const envoyerEmailCandidature = async (
   statut: "acceptee" | "refusee"
 ) => {
   try {
-    console.log("📧 Fonction email appelée (simulation):", { 
+    console.log("ðŸ“§ Fonction email appelÃ©e (simulation):", { 
       candidatureId: candidature.id, 
       statut,
       email: candidature.email 
     });
 
-    console.log(`✅ Simulation email ${statut} pour ${candidature.nom} (${candidature.email})`);
+    console.log(`âœ… Simulation email ${statut} pour ${candidature.nom} (${candidature.email})`);
     
     return true;
 
   } catch (error: unknown) {
-    console.warn("⚠️ Note: Fonctionnalité email non disponible pour le moment");
+    console.warn("âš ï¸ Note: FonctionnalitÃ© email non disponible pour le moment");
     return true;
   }
 };
@@ -704,8 +699,8 @@ const restaurerCandidature = (candidature: Candidature) => {
   );
   localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-  console.log(`✅ Candidature de ${candidature.nom} restaurée`);
-  setErrorCandidatures(`✅ Candidature de ${candidature.nom} restaurée`);
+  console.log(`âœ… Candidature de ${candidature.nom} restaurÃ©e`);
+  setErrorCandidatures(`âœ… Candidature de ${candidature.nom} restaurÃ©e`);
   setTimeout(() => setErrorCandidatures(""), 3000);
 };
   
@@ -716,9 +711,9 @@ const changerStatut = async (
   try {
     const { id, type } = candidature;
 
-    console.log("🚀 Mise à jour statut:", { id, type, nouveauStatut, currentIgnored: candidature.ignored });
+    console.log("ðŸš€ Mise Ã  jour statut:", { id, type, nouveauStatut, currentIgnored: candidature.ignored });
 
-    // Pour "ignorer", on gère uniquement en local
+    // Pour "ignorer", on gÃ¨re uniquement en local
     if (nouveauStatut === "ignorer") {
       const updatedCandidature = { 
         ...candidature, 
@@ -726,7 +721,7 @@ const changerStatut = async (
         ignored: true 
       };
       
-      console.log(`🔕 Ignorer: ${candidature.nom}, nouveau ignored=${updatedCandidature.ignored}`);
+      console.log(`ðŸ”• Ignorer: ${candidature.nom}, nouveau ignored=${updatedCandidature.ignored}`);
       
       setCandidatures((prev) =>
         prev.map((c) =>
@@ -734,14 +729,14 @@ const changerStatut = async (
         )
       );
 
-      // Sauvegarder dans localStorage IMMÉDIATEMENT
+      // Sauvegarder dans localStorage IMMÃ‰DIATEMENT
       const savedCandidatures = JSON.parse(localStorage.getItem('candidatures') || '[]');
       const updatedCandidatures = savedCandidatures.map((c: Candidature) =>
         c.id === id && c.type === type ? updatedCandidature : c
       );
       localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-      setErrorCandidatures(`✅ Candidature de ${candidature.nom} ignorée`);
+      setErrorCandidatures(`âœ… Candidature de ${candidature.nom} ignorÃ©e`);
       setTimeout(() => setErrorCandidatures(""), 3000);
       return;
     }
@@ -761,13 +756,13 @@ const changerStatut = async (
     await handleApiError(response);
 
     const result = await response.json();
-    console.log("✅ Réponse backend:", result);
+    console.log("âœ… RÃ©ponse backend:", result);
 
-    // Mettre à jour l'état local
+    // Mettre Ã  jour l'Ã©tat local
     const updatedCandidature = { 
       ...candidature, 
       statut: nouveauStatut,
-      ignored: false // Une candidature acceptée/refusée n'est pas ignorée
+      ignored: false // Une candidature acceptÃ©e/refusÃ©e n'est pas ignorÃ©e
     };
     
     setCandidatures((prev) =>
@@ -783,15 +778,15 @@ const changerStatut = async (
     );
     localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-    const message = result.message || `✅ Statut de ${candidature.nom} mis à jour avec succès`;
+    const message = result.message || `âœ… Statut de ${candidature.nom} mis Ã  jour avec succÃ¨s`;
     setErrorCandidatures(message);
     
     setTimeout(() => setErrorCandidatures(""), 3000);
 
   } catch (err: unknown) {
-    console.error("❌ Erreur détaillée:", err);
+    console.error("âŒ Erreur dÃ©taillÃ©e:", err);
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    setErrorCandidatures(`❌ Erreur: ${message}`);
+    setErrorCandidatures(`âŒ Erreur: ${message}`);
   }
 };
 
@@ -809,7 +804,7 @@ const changerStatut = async (
           <button
             onClick={() => setSelectedCandidature(candidature)}
             className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
-            title="Voir détails"
+            title="Voir dÃ©tails"
           >
             <Eye className="h-4 w-4" />
           </button>
@@ -830,7 +825,7 @@ const changerStatut = async (
           value={candidature.statut}
           onChange={(e) => {
             const selectedValue = e.target.value as "en_attente" | "acceptee" | "refusee" | "ignorer";
-            console.log("🎯 Sélection:", selectedValue);
+            console.log("ðŸŽ¯ SÃ©lection:", selectedValue);
             changerStatut(candidature, selectedValue);
           }}
           className="p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
@@ -843,7 +838,7 @@ const changerStatut = async (
         <button
           onClick={() => setSelectedCandidature(candidature)}
           className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
-          title="Voir détails"
+          title="Voir dÃ©tails"
         >
           <Eye className="h-4 w-4" />
         </button>
@@ -869,7 +864,7 @@ const handleChangePassword = async () => {
     setPasswordError("");
     setPasswordSuccess("");
 
-    console.log("🔄 Début changement mot de passe...");
+    console.log("ðŸ”„ DÃ©but changement mot de passe...");
 
     // Validation
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
@@ -883,9 +878,9 @@ const handleChangePassword = async () => {
       confirmPassword: passwordData.confirmPassword
     };
 
-    console.log("📤 Envoi à:", `${API_BASE_URL}/api/auth/change-password`);
+    console.log("ðŸ“¤ Envoi Ã :", `${API_BASE_URL}/api/auth/change-password`);
 
-    // TEST: Essayer d'abord avec la version simplifiée
+    // TEST: Essayer d'abord avec la version simplifiÃ©e
     let response;
     try {
       response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
@@ -897,13 +892,13 @@ const handleChangePassword = async () => {
         body: JSON.stringify(requestBody),
       });
       
-      console.log("📥 Réponse brute:", response);
+      console.log("ðŸ“¥ RÃ©ponse brute:", response);
       
       if (!response.ok) {
-        console.log("❌ Erreur HTTP:", response.status, response.statusText);
+        console.log("âŒ Erreur HTTP:", response.status, response.statusText);
         
-        // Essayer POST si PUT échoue
-        console.log("🔄 Essai avec POST...");
+        // Essayer POST si PUT Ã©choue
+        console.log("ðŸ”„ Essai avec POST...");
         response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
           method: "POST",
           headers: {
@@ -915,26 +910,26 @@ const handleChangePassword = async () => {
       }
       
     } catch (fetchError) {
-      console.error("❌ Erreur fetch:", fetchError);
-      throw new Error(`Erreur réseau: ${fetchError.message}`);
+      console.error("âŒ Erreur fetch:", fetchError);
+      throw new Error(`Erreur rÃ©seau: ${fetchError.message}`);
     }
 
-    console.log("📊 Status final:", response.status, response.statusText);
+    console.log("ðŸ“Š Status final:", response.status, response.statusText);
     
     let data;
     try {
       data = await response.json();
-      console.log("📋 Données réponse:", data);
+      console.log("ðŸ“‹ DonnÃ©es rÃ©ponse:", data);
     } catch (jsonError) {
-      console.error("❌ Erreur parsing JSON:", jsonError);
-      throw new Error("Réponse invalide du serveur");
+      console.error("âŒ Erreur parsing JSON:", jsonError);
+      throw new Error("RÃ©ponse invalide du serveur");
     }
 
     if (!response.ok) {
       throw new Error(data.message || data.error || `Erreur ${response.status}`);
     }
 
-    setPasswordSuccess(data.message || "Mot de passe changé avec succès !");
+    setPasswordSuccess(data.message || "Mot de passe changÃ© avec succÃ¨s !");
     
     setPasswordData({
       currentPassword: "",
@@ -949,14 +944,14 @@ const handleChangePassword = async () => {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Une erreur est survenue";
-    console.error("❌ Erreur complète:", err);
+    console.error("âŒ Erreur complÃ¨te:", err);
     setPasswordError(message);
   } finally {
     setIsChangingPassword(false);
   }
 };
 
-  // Candidatures actives (non ignorées)
+  // Candidatures actives (non ignorÃ©es)
   const candidaturesActives = candidatures.filter(c => !c.ignored);
 
   // Candidatures pour les onglets principaux
@@ -968,12 +963,12 @@ const handleChangePassword = async () => {
     c.type === "emploi" || c.type === "stage" || c.type === "pfe"
   );
 
-  // Candidatures archivées (acceptées/refusées) pour "Réponses Candidatures"
+  // Candidatures archivÃ©es (acceptÃ©es/refusÃ©es) pour "RÃ©ponses Candidatures"
   const candidaturesArchivees = candidatures.filter((c) => 
     (c.statut === "acceptee" || c.statut === "refusee") && !c.ignored
   );
 
-  // Candidatures ignorées pour "Archives"
+  // Candidatures ignorÃ©es pour "Archives"
   const candidaturesIgnorees = candidatures.filter((c) => c.ignored);
 
   // Stats pour les archives
@@ -989,7 +984,7 @@ const handleChangePassword = async () => {
 
   const DisplayDiplome = ({ diplome }: { diplome?: string }) => {
     if (!diplome) {
-      return <span className="text-gray-400 italic">Non renseigné</span>;
+      return <span className="text-gray-400 italic">Non renseignÃ©</span>;
     }
     return (
       <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
@@ -1073,7 +1068,7 @@ const handleChangePassword = async () => {
               </p>
               <div className="flex items-center space-x-1">
                 <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                <p className="text-xs text-gray-500">À traiter</p>
+                <p className="text-xs text-gray-500">Ã€ traiter</p>
               </div>
             </div>
             <div className="p-3 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors duration-300">
@@ -1086,14 +1081,14 @@ const handleChangePassword = async () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
-                Acceptées
+                AcceptÃ©es
               </p>
               <p className="text-3xl font-bold text-gray-900 mb-2">
                 {stats.acceptees}
               </p>
               <div className="flex items-center space-x-1">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                <p className="text-xs text-gray-500">Validées</p>
+                <p className="text-xs text-gray-500">ValidÃ©es</p>
               </div>
             </div>
             <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors duration-300">
@@ -1106,7 +1101,7 @@ const handleChangePassword = async () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
-                Refusées
+                RefusÃ©es
               </p>
               <p className="text-3xl font-bold text-gray-900 mb-2">
                 {stats.refusees}
@@ -1126,14 +1121,14 @@ const handleChangePassword = async () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
-                Ignorées
+                IgnorÃ©es
               </p>
               <p className="text-3xl font-bold text-gray-900 mb-2">
                 {stats.ignorees}
               </p>
               <div className="flex items-center space-x-1">
                 <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                <p className="text-xs text-gray-500">Archivées</p>
+                <p className="text-xs text-gray-500">ArchivÃ©es</p>
               </div>
             </div>
             <div className="p-3 bg-gray-50 rounded-xl group-hover:bg-gray-100 transition-colors duration-300">
@@ -1166,7 +1161,7 @@ const handleChangePassword = async () => {
             {filtreType === "emploi" ? "Postes CDI/CDD" : "Stages/PFE"}
           </h3>
           <div className="text-sm text-gray-600">
-            {offresFiltrees.length} poste(s) trouvé(s)
+            {offresFiltrees.length} poste(s) trouvÃ©(s)
           </div>
         </div>
 
@@ -1190,7 +1185,7 @@ const handleChangePassword = async () => {
             <p className="text-gray-500">
               {filtreType === "emploi"
                 ? "Créez votre première offre d'emploi pour commencer à recevoir des candidatures."
-                : "Créez votre première offre de stage/PFE pour commencer à recevoir des candidatures."}
+                : "CrÃ©ez votre premiÃ¨re offre de stage/PFE pour commencer Ã  recevoir des candidatures."}
             </p>
           </div>
         ) : (
@@ -1229,9 +1224,9 @@ const handleChangePassword = async () => {
                         {offre.localisation}
                       </div>
                       <div className="flex items-center text-sm text-gray-600">
-                        <span className="mr-2">📅</span>
+                        <span className="mr-2">ðŸ“…</span>
                         Expire le{" "}
-                        {new Date(offre.dateExpiration).toLocaleDateString()}
+                        {formatDateForDisplay(offre.dateExpiration)}
                       </div>
                     </div>
 
@@ -1251,11 +1246,11 @@ const handleChangePassword = async () => {
                         </span>
                         <span className="flex items-center">
                           <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
-                          Acceptées: {stats.acceptees}
+                          AcceptÃ©es: {stats.acceptees}
                         </span>
                         <span className="flex items-center">
                           <span className="w-2 h-2 bg-red-400 rounded-full mr-1"></span>
-                          Refusées: {stats.refusees}
+                          RefusÃ©es: {stats.refusees}
                         </span>
                       </div>
                     </div>
@@ -1361,13 +1356,13 @@ const handleChangePassword = async () => {
               <div className="text-2xl font-bold text-green-600">
                 {stats.acceptees}
               </div>
-              <div className="text-sm text-green-700">Acceptées</div>
+              <div className="text-sm text-green-700">AcceptÃ©es</div>
             </div>
             <div className="text-center p-3 bg-red-50 rounded-lg">
               <div className="text-2xl font-bold text-red-600">
                 {stats.refusees}
               </div>
-              <div className="text-sm text-red-700">Refusées</div>
+              <div className="text-sm text-red-700">RefusÃ©es</div>
             </div>
             <div className="text-center p-3 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
@@ -1395,15 +1390,15 @@ const handleChangePassword = async () => {
               className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
             >
               <option value="date">Trier par date</option>
-              <option value="diplome">Trier par diplôme</option>
-              <option value="competence">Trier par compétences</option>
-              <option value="experience">Trier par expérience</option>
+              <option value="diplome">Trier par diplÃ´me</option>
+              <option value="competence">Trier par compÃ©tences</option>
+              <option value="experience">Trier par expÃ©rience</option>
             </select>
             <button
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
               className="p-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all duration-200"
             >
-              {sortOrder === "asc" ? "↑" : "↓"}
+              {sortOrder === "asc" ? "â†‘" : "â†“"}
             </button>
           </div>
 
@@ -1419,14 +1414,14 @@ const handleChangePassword = async () => {
               Aucune candidature
             </h4>
             <p className="text-gray-500 mb-4">
-              Aucune candidature n'a été trouvée pour ce poste.
+              Aucune candidature n'a Ã©tÃ© trouvÃ©e pour ce poste.
             </p>
             <div className="text-sm text-gray-400 bg-gray-50 p-4 rounded-lg max-w-md mx-auto">
-              <p>💡 Debug info:</p>
+              <p>ðŸ’¡ Debug info:</p>
               <p>Offre ID: {selectedOffre.id}</p>
               <p>Titre: "{selectedOffre.titre}"</p>
               <p>Type: {selectedOffre.type}</p>
-              <p>Filtre appliqué: {filtreType}</p>
+              <p>Filtre appliquÃ©: {filtreType}</p>
             </div>
           </div>
         ) : (
@@ -1437,9 +1432,9 @@ const handleChangePassword = async () => {
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score Compétences</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expérience</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">DiplÃ´me</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score CompÃ©tences</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">ExpÃ©rience</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date Soumission</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
@@ -1463,7 +1458,7 @@ const handleChangePassword = async () => {
                         <DisplayExperience experience={cand.experience} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
@@ -1483,7 +1478,7 @@ const handleChangePassword = async () => {
                             ? "Acceptée"
                             : cand.statut === "refusee"
                             ? "Refusée"
-                            : "Ignorée"}
+                            : "IgnorÃ©e"}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -1513,8 +1508,8 @@ const handleChangePassword = async () => {
           </p>
           <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 inline-block">
             <p className="text-yellow-800 text-sm">
-              <strong>💡 Information :</strong> Ces candidatures ne sont plus visibles dans les autres onglets.
-              Vous pouvez les restaurer ou les supprimer définitivement.
+              <strong>ðŸ’¡ Information :</strong> Ces candidatures ne sont plus visibles dans les autres onglets.
+              Vous pouvez les restaurer ou les supprimer dÃ©finitivement.
             </p>
           </div>
         </div>
@@ -1529,10 +1524,10 @@ const handleChangePassword = async () => {
           <div className="text-center py-12 bg-white rounded-xl shadow-lg">
             <Ban className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h4 className="text-lg font-semibold text-gray-700 mb-2">
-              Aucune candidature ignorée
+              Aucune candidature ignorÃ©e
             </h4>
             <p className="text-gray-500">
-              Les candidatures que vous ignorez apparaîtront ici.
+              Les candidatures que vous ignorez apparaÃ®tront ici.
             </p>
           </div>
         ) : (
@@ -1544,7 +1539,7 @@ const handleChangePassword = async () => {
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">DiplÃ´me</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
@@ -1593,11 +1588,11 @@ const handleChangePassword = async () => {
                         <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          Ignorée
+                          IgnorÃ©e
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -1612,7 +1607,7 @@ const handleChangePassword = async () => {
                           <button
                             onClick={() => setSelectedCandidature(cand)}
                             className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
-                            title="Voir détails"
+                            title="Voir dÃ©tails"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -1638,48 +1633,48 @@ const handleChangePassword = async () => {
     <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
       <div className="flex justify-between items-center mb-4 border-b pb-2">
         <h3 className="text-2xl font-bold text-gray-800">
-          Détails de la candidature ignorée
+          Details de la candidature ignorÃ©e
         </h3>
         <div className="flex items-center space-x-2">
           <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-            Ignorée
+            IgnorÃ©e
           </span>
         </div>
       </div>
 
       <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
         <p>
-          <strong>👤 Nom :</strong> {selectedCandidature.nom}
+          <strong>Nom :</strong> {selectedCandidature.nom}
         </p>
         <p>
-          <strong>📧 Email :</strong> {selectedCandidature.email}
+          <strong>Email :</strong> {selectedCandidature.email}
         </p>
         {selectedCandidature.telephone && (
           <p>
-            <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
+            <strong>Telephone :</strong> {selectedCandidature.telephone}
           </p>
         )}
         {selectedCandidature.diplome && (
           <p>
-            <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
+            <strong>Diplome :</strong> {selectedCandidature.diplome}
           </p>
         )}
         {selectedCandidature.experience && (
           <p>
-            <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+            <strong>Experience :</strong> {selectedCandidature.experience}
           </p>
         )}
         {selectedCandidature.competenceScore && (
           <p>
-            <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+            <strong>Score de competences :</strong> {selectedCandidature.competenceScore}%
           </p>
         )}
         <p>
-          <strong>📅 Date de soumission :</strong>{" "}
-          {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
+          <strong>Date de soumission :</strong>{" "}
+          {formatDateForDisplay(selectedCandidature.dateSoumission)}
         </p>
         <p>
-          <strong>📋 Type :</strong>
+          <strong>Type :</strong>
           <span
             className={`ml-2 px-2 py-1 rounded-full text-xs ${
               selectedCandidature.type === "emploi"
@@ -1709,7 +1704,7 @@ const handleChangePassword = async () => {
 
         {selectedCandidature.cvUrl && (
           <p>
-            <strong>📎 CV :</strong>{" "}
+            <strong>CV :</strong>{" "}
             <a
               href={getFileUrl(selectedCandidature.cvUrl)}
               target="_blank"
@@ -1717,14 +1712,14 @@ const handleChangePassword = async () => {
               className="text-blue-600 hover:underline flex items-center space-x-1"
             >
               <FileText className="h-4 w-4" />
-              <span>Télécharger le CV</span>
+              <span>TÃ©lÃ©charger le CV</span>
             </a>
           </p>
         )}
 
         {selectedCandidature.lettreMotivationUrl && (
           <p>
-            <strong>📝 Lettre de motivation :</strong>{" "}
+            <strong>Lettre de motivation :</strong>{" "}
             <a
               href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
               target="_blank"
@@ -1732,7 +1727,7 @@ const handleChangePassword = async () => {
               className="text-blue-600 hover:underline flex items-center space-x-1"
             >
               <FileText className="h-4 w-4" />
-              <span>Télécharger la lettre</span>
+              <span>TÃ©lÃ©charger la lettre</span>
             </a>
           </p>
         )}
@@ -1775,7 +1770,7 @@ const handleChangePassword = async () => {
   };
 
   const ReponsesCandidaturesList = () => {
-    // CORRECTION : Utiliser toutes les candidatures pour les réponses
+    // CORRECTION : Utiliser toutes les candidatures pour les rÃ©ponses
     const candidaturesArchivees = candidatures.filter((c) => 
       (c.statut === "acceptee" || c.statut === "refusee") && !c.ignored
     );
@@ -1804,10 +1799,10 @@ const handleChangePassword = async () => {
       <section className="space-y-6">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Réponses Candidatures
+            RÃ©ponses Candidatures
           </h2>
           <p className="text-gray-600 text-lg">
-            Consultation des candidatures déjà traitées (acceptées/refusées)
+            Consultation des candidatures dÃ©jÃ  traitÃ©es (acceptÃ©es/refusÃ©es)
           </p>
         </div>
 
@@ -1817,21 +1812,21 @@ const handleChangePassword = async () => {
             <h3 className="text-2xl font-bold text-gray-900">
               {statsArchives.total}
             </h3>
-            <p className="text-gray-600">Total traité</p>
+            <p className="text-gray-600">Total traitÃ©</p>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-6 text-center">
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
             <h3 className="text-2xl font-bold text-gray-900">
               {statsArchives.acceptees}
             </h3>
-            <p className="text-gray-600">Candidatures acceptées</p>
+            <p className="text-gray-600">Candidatures acceptÃ©es</p>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-6 text-center">
             <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
             <h3 className="text-2xl font-bold text-gray-900">
               {statsArchives.refusees}
             </h3>
-            <p className="text-gray-600">Candidatures refusées</p>
+            <p className="text-gray-600">Candidatures refusÃ©es</p>
           </div>
         </div>
 
@@ -1849,9 +1844,9 @@ const handleChangePassword = async () => {
                   }
                   className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm w-full md:w-auto"
                 >
-                  <option value="tous">Toutes les réponses</option>
-                  <option value="acceptees">Candidatures acceptées</option>
-                  <option value="refusees">Candidatures refusées</option>
+                  <option value="tous">Toutes les rÃ©ponses</option>
+                  <option value="acceptees">Candidatures acceptÃ©es</option>
+                  <option value="refusees">Candidatures refusÃ©es</option>
                 </select>
               </div>
               <div className="relative flex-1">
@@ -1866,7 +1861,7 @@ const handleChangePassword = async () => {
               </div>
             </div>
             <div className="text-sm text-gray-600 whitespace-nowrap">
-              {candidaturesRecherchees.length} candidature(s) trouvée(s)
+              {candidaturesRecherchees.length} candidature(s) trouvÃ©e(s)
             </div>
           </div>
         </div>
@@ -1874,7 +1869,7 @@ const handleChangePassword = async () => {
         {loadingCandidatures ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-lg">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Chargement des réponses...</p>
+            <p className="mt-4 text-gray-600">Chargement des rÃ©ponses...</p>
           </div>
         ) : candidaturesRecherchees.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-lg">
@@ -1882,12 +1877,12 @@ const handleChangePassword = async () => {
             <h4 className="text-lg font-semibold text-gray-700 mb-2">
               {searchArchive
                 ? "Aucun résultat trouvé"
-                : "Aucune réponse de candidature"}
+                : "Aucune rÃ©ponse de candidature"}
             </h4>
             <p className="text-gray-500">
               {searchArchive
                 ? "Aucune candidature ne correspond à votre recherche."
-                : "Les candidatures acceptées ou refusées apparaîtront ici."}
+                : "Les candidatures acceptÃ©es ou refusÃ©es apparaÃ®tront ici."}
             </p>
           </div>
         ) : (
@@ -1899,7 +1894,7 @@ const handleChangePassword = async () => {
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">DiplÃ´me</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
@@ -1948,7 +1943,7 @@ const handleChangePassword = async () => {
                         <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
@@ -1964,7 +1959,7 @@ const handleChangePassword = async () => {
                             ? "Acceptée"
                             : cand.statut === "refusee"
                             ? "Refusée"
-                            : "Ignorée"}
+                            : "IgnorÃ©e"}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -1972,7 +1967,7 @@ const handleChangePassword = async () => {
                           <button
                             onClick={() => setSelectedCandidature(cand)}
                             className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            title="Voir détails"
+                            title="Voir dÃ©tails"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -1998,7 +1993,7 @@ const handleChangePassword = async () => {
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
               <div className="flex justify-between items-center mb-4 border-b pb-2">
                 <h3 className="text-2xl font-bold text-gray-800">
-                  Détails de la candidature traitée
+                  Details de la candidature traitÃ©e
                 </h3>
                 <div className="flex items-center space-x-2">
                   <span
@@ -2014,50 +2009,48 @@ const handleChangePassword = async () => {
                       ? "Acceptée"
                       : selectedCandidature.statut === "refusee"
                       ? "Refusée"
-                      : "Ignorée"}
+                      : "IgnorÃ©e"}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
                 <p>
-                  <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                  <strong>Nom :</strong> {selectedCandidature.nom}
                 </p>
                 <p>
-                  <strong>📧 Email :</strong> {selectedCandidature.email}
+                  <strong>Email :</strong> {selectedCandidature.email}
                 </p>
                 {selectedCandidature.telephone && (
                   <p>
-                    <strong>📞 Téléphone :</strong>{" "}
+                    <strong>Telephone :</strong>{" "}
                     {selectedCandidature.telephone}
                   </p>
                 )}
                 {selectedCandidature.diplome && (
                   <p>
-                    <strong>🎓 Diplôme :</strong>{" "}
+                    <strong>Diplome :</strong>{" "}
                     {selectedCandidature.diplome}
                   </p>
                 )}
                 {selectedCandidature.experience && (
                   <p>
-                    <strong>💼 Expérience :</strong>{" "}
+                    <strong>Experience :</strong>{" "}
                     {selectedCandidature.experience}
                   </p>
                 )}
                 {selectedCandidature.competenceScore && (
                   <p>
-                    <strong>⭐ Score de compétences :</strong>{" "}
+                    <strong>Score de competences :</strong>{" "}
                     {selectedCandidature.competenceScore}%
                   </p>
                 )}
                 <p>
-                  <strong>📅 Date de soumission :</strong>{" "}
-                  {new Date(
-                    selectedCandidature.dateSoumission
-                  ).toLocaleDateString()}
+                  <strong>Date de soumission :</strong>{" "}
+                  {formatDateForDisplay(selectedCandidature.dateSoumission)}
                 </p>
                 <p>
-                  <strong>📋 Type :</strong>
+                  <strong>Type :</strong>
                   <span
                     className={`ml-2 px-2 py-1 rounded-full text-xs ${
                       selectedCandidature.type === "emploi"
@@ -2087,7 +2080,7 @@ const handleChangePassword = async () => {
 
                 {selectedCandidature.cvUrl && (
                   <p>
-                    <strong>📎 CV :</strong>{" "}
+                    <strong>CV :</strong>{" "}
                     <a
                       href={getFileUrl(selectedCandidature.cvUrl)}
                       target="_blank"
@@ -2095,14 +2088,14 @@ const handleChangePassword = async () => {
                       className="text-blue-600 hover:underline flex items-center space-x-1"
                     >
                       <FileText className="h-4 w-4" />
-                      <span>Télécharger le CV</span>
+                      <span>TÃ©lÃ©charger le CV</span>
                     </a>
                   </p>
                 )}
 
                 {selectedCandidature.lettreMotivationUrl && (
                   <p>
-                    <strong>📝 Lettre de motivation :</strong>{" "}
+                    <strong>Lettre de motivation :</strong>{" "}
                     <a
                       href={getFileUrl(
                         selectedCandidature.lettreMotivationUrl
@@ -2112,7 +2105,7 @@ const handleChangePassword = async () => {
                       className="text-blue-600 hover:underline flex items-center space-x-1"
                     >
                       <FileText className="h-4 w-4" />
-                      <span>Télécharger la lettre</span>
+                      <span>TÃ©lÃ©charger la lettre</span>
                     </a>
                   </p>
                 )}
@@ -2182,6 +2175,13 @@ const handleChangePassword = async () => {
             </button>
 
             <Link
+              to="/timesheet/saisie"
+              className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-all duration-200 font-medium shadow-sm"
+            >
+              Saisie Temps
+            </Link>
+
+            <Link
               to="/"
               className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
             >
@@ -2193,7 +2193,7 @@ const handleChangePassword = async () => {
               className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
             >
               <LogOut className="h-5 w-5" />
-              <span>Déconnexion</span>
+              <span>DÃ©connexion</span>
             </button>
           </div>
         </div>
@@ -2340,7 +2340,7 @@ const handleChangePassword = async () => {
             }`}
           >
             <Users className="h-5 w-5" />
-            <span>Candidatures Spontanées - Stage/PFE</span>
+            <span>Candidatures SpontanÃ©es - Stage/PFE</span>
             {notificationCounts.candidatures > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
                 {notificationCounts.candidatures}
@@ -2372,7 +2372,7 @@ const handleChangePassword = async () => {
             }`}
           >
             <CheckCircle className="h-5 w-5" />
-            <span>Réponses Candidatures</span>
+            <span>RÃ©ponses Candidatures</span>
             {statsArchives.total > 0 && (
               <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
                 {statsArchives.total}
@@ -2425,7 +2425,7 @@ const handleChangePassword = async () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Développeur Full Stack"
+                    placeholder="Ex: DÃ©veloppeur Full Stack"
                     value={
                       editingOffre ? editingOffre.titre : nouvelleOffre.titre
                     }
@@ -2552,7 +2552,7 @@ const handleChangePassword = async () => {
                     Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    placeholder="Description détaillée de l'offre..."
+                    placeholder="Description dÃ©taillÃ©e de l'offre..."
                     value={
                       editingOffre
                         ? editingOffre.description
@@ -2590,7 +2590,7 @@ const handleChangePassword = async () => {
                             type="text"
                             placeholder={`Exigence ${
                               index + 1
-                            } (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                            } (ex: DiplÃ´me en gÃ©nie informatique, 3+ ans d'expÃ©rience...)`}
                             value={exigence}
                             onChange={(e) =>
                               mettreAJourChampExigenceEdit(
@@ -2633,7 +2633,7 @@ const handleChangePassword = async () => {
                             type="text"
                             placeholder={`Exigence ${
                               index + 1
-                            } (ex: Diplôme en génie informatique, 3+ ans d'expérience...)`}
+                            } (ex: DiplÃ´me en gÃ©nie informatique, 3+ ans d'expÃ©rience...)`}
                             value={exigence}
                             onChange={(e) =>
                               mettreAJourChampExigence(index, e.target.value)
@@ -2665,8 +2665,8 @@ const handleChangePassword = async () => {
                   )}
 
                   <p className="text-xs text-gray-500 mt-2">
-                    Chaque exigence sera stockée individuellement et pourra être
-                    utilisée pour le matching avec les candidats.
+                    Chaque exigence sera stockÃ©e individuellement et pourra Ãªtre
+                    utilisÃ©e pour le matching avec les candidats.
                   </p>
                 </div>
               </div>
@@ -2732,7 +2732,7 @@ const handleChangePassword = async () => {
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                          {new Date(offre.dateExpiration).toLocaleDateString()}
+                          {formatDateForDisplay(offre.dateExpiration)}
                         </td>
                         <td className="px-4 py-3 text-sm whitespace-nowrap">
                           <span
@@ -2775,7 +2775,7 @@ const handleChangePassword = async () => {
         {activeTab === "candidatures" && (
           <section className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-900 text-center">
-              Gestion des Candidatures Spontanées & Stage/PFE
+              Gestion des Candidatures SpontanÃ©es & Stage/PFE
             </h2>
 
             <div className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
@@ -2788,10 +2788,10 @@ const handleChangePassword = async () => {
                 }
                 className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
               >
-                <option value="tous">Toutes les candidatures spontanées</option>
-                <option value="stage_spontane">Stages/PFE Spontanés</option>
+                <option value="tous">Toutes les candidatures spontanÃ©es</option>
+                <option value="stage_spontane">Stages/PFE SpontanÃ©s</option>
                 <option value="spontanee">
-                  Candidatures spontanées générales
+                  Candidatures spontanÃ©es gÃ©nÃ©rales
                 </option>
               </select>
 
@@ -2811,9 +2811,9 @@ const handleChangePassword = async () => {
                   className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white shadow-sm"
                 >
                   <option value="date">Trier par date</option>
-                  <option value="diplome">Trier par diplôme</option>
-                  <option value="competence">Trier par compétences</option>
-                  <option value="experience">Trier par expérience</option>
+                  <option value="diplome">Trier par diplÃ´me</option>
+                  <option value="competence">Trier par compÃ©tences</option>
+                  <option value="experience">Trier par expÃ©rience</option>
                 </select>
                 <button
                   onClick={() =>
@@ -2821,7 +2821,7 @@ const handleChangePassword = async () => {
                   }
                   className="p-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all duration-200"
                 >
-                  {sortOrder === "asc" ? "↑" : "↓"}
+                  {sortOrder === "asc" ? "â†‘" : "â†“"}
                 </button>
               </div>
             </div>
@@ -2833,7 +2833,7 @@ const handleChangePassword = async () => {
             )}
             {loadingCandidatures && (
               <div className="text-center py-8 text-gray-600">
-                Chargement des candidatures spontanées...
+                Chargement des candidatures spontanÃ©es...
               </div>
             )}
 
@@ -2858,7 +2858,7 @@ const handleChangePassword = async () => {
                   <h3 className="text-lg font-semibold text-gray-700 bg-gray-100 px-6 py-3 capitalize">
                     {type === "stage_spontane"
                       ? "Candidatures Spontanées Stage/PFE"
-                      : "Candidatures Spontanées Générales"}{ " "}
+                      : "Candidatures SpontanÃ©es GÃ©nÃ©rales"}{ " "}
                     <span className="ml-2 bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
                       {sortedCandidatures.length}
                     </span>
@@ -2871,12 +2871,12 @@ const handleChangePassword = async () => {
                         Aucune candidature{" "}
                         {type === "stage_spontane"
                           ? "spontanée de stage/PFE"
-                          : "spontanée générale"}
+                          : "spontanÃ©e gÃ©nÃ©rale"}
                       </h4>
                       <p className="text-gray-500">
                         {type === "stage_spontane"
                           ? "Aucune candidature spontanée de stage ou PFE n'a été reçue pour le moment."
-                          : "Aucune candidature spontanée générale n'a été reçue pour le moment."}
+                          : "Aucune candidature spontanÃ©e gÃ©nÃ©rale n'a Ã©tÃ© reÃ§ue pour le moment."}
                       </p>
                     </div>
                   ) : (
@@ -2887,9 +2887,9 @@ const handleChangePassword = async () => {
                             <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Type</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Nom</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Email</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Diplôme</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score Compétences</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Expérience</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">DiplÃ´me</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Score CompÃ©tences</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">ExpÃ©rience</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Date Soumission</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Statut</th>
                             <th className="px-4 py-3 text-left font-semibold text-gray-700 text-sm whitespace-nowrap">Actions</th>
@@ -2929,7 +2929,7 @@ const handleChangePassword = async () => {
                                 <DisplayExperience experience={cand.experience} />
                               </td>
                               <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                                {new Date(cand.dateSoumission).toLocaleDateString()}
+                                {formatDateForDisplay(cand.dateSoumission)}
                               </td>
                               <td className="px-4 py-3 text-sm whitespace-nowrap">
                                 <span
@@ -2949,7 +2949,7 @@ const handleChangePassword = async () => {
                                     ? "Acceptée"
                                     : cand.statut === "refusee"
                                     ? "Refusée"
-                                    : "Ignorée"}
+                                    : "IgnorÃ©e"}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -2970,50 +2970,48 @@ const handleChangePassword = async () => {
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
                   <div className="flex justify-between items-center mb-4 border-b pb-2">
                     <h3 className="text-2xl font-bold text-gray-800">
-                      Détails de la candidature
+                      Details de la candidature
                     </h3>
                   </div>
 
                   <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh] custom-scrollbar">
                     <p>
-                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                      <strong>Nom :</strong> {selectedCandidature.nom}
                     </p>
                     <p>
-                      <strong>📧 Email :</strong> {selectedCandidature.email}
+                      <strong>Email :</strong> {selectedCandidature.email}
                     </p>
                     {selectedCandidature.telephone && (
                       <p>
-                        <strong>📞 Téléphone :</strong>{" "}
+                        <strong>Telephone :</strong>{" "}
                         {selectedCandidature.telephone}
                       </p>
                     )}
                     {selectedCandidature.diplome && (
                       <p>
-                        <strong>🎓 Diplôme :</strong>{" "}
+                        <strong>Diplome :</strong>{" "}
                         {selectedCandidature.diplome}
                       </p>
                     )}
                     {selectedCandidature.experience && (
                       <p>
-                        <strong>💼 Expérience :</strong>{" "}
+                        <strong>Experience :</strong>{" "}
                         {selectedCandidature.experience}
                       </p>
                     )}
                     {selectedCandidature.competenceScore && (
                       <p>
-                        <strong>⭐ Score de compétences :</strong>{" "}
+                        <strong>Score de competences :</strong>{" "}
                         {selectedCandidature.competenceScore}%
                       </p>
                     )}
                     <p>
-                      <strong>📅 Date de soumission :</strong>{" "}
-                      {new Date(
-                        selectedCandidature.dateSoumission
-                      ).toLocaleDateString()}
+                      <strong>Date de soumission :</strong>{" "}
+                      {formatDateForDisplay(selectedCandidature.dateSoumission)}
                     </p>
 
                     <p>
-                      <strong>📋 Type de candidature :</strong>
+                      <strong>Type de candidature :</strong>
                       <span
                         className={`ml-2 px-2 py-1 rounded-full text-xs ${
                           selectedCandidature.type === "stage_spontane"
@@ -3022,14 +3020,14 @@ const handleChangePassword = async () => {
                         }`}
                       >
                         {selectedCandidature.type === "stage_spontane"
-                          ? "Stage/PFE Spontané"
-                          : "Spontanée Générale"}
+                          ? "Stage/PFE spontane
+                          : "Spontanee generale"}
                       </span>
                     </p>
 
                     {selectedCandidature.cvUrl && (
                       <p>
-                        <strong>📎 CV :</strong>{" "}
+                        <strong>CV :</strong>{" "}
                         <a
                           href={getFileUrl(selectedCandidature.cvUrl)}
                           target="_blank"
@@ -3037,14 +3035,14 @@ const handleChangePassword = async () => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger le CV (PDF)</span>
+                          <span>Telecharger le CV (PDF)</span>
                         </a>
                       </p>
                     )}
 
                     {selectedCandidature.lettreMotivationUrl && (
                       <p>
-                        <strong>📝 Lettre de motivation :</strong>{" "}
+                        <strong>Lettre de motivation :</strong>{" "}
                         <a
                           href={getFileUrl(
                             selectedCandidature.lettreMotivationUrl
@@ -3054,7 +3052,7 @@ const handleChangePassword = async () => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger la lettre de motivation (PDF)</span>
+                          <span>Telecharger la lettre de motivation (PDF)</span>
                         </a>
                       </p>
                     )}
@@ -3062,7 +3060,7 @@ const handleChangePassword = async () => {
                     {selectedCandidature.motivation &&
                       !selectedCandidature.lettreMotivationUrl && (
                         <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-700 max-h-40 overflow-y-auto">
-                          <strong>📝 Lettre de motivation :</strong>
+                          <strong>Lettre de motivation :</strong>
                           <p className="whitespace-pre-wrap mt-1">
                             {selectedCandidature.motivation}
                           </p>
@@ -3149,10 +3147,10 @@ const handleChangePassword = async () => {
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
                   <div className="flex justify-between items-center mb-4 border-b pb-2">
                     <h3 className="text-2xl font-bold text-gray-800">
-                      Détails de la candidature
+                      Details de la candidature
                       <span className="text-blue-600 font-semibold">
                         {" "}
-                        — {selectedCandidature.poste || "Poste"}
+                        â€” {selectedCandidature.poste || "Poste"}
                       </span>
                       <span
                         className={`ml-2 text-sm px-2 py-1 rounded-full ${
@@ -3170,20 +3168,20 @@ const handleChangePassword = async () => {
 
                   <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh] custom-scrollbar">
                     <p>
-                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                      <strong>Nom :</strong> {selectedCandidature.nom}
                     </p>
                     <p>
-                      <strong>📧 Email :</strong> {selectedCandidature.email}
+                      <strong>Email :</strong> {selectedCandidature.email}
                     </p>
                     {selectedCandidature.telephone && (
                       <p>
-                        <strong>📞 Téléphone :</strong>{" "}
+                        <strong>Telephone :</strong>{" "}
                         {selectedCandidature.telephone}
                       </p>
                     )}
 
                     <p>
-                      <strong>📁 Type :</strong>
+                      <strong>Type :</strong>
                       <span
                         className={`ml-1 px-2 py-1 rounded-full text-xs ${
                           selectedCandidature.type === "emploi"
@@ -3200,7 +3198,7 @@ const handleChangePassword = async () => {
                     {selectedCandidature.type === "emploi" &&
                       selectedCandidature.experience && (
                         <p>
-                          <strong>💼 Expérience :</strong>{" "}
+                          <strong>Experience :</strong>{" "}
                           {selectedCandidature.experience}
                         </p>
                       )}
@@ -3209,7 +3207,7 @@ const handleChangePassword = async () => {
                       selectedCandidature.type === "pfe") &&
                       selectedCandidature.diplome && (
                         <p>
-                          <strong>🎓 Diplôme/Niveau :</strong>{" "}
+                          <strong>Diplome/Niveau :</strong>{" "}
                           {selectedCandidature.diplome}
                         </p>
                       )}
@@ -3217,27 +3215,25 @@ const handleChangePassword = async () => {
                     {selectedCandidature.diplome &&
                       selectedCandidature.type === "emploi" && (
                         <p>
-                          <strong>🎓 Diplôme :</strong>{" "}
+                          <strong>Diplome :</strong>{" "}
                           {selectedCandidature.diplome}
                         </p>
                       )}
 
                     {selectedCandidature.competenceScore && (
                       <p>
-                        <strong>⭐ Score de compétences :</strong>{" "}
+                        <strong>Score de competences :</strong>{" "}
                         {selectedCandidature.competenceScore}%
                       </p>
                     )}
                     <p>
-                      <strong>📅 Date de soumission :</strong>{" "}
-                      {new Date(
-                        selectedCandidature.dateSoumission
-                      ).toLocaleDateString()}
+                      <strong>Date de soumission :</strong>{" "}
+                      {formatDateForDisplay(selectedCandidature.dateSoumission)}
                     </p>
 
                     {selectedCandidature.cvUrl && (
                       <p>
-                        <strong>📎 CV :</strong>{" "}
+                        <strong>CV :</strong>{" "}
                         <a
                           href={getFileUrl(selectedCandidature.cvUrl)}
                           target="_blank"
@@ -3245,14 +3241,14 @@ const handleChangePassword = async () => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger le CV (PDF)</span>
+                          <span>Telecharger le CV (PDF)</span>
                         </a>
                       </p>
                     )}
 
                     {selectedCandidature.lettreMotivationUrl && (
                       <p>
-                        <strong>📝 Lettre de motivation :</strong>{" "}
+                        <strong>Lettre de motivation :</strong>{" "}
                         <a
                           href={getFileUrl(
                             selectedCandidature.lettreMotivationUrl
@@ -3262,7 +3258,7 @@ const handleChangePassword = async () => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger la lettre de motivation (PDF)</span>
+                          <span>Telecharger la lettre de motivation (PDF)</span>
                         </a>
                       </p>
                     )}
@@ -3270,7 +3266,7 @@ const handleChangePassword = async () => {
                     {selectedCandidature.motivation &&
                       !selectedCandidature.lettreMotivationUrl && (
                         <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-700 max-h-40 overflow-y-auto">
-                          <strong>📝 Lettre de motivation :</strong>
+                          <strong>Lettre de motivation :</strong>
                           <p className="whitespace-pre-wrap mt-1">
                             {selectedCandidature.motivation}
                           </p>
@@ -3279,7 +3275,7 @@ const handleChangePassword = async () => {
 
                     {selectedCandidature.domaine && (
                       <p>
-                        <strong>🌍 Domaine :</strong>{" "}
+                        <strong>ðŸŒ Domaine :</strong>{" "}
                         {selectedCandidature.domaine}
                       </p>
                     )}
@@ -3288,13 +3284,13 @@ const handleChangePassword = async () => {
                       selectedCandidature.type === "pfe") &&
                       selectedCandidature.duree && (
                         <p>
-                          <strong>⏱️ Durée :</strong>{" "}
+                          <strong>â±ï¸ DurÃ©e :</strong>{" "}
                           {selectedCandidature.duree}
                         </p>
                       )}
 
                     <p>
-                      <strong>📋 Type de candidature :</strong>
+                      <strong>Type de candidature :</strong>
                       <span
                         className={`ml-1 px-2 py-1 rounded-full text-xs ${
                           selectedCandidature.offreId
@@ -3304,7 +3300,7 @@ const handleChangePassword = async () => {
                       >
                         {selectedCandidature.offreId
                           ? "Sur offre spécifique"
-                          : "Candidature spontanée"}
+                          : "Candidature spontanÃ©e"}
                       </span>
                     </p>
                   </div>

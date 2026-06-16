@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Mail, Phone, File, MessageSquare, Star, Briefcase } from 'lucide-react';
 import axios from 'axios';
+import { apiUrl } from '../lib/api';
 
 type CompetencesType = {
   [key: string]: number; // Dynamique pour les exigences du poste
@@ -42,12 +43,10 @@ const FormulaireEmploi = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [selectedOffre, setSelectedOffre] = useState<Offre | null>(null);
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
-  
   useEffect(() => {
     const fetchOffres = async () => {
       try {
-        const response = await axios.get<Offre[]>(`${API_BASE_URL}/api/offres`);
+        const response = await axios.get<Offre[]>(apiUrl('/api/offres'));
         setOffres(response.data);
 
         if (location.state?.offreId) {
@@ -151,7 +150,7 @@ const FormulaireEmploi = () => {
       form.append('poste', selectedOffre?.titre || '');
       form.append('competences', JSON.stringify(formData.competences));
 
-      await axios.post(`${API_BASE_URL}/api/candidature-emploi`, form);
+      await axios.post(apiUrl('/api/candidature-emploi'), form);
 
       setSubmitMessage('Candidature envoyée avec succès !');
       setFormData({

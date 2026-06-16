@@ -8,6 +8,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Mail, Phone, File, MessageSquare, Star, Briefcase } from 'lucide-react';
+import { apiUrl } from '../lib/api';
 
 interface CompetencesType {
   communication: number;
@@ -120,17 +121,16 @@ const calculerScore = (competences: CompetencesType) => {
       formToSend.append('cv', formData.cv);
       formToSend.append('lettre_motivation', formData.lettre_motivation);
 
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
       const score = calculerScore(formData.competences);
       console.log('Score calculé:', score);
 
       let url = "";
       if (type === "emploi") {
-        url = `${API_BASE_URL}/api/candidature-emploi`;
+        url = apiUrl('/api/candidature-emploi');
       } else if (type === "stage") {
-        url = `${API_BASE_URL}/api/candidature-stage`;
+        url = apiUrl('/api/candidature-stage');
       } else {
-        url = `${API_BASE_URL}/api/candidature-spontanee`;
+        url = apiUrl('/api/candidature-spontanee');
       }
 
       const response = await fetch(url, {

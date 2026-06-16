@@ -4,9 +4,9 @@
 // ============================================================
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { formatDateForDisplay } from "../lib/date";
+import { API_BASE_URL, apiUrl as getApiUrl } from "../lib/api";
 import {
-  LogOut,
   Plus,
   Edit,
   Trash2,
@@ -24,20 +24,11 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  BarChart3,
-  Home,
   Search,
-  Key,
   Ban,
   RotateCcw,
   XCircle as XIcon,
 } from "lucide-react";
-
-// === Ajout pour API dynamique ===
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://c4e-website-back.onrender.com";
-const getApiUrl = (path: string) =>
-  `${API_BASE_URL}${path.startsWith("/") ? path : "/" + path}`;
 
 interface OffreEmploi {
   id: number;
@@ -96,7 +87,7 @@ interface User {
   id: number;
   nom: string;
   email: string;
-  role: "admin" | "gestionnaire";
+  role: "admin" | "dg" | "manager" | "collaborator";
   dateCreation: string;
   statut: "actif" | "inactif";
 }
@@ -140,7 +131,7 @@ const handleApiError = async (response: Response) => {
     }
     
     const fullError = errorDetails ? `${errorMessage} - ${errorDetails}` : errorMessage;
-    console.error(`❌ Erreur API ${response.status}:`, fullError);
+    console.error(`âŒ Erreur API ${response.status}:`, fullError);
     throw new Error(fullError);
   }
   return response;
@@ -257,9 +248,9 @@ const DashboardAdmin = () => {
     nom: "",
     email: "",
     motDePasse: "",
-    role: "gestionnaire" as "admin" | "gestionnaire"
+    role: "collaborator" as "admin" | "dg" | "manager" | "collaborator"
   });
-const [userRole, setUserRole] = useState<"admin" | "gestionnaire">("admin");
+const [userRole, setUserRole] = useState<"admin" | "dg" | "manager" | "other">("admin");
 useEffect(() => {
   if (!token) {
     navigate("/login");
@@ -268,21 +259,42 @@ useEffect(() => {
 
   // Logique de détermination du rôle UNE SEULE FOIS au montage
   const userData = localStorage.getItem("userData");
+  const storedUserRole = localStorage.getItem("userRole");
   const userType = localStorage.getItem("userType");
 
-  let determinedRole: "admin" | "gestionnaire" = "gestionnaire";
+  let determinedRole: "admin" | "dg" | "manager" | "other" = "other";
 
   if (userData) {
     try {
       const parsedData = JSON.parse(userData);
-      determinedRole = parsedData.role || parsedData.type || "gestionnaire";
+      const rawRole = (parsedData.role || parsedData.type || "").toString().toLowerCase();
+      if (rawRole === "admin" || rawRole === "administrateur") {
+        determinedRole = "admin";
+      } else if (rawRole === "dg") {
+        determinedRole = "dg";
+      } else if (rawRole === "manager" || rawRole === "chef_projet" || rawRole === "gestionnaire") {
+        determinedRole = "manager";
+      }
     } catch {
-      determinedRole = window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire";
+      determinedRole = window.location.pathname === "/admin-dashboard" ? "admin" : "other";
     }
-  } else if (userType) {
-    determinedRole = userType === "administrateur" ? "admin" : "gestionnaire";
+  } else if (storedUserRole || userType) {
+    const normalizedRole = (storedUserRole || "").toLowerCase();
+    const normalizedType = (userType || "").toLowerCase();
+    if (normalizedRole === "admin" || normalizedType === "administrateur") {
+      determinedRole = "admin";
+    } else if (normalizedRole === "dg" || normalizedType === "dg") {
+      determinedRole = "dg";
+    } else if (
+      normalizedRole === "manager" ||
+      normalizedRole === "chef_projet" ||
+      normalizedRole === "gestionnaire" ||
+      normalizedType === "gestionnaire"
+    ) {
+      determinedRole = "manager";
+    }
   } else {
-    determinedRole = window.location.pathname === "/admin-dashboard" ? "admin" : "gestionnaire";
+    determinedRole = window.location.pathname === "/admin-dashboard" ? "admin" : "other";
   }
 
   setUserRole(determinedRole);
@@ -382,7 +394,7 @@ useEffect(() => {
           url = "/api/candidatures";
         }
 
-        console.log("🔄 Chargement des candidatures depuis:", url);
+        console.log("🔎 Chargement des candidatures depuis:", url);
 
         const response = await fetch(getApiUrl(url), {
           headers: { 
@@ -454,13 +466,13 @@ useEffect(() => {
 
           const finalMerged = [...merged, ...localOnlyCandidates];
           
-          console.log(`✅ Fusion finale: ${finalMerged.length} total, ${finalMerged.filter(c => c.ignored).length} ignorées`);
+          console.log(`âœ… Fusion finale: ${finalMerged.length} total, ${finalMerged.filter(c => c.ignored).length} ignorées`);
           return finalMerged;
         });
 
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Erreur inconnue";
-        console.error("❌ Erreur fetchCandidatures:", err);
+        console.error("âŒ Erreur fetchCandidatures:", err);
         setErrorCandidatures(message);
       } finally {
         setLoadingCandidatures(false);
@@ -487,8 +499,12 @@ useEffect(() => {
 
       await handleApiError(response);
       const data = await response.json();
-      
-      setUsers(data.utilisateurs || data);
+      const rawUsers = data.utilisateurs || data;
+      const normalizedUsers = (Array.isArray(rawUsers) ? rawUsers : []).map((u: any) => ({
+        ...u,
+        dateCreation: u.dateCreation || u.date_creation || u.date_creation_at,
+      }));
+      setUsers(normalizedUsers);
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -515,8 +531,8 @@ const handleAddUser = async () => {
       setErrorUsers("Le mot de passe est requis");
       return;
     }
-    if (newUser.motDePasse.length < 6) {
-      setErrorUsers("Le mot de passe doit contenir au moins 6 caractères");
+    if (newUser.motDePasse.length < 8) {
+      setErrorUsers("Le mot de passe doit contenir au moins 8 caractères");
       return;
     }
 
@@ -534,7 +550,7 @@ const handleAddUser = async () => {
       role: newUser.role
     };
 
-    console.log("🔄 Création utilisateur:", userData);
+    console.log("🔎 Création utilisateur:", userData);
 
     const response = await fetch(getApiUrl("/api/admin/utilisateurs"), {
       method: "POST",
@@ -556,7 +572,7 @@ const handleAddUser = async () => {
       nom: "", 
       email: "", 
       motDePasse: "", 
-      role: "gestionnaire" 
+      role: "collaborator" 
     });
     setShowAddUser(false);
     setErrorUsers("");
@@ -564,11 +580,11 @@ const handleAddUser = async () => {
     // Rechargement de la liste
     await fetchUsers();
     
-    console.log("✅ Utilisateur créé avec succès");
+    console.log("âœ… Utilisateur créé avec succès");
     
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue lors de la création";
-    console.error("❌ Erreur création utilisateur:", err);
+    console.error("âŒ Erreur création utilisateur:", err);
     setErrorUsers(`Erreur: ${message}`);
   }
 };
@@ -577,8 +593,7 @@ const handleAddUser = async () => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${user.nom} ?`)) return;
     
     try {
-      const userType = user.role === "admin" ? "administrateurs" : "gestionnaires";
-      const response = await fetch(getApiUrl(`/api/admin/${userType}/${user.id}`), {
+      const response = await fetch(getApiUrl(`/api/admin/utilisateurs/${user.id}`), {
         method: "DELETE",
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -799,7 +814,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
     if (response.ok) {
       const result = await response.json();
-      console.log("✅ Suppression réussie:", result);
+      console.log("âœ… Suppression réussie:", result);
 
       // Mettre à jour l'état local
       setCandidatures((prev) =>
@@ -818,7 +833,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         setSelectedCandidature(null);
       }
 
-      setErrorCandidatures(`✅ Candidature de ${candidature.nom} supprimée avec succès`);
+      setErrorCandidatures(`âœ… Candidature de ${candidature.nom} supprimée avec succès`);
       setTimeout(() => setErrorCandidatures(""), 3000);
 
     } else {
@@ -835,8 +850,8 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
-    console.error("❌ Erreur suppression:", err);
-    setErrorCandidatures(`❌ Erreur: ${message}`);
+    console.error("âŒ Erreur suppression:", err);
+    setErrorCandidatures(`âŒ Erreur: ${message}`);
   }
 };
 
@@ -855,8 +870,8 @@ const supprimerCandidature = async (candidature: Candidature) => {
     );
     localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-    console.log(`✅ Candidature de ${candidature.nom} restaurée`);
-    setErrorCandidatures(`✅ Candidature de ${candidature.nom} restaurée`);
+    console.log(`âœ… Candidature de ${candidature.nom} restaurée`);
+    setErrorCandidatures(`âœ… Candidature de ${candidature.nom} restaurée`);
     setTimeout(() => setErrorCandidatures(""), 3000);
   };
   
@@ -890,7 +905,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         );
         localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-        setErrorCandidatures(`✅ Candidature de ${candidature.nom} ignorée`);
+        setErrorCandidatures(`âœ… Candidature de ${candidature.nom} ignorée`);
         setTimeout(() => setErrorCandidatures(""), 3000);
         return;
       }
@@ -909,7 +924,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
       await handleApiError(response);
 
       const result = await response.json();
-      console.log("✅ Réponse backend:", result);
+      console.log("âœ… Réponse backend:", result);
 
       const updatedCandidature = { 
         ...candidature, 
@@ -929,15 +944,15 @@ const supprimerCandidature = async (candidature: Candidature) => {
       );
       localStorage.setItem('candidatures', JSON.stringify(updatedCandidatures));
 
-      const message = result.message || `✅ Statut de ${candidature.nom} mis à jour avec succès`;
+      const message = result.message || `âœ… Statut de ${candidature.nom} mis à jour avec succès`;
       setErrorCandidatures(message);
       
       setTimeout(() => setErrorCandidatures(""), 3000);
 
     } catch (err: unknown) {
-      console.error("❌ Erreur détaillée:", err);
+      console.error("âŒ Erreur détaillée:", err);
       const message = err instanceof Error ? err.message : "Erreur inconnue";
-      setErrorCandidatures(`❌ Erreur: ${message}`);
+      setErrorCandidatures(`âŒ Erreur: ${message}`);
     }
   };
 
@@ -1004,12 +1019,6 @@ const supprimerCandidature = async (candidature: Candidature) => {
     );
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userData");
-    navigate("/login");
-  };
-
   const handleChangePassword = async () => {
     try {
       setIsChangingPassword(true);
@@ -1045,7 +1054,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         console.log("📥 Réponse brute:", response);
         
         if (!response.ok) {
-          console.log("❌ Erreur HTTP:", response.status, response.statusText);
+          console.log("âŒ Erreur HTTP:", response.status, response.statusText);
           
           console.log("🔄 Essai avec POST...");
           response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
@@ -1059,7 +1068,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         }
         
       } catch (fetchError) {
-        console.error("❌ Erreur fetch:", fetchError);
+        console.error("âŒ Erreur fetch:", fetchError);
         throw new Error(`Erreur réseau: ${fetchError.message}`);
       }
 
@@ -1070,7 +1079,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         data = await response.json();
         console.log("📋 Données réponse:", data);
       } catch (jsonError) {
-        console.error("❌ Erreur parsing JSON:", jsonError);
+        console.error("âŒ Erreur parsing JSON:", jsonError);
         throw new Error("Réponse invalide du serveur");
       }
 
@@ -1093,7 +1102,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Une erreur est survenue";
-      console.error("❌ Erreur complète:", err);
+      console.error("âŒ Erreur complète:", err);
       setPasswordError(message);
     } finally {
       setIsChangingPassword(false);
@@ -1375,7 +1384,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                       <div className="flex items-center text-sm text-gray-600">
                         <span className="mr-2">📅</span>
                         Expire le{" "}
-                        {new Date(offre.dateExpiration).toLocaleDateString()}
+                        {formatDateForDisplay(offre.dateExpiration)}
                       </div>
                     </div>
 
@@ -1607,7 +1616,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <DisplayExperience experience={cand.experience} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
@@ -1737,7 +1746,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -1782,7 +1791,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
               <div className="flex justify-between items-center mb-4 border-b pb-2">
                 <h3 className="text-2xl font-bold text-gray-800">
-                  Détails de la candidature ignorée
+                  Details de la candidature ignorée
                 </h3>
                 <div className="flex items-center space-x-2">
                   <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
@@ -1793,37 +1802,37 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
               <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
                 <p>
-                  <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                  <strong>Nom :</strong> {selectedCandidature.nom}
                 </p>
                 <p>
-                  <strong>📧 Email :</strong> {selectedCandidature.email}
+                  <strong>Email :</strong> {selectedCandidature.email}
                 </p>
                 {selectedCandidature.telephone && (
                   <p>
-                    <strong>📞 Téléphone :</strong> {selectedCandidature.telephone}
+                    <strong>Telephone :</strong> {selectedCandidature.telephone}
                   </p>
                 )}
                 {selectedCandidature.diplome && (
                   <p>
-                    <strong>🎓 Diplôme :</strong> {selectedCandidature.diplome}
+                    <strong>Diplome :</strong> {selectedCandidature.diplome}
                   </p>
                 )}
                 {selectedCandidature.experience && (
                   <p>
-                    <strong>💼 Expérience :</strong> {selectedCandidature.experience}
+                    <strong>Experience :</strong> {selectedCandidature.experience}
                   </p>
                 )}
                 {selectedCandidature.competenceScore && (
                   <p>
-                    <strong>⭐ Score de compétences :</strong> {selectedCandidature.competenceScore}%
+                    <strong>Score de competences :</strong> {selectedCandidature.competenceScore}%
                   </p>
                 )}
                 <p>
-                  <strong>📅 Date de soumission :</strong>{" "}
-                  {new Date(selectedCandidature.dateSoumission).toLocaleDateString()}
+                  <strong>Date de soumission :</strong>{" "}
+                  {formatDateForDisplay(selectedCandidature.dateSoumission)}
                 </p>
                 <p>
-                  <strong>📋 Type :</strong>
+                  <strong>Type :</strong>
                   <span
                     className={`ml-2 px-2 py-1 rounded-full text-xs ${
                       selectedCandidature.type === "emploi"
@@ -1853,7 +1862,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
                 {selectedCandidature.cvUrl && (
                   <p>
-                    <strong>📎 CV :</strong>{" "}
+                    <strong>CV :</strong>{" "}
                     <a
                       href={getFileUrl(selectedCandidature.cvUrl)}
                       target="_blank"
@@ -1868,7 +1877,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
                 {selectedCandidature.lettreMotivationUrl && (
                   <p>
-                    <strong>📝 Lettre de motivation :</strong>{" "}
+                    <strong>Lettre de motivation :</strong>{" "}
                     <a
                       href={getFileUrl(selectedCandidature.lettreMotivationUrl)}
                       target="_blank"
@@ -2091,7 +2100,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <DisplayCompetenceScore score={cand.competenceScore} />
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                        {new Date(cand.dateSoumission).toLocaleDateString()}
+                        {formatDateForDisplay(cand.dateSoumission)}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         <span
@@ -2141,7 +2150,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
               <div className="flex justify-between items-center mb-4 border-b pb-2">
                 <h3 className="text-2xl font-bold text-gray-800">
-                  Détails de la candidature traitée
+                  Details de la candidature traitée
                 </h3>
                 <div className="flex items-center space-x-2">
                   <span
@@ -2164,43 +2173,41 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
               <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh]">
                 <p>
-                  <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                  <strong>Nom :</strong> {selectedCandidature.nom}
                 </p>
                 <p>
-                  <strong>📧 Email :</strong> {selectedCandidature.email}
+                  <strong>Email :</strong> {selectedCandidature.email}
                 </p>
                 {selectedCandidature.telephone && (
                   <p>
-                    <strong>📞 Téléphone :</strong>{" "}
+                    <strong>Telephone :</strong>{" "}
                     {selectedCandidature.telephone}
                   </p>
                 )}
                 {selectedCandidature.diplome && (
                   <p>
-                    <strong>🎓 Diplôme :</strong>{" "}
+                    <strong>Diplome :</strong>{" "}
                     {selectedCandidature.diplome}
                   </p>
                 )}
                 {selectedCandidature.experience && (
                   <p>
-                    <strong>💼 Expérience :</strong>{" "}
+                    <strong>Experience :</strong>{" "}
                     {selectedCandidature.experience}
                   </p>
                 )}
                 {selectedCandidature.competenceScore && (
                   <p>
-                    <strong>⭐ Score de compétences :</strong>{" "}
+                    <strong>Score de competences :</strong>{" "}
                     {selectedCandidature.competenceScore}%
                   </p>
                 )}
                 <p>
-                  <strong>📅 Date de soumission :</strong>{" "}
-                  {new Date(
-                    selectedCandidature.dateSoumission
-                  ).toLocaleDateString()}
+                  <strong>Date de soumission :</strong>{" "}
+                  {formatDateForDisplay(selectedCandidature.dateSoumission)}
                 </p>
                 <p>
-                  <strong>📋 Type :</strong>
+                  <strong>Type :</strong>
                   <span
                     className={`ml-2 px-2 py-1 rounded-full text-xs ${
                       selectedCandidature.type === "emploi"
@@ -2230,7 +2237,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
                 {selectedCandidature.cvUrl && (
                   <p>
-                    <strong>📎 CV :</strong>{" "}
+                    <strong>CV :</strong>{" "}
                     <a
                       href={getFileUrl(selectedCandidature.cvUrl)}
                       target="_blank"
@@ -2245,7 +2252,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
                 {selectedCandidature.lettreMotivationUrl && (
                   <p>
-                    <strong>📝 Lettre de motivation :</strong>{" "}
+                    <strong>Lettre de motivation :</strong>{" "}
                     <a
                       href={getFileUrl(
                         selectedCandidature.lettreMotivationUrl
@@ -2277,7 +2284,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
   };
 
   // === COMPOSANT POUR LA GESTION DES UTILISATEURS ===
-  const GestionUtilisateurs = () => {
+  const renderGestionUtilisateurs = () => {
     return (
       <section className="space-y-6">
         <div className="flex justify-between items-center">
@@ -2312,7 +2319,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
               nom: "", 
               email: "", 
               motDePasse: "", 
-              role: "gestionnaire" 
+              role: "collaborator" 
             });
             setErrorUsers("");
           }}
@@ -2358,21 +2365,23 @@ const supprimerCandidature = async (candidature: Candidature) => {
             value={newUser.motDePasse}
             onChange={(e) => setNewUser({ ...newUser, motDePasse: e.target.value })}
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            placeholder="Minimum 6 caractères"
+            placeholder="Minimum 8 caractères"
             minLength={6}
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Rôle *
+            Role *
           </label>
           <select
             value={newUser.role}
-            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "gestionnaire" })}
+            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as "admin" | "dg" | "manager" | "collaborator" })}
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
           >
-            <option value="gestionnaire">Gestionnaire</option>
+            <option value="collaborator">Collaborateur</option>
+            <option value="manager">Chef de Projet / Manager</option>
+            <option value="dg">Directeur Général</option>
             <option value="admin">Administrateur</option>
           </select>
         </div>
@@ -2386,7 +2395,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
               nom: "", 
               email: "", 
               motDePasse: "", 
-              role: "gestionnaire" 
+              role: "collaborator" 
             });
             setErrorUsers("");
           }}
@@ -2396,7 +2405,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
         </button>
         <button
           onClick={handleAddUser}
-          disabled={!newUser.nom || !newUser.email || !newUser.motDePasse || newUser.motDePasse.length < 6}
+          disabled={!newUser.nom || !newUser.email || !newUser.motDePasse || newUser.motDePasse.length < 8}
           className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium"
         >
           Créer l'utilisateur
@@ -2426,8 +2435,8 @@ const supprimerCandidature = async (candidature: Candidature) => {
                   <tr>
                     <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Utilisateur</th>
                     <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Email</th>
-                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Rôle</th>
-                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Date de création</th>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Role</th>
+                    <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Date de creation</th>
                     <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Statut</th>
                     <th className="px-6 py-4 text-left font-semibold text-blue-900 text-sm">Actions</th>
                   </tr>
@@ -2450,15 +2459,13 @@ const supprimerCandidature = async (candidature: Candidature) => {
                       <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                          user.role === "admin" 
-                            ? "bg-purple-100 text-purple-800" 
-                            : "bg-green-100 text-green-800"
+                          user.role === "admin" ? "bg-purple-100 text-purple-800" : user.role === "dg" ? "bg-indigo-100 text-indigo-800" : user.role === "manager" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"
                         }`}>
-                          {user.role === "admin" ? "Administrateur" : "Gestionnaire"}
+                          {user.role === "admin" ? "Administrateur" : user.role === "dg" ? "Directeur Général" : user.role === "manager" ? "Chef de Projet / Manager" : user.role === "collaborator" ? "Collaborateur" : user.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
-                        {new Date(user.dateCreation).toLocaleDateString()}
+                        {formatDateForDisplay(user.dateCreation || user.date_creation)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
@@ -2514,49 +2521,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
     );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Link to="/">
-              <img
-                src="/logo.png"
-                alt="Logo C4E Africa"
-                className="h-10 w-10 rounded-full shadow-md cursor-pointer"
-              />
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              {userRole === "admin" ? "Dashboard Administrateur" : "Dashboard Gestionnaire"}
-            </h1>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowChangePassword(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 font-medium shadow-sm"
-            >
-              <Key className="h-5 w-5" />
-              <span>Changer Mot de Passe</span>
-            </button>
-
-            <Link
-              to="/"
-              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 font-medium shadow-sm"
-            >
-              Accueil
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 font-medium shadow-sm"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Déconnexion</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-full bg-slate-50">
       {showChangePassword && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
@@ -2676,14 +2641,31 @@ const supprimerCandidature = async (candidature: Candidature) => {
         </div>
       )}
 
-      <div className="container mx-auto px-6 py-8">
-        <div className="flex justify-center mb-8 space-x-1 bg-white/50 rounded-xl p-1 shadow-md">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-2">
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm shadow-slate-200/70">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                Espace RH
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                Gestion des Offres d'Emploi
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Creez et pilotez les offres, candidatures et reponses dans un espace clair.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <div className="mb-8 flex flex-wrap gap-2 rounded-3xl border border-slate-200 bg-white p-2 shadow-sm shadow-slate-200/70">
           <button
             onClick={() => setActiveTab("offres")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+            className={`flex items-center space-x-2 rounded-2xl px-5 py-3 font-medium transition-all duration-200 ${
               activeTab === "offres"
-                ? "bg-yellow-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-md shadow-indigo-200"
+                : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
             }`}
           >
             <Briefcase className="h-5 w-5" />
@@ -2691,10 +2673,10 @@ const supprimerCandidature = async (candidature: Candidature) => {
           </button>
           <button
             onClick={() => setActiveTab("candidatures")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
+            className={`relative flex items-center space-x-2 rounded-2xl px-5 py-3 font-medium transition-all duration-200 ${
               activeTab === "candidatures"
-                ? "bg-yellow-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-md shadow-indigo-200"
+                : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
             }`}
           >
             <Users className="h-5 w-5" />
@@ -2707,10 +2689,10 @@ const supprimerCandidature = async (candidature: Candidature) => {
           </button>
           <button
             onClick={() => setActiveTab("candidatures-postes")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
+            className={`relative flex items-center space-x-2 rounded-2xl px-5 py-3 font-medium transition-all duration-200 ${
               activeTab === "candidatures-postes"
-                ? "bg-yellow-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-md shadow-indigo-200"
+                : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
             }`}
           >
             <Briefcase className="h-5 w-5" />
@@ -2723,14 +2705,14 @@ const supprimerCandidature = async (candidature: Candidature) => {
           </button>
           <button
             onClick={() => setActiveTab("reponses-candidatures")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
+            className={`relative flex items-center space-x-2 rounded-2xl px-5 py-3 font-medium transition-all duration-200 ${
               activeTab === "reponses-candidatures"
-                ? "bg-yellow-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-md shadow-indigo-200"
+                : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
             }`}
           >
             <CheckCircle className="h-5 w-5" />
-            <span>Réponses Candidatures</span>
+            <span>Reponses Candidatures</span>
             {statsArchives.total > 0 && (
               <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
                 {statsArchives.total}
@@ -2739,10 +2721,10 @@ const supprimerCandidature = async (candidature: Candidature) => {
           </button>
           <button
             onClick={() => setActiveTab("archives")}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+            className={`flex items-center space-x-2 rounded-2xl px-5 py-3 font-medium transition-all duration-200 ${
               activeTab === "archives"
-                ? "bg-yellow-500 text-white shadow-lg"
-                : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-md shadow-indigo-200"
+                : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
             }`}
           >
             <Archive className="h-5 w-5" />
@@ -2753,10 +2735,10 @@ const supprimerCandidature = async (candidature: Candidature) => {
           {userRole === "admin" && (
             <button
               onClick={() => setActiveTab("utilisateurs")}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              className={`flex items-center space-x-2 rounded-2xl px-5 py-3 font-medium transition-all duration-200 ${
                 activeTab === "utilisateurs"
-                  ? "bg-purple-500 text-white shadow-lg"
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/50"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-md shadow-indigo-200"
+                  : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
               }`}
             >
               <Users className="h-5 w-5" />
@@ -2770,10 +2752,6 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
         {activeTab === "offres" && (
           <section className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-900 text-center">
-              Gestion des Offres d'Emploi
-            </h2>
-
             {errorOffres && (
               <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
                 {errorOffres}
@@ -3105,7 +3083,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.localisation}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">{offre.salaire || "N/A"}</td>
                         <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                          {new Date(offre.dateExpiration).toLocaleDateString()}
+                          {formatDateForDisplay(offre.dateExpiration)}
                         </td>
                         <td className="px-4 py-3 text-sm whitespace-nowrap">
                           <span
@@ -3302,7 +3280,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                                 <DisplayExperience experience={cand.experience} />
                               </td>
                               <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
-                                {new Date(cand.dateSoumission).toLocaleDateString()}
+                                {formatDateForDisplay(cand.dateSoumission)}
                               </td>
                               <td className="px-4 py-3 text-sm whitespace-nowrap">
                                 <span
@@ -3343,50 +3321,48 @@ const supprimerCandidature = async (candidature: Candidature) => {
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
                   <div className="flex justify-between items-center mb-4 border-b pb-2">
                     <h3 className="text-2xl font-bold text-gray-800">
-                      Détails de la candidature
+                      Details de la candidature
                     </h3>
                   </div>
 
                   <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh] custom-scrollbar">
                     <p>
-                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                      <strong>Nom :</strong> {selectedCandidature.nom}
                     </p>
                     <p>
-                      <strong>📧 Email :</strong> {selectedCandidature.email}
+                      <strong>Email :</strong> {selectedCandidature.email}
                     </p>
                     {selectedCandidature.telephone && (
                       <p>
-                        <strong>📞 Téléphone :</strong>{" "}
+                        <strong>Telephone :</strong>{" "}
                         {selectedCandidature.telephone}
                       </p>
                     )}
                     {selectedCandidature.diplome && (
                       <p>
-                        <strong>🎓 Diplôme :</strong>{" "}
+                        <strong>Diplome :</strong>{" "}
                         {selectedCandidature.diplome}
                       </p>
                     )}
                     {selectedCandidature.experience && (
                       <p>
-                        <strong>💼 Expérience :</strong>{" "}
+                        <strong>Experience :</strong>{" "}
                         {selectedCandidature.experience}
                       </p>
                     )}
                     {selectedCandidature.competenceScore && (
                       <p>
-                        <strong>⭐ Score de compétences :</strong>{" "}
+                        <strong>Score de competences :</strong>{" "}
                         {selectedCandidature.competenceScore}%
                       </p>
                     )}
                     <p>
-                      <strong>📅 Date de soumission :</strong>{" "}
-                      {new Date(
-                        selectedCandidature.dateSoumission
-                      ).toLocaleDateString()}
+                      <strong>Date de soumission :</strong>{" "}
+                      {formatDateForDisplay(selectedCandidature.dateSoumission)}
                     </p>
 
                     <p>
-                      <strong>📋 Type de candidature :</strong>
+                      <strong>Type de candidature :</strong>
                       <span
                         className={`ml-2 px-2 py-1 rounded-full text-xs ${
                           selectedCandidature.type === "stage_spontane"
@@ -3395,14 +3371,14 @@ const supprimerCandidature = async (candidature: Candidature) => {
                         }`}
                       >
                         {selectedCandidature.type === "stage_spontane"
-                          ? "Stage/PFE Spontané"
-                          : "Spontanée Générale"}
+                          ? "Stage/PFE spontane"
+                          : "Spontanee generale"}
                       </span>
                     </p>
 
                     {selectedCandidature.cvUrl && (
                       <p>
-                        <strong>📎 CV :</strong>{" "}
+                        <strong>CV :</strong>{" "}
                         <a
                           href={getFileUrl(selectedCandidature.cvUrl)}
                           target="_blank"
@@ -3410,14 +3386,14 @@ const supprimerCandidature = async (candidature: Candidature) => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger le CV (PDF)</span>
+                          <span>Telecharger le CV (PDF)</span>
                         </a>
                       </p>
                     )}
 
                     {selectedCandidature.lettreMotivationUrl && (
                       <p>
-                        <strong>📝 Lettre de motivation :</strong>{" "}
+                        <strong>Lettre de motivation :</strong>{" "}
                         <a
                           href={getFileUrl(
                             selectedCandidature.lettreMotivationUrl
@@ -3427,7 +3403,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger la lettre de motivation (PDF)</span>
+                          <span>Telecharger la lettre de motivation (PDF)</span>
                         </a>
                       </p>
                     )}
@@ -3435,7 +3411,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                     {selectedCandidature.motivation &&
                       !selectedCandidature.lettreMotivationUrl && (
                         <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-700 max-h-40 overflow-y-auto">
-                          <strong>📝 Lettre de motivation :</strong>
+                          <strong>Lettre de motivation :</strong>
                           <p className="whitespace-pre-wrap mt-1">
                             {selectedCandidature.motivation}
                           </p>
@@ -3522,7 +3498,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeIn">
                   <div className="flex justify-between items-center mb-4 border-b pb-2">
                     <h3 className="text-2xl font-bold text-gray-800">
-                      Détails de la candidature
+                      Details de la candidature
                       <span className="text-blue-600 font-semibold">
                         {" "}
                         — {selectedCandidature.poste || "Poste"}
@@ -3543,20 +3519,20 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
                   <div className="space-y-3 overflow-y-auto pr-2 max-h-[70vh] custom-scrollbar">
                     <p>
-                      <strong>👤 Nom :</strong> {selectedCandidature.nom}
+                      <strong>Nom :</strong> {selectedCandidature.nom}
                     </p>
                     <p>
-                      <strong>📧 Email :</strong> {selectedCandidature.email}
+                      <strong>Email :</strong> {selectedCandidature.email}
                     </p>
                     {selectedCandidature.telephone && (
                       <p>
-                        <strong>📞 Téléphone :</strong>{" "}
+                        <strong>Telephone :</strong>{" "}
                         {selectedCandidature.telephone}
                       </p>
                     )}
 
                     <p>
-                      <strong>📁 Type :</strong>
+                      <strong>Type :</strong>
                       <span
                         className={`ml-1 px-2 py-1 rounded-full text-xs ${
                           selectedCandidature.type === "emploi"
@@ -3573,7 +3549,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                     {selectedCandidature.type === "emploi" &&
                       selectedCandidature.experience && (
                         <p>
-                          <strong>💼 Expérience :</strong>{" "}
+                          <strong>Experience :</strong>{" "}
                           {selectedCandidature.experience}
                         </p>
                       )}
@@ -3582,7 +3558,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                       selectedCandidature.type === "pfe") &&
                       selectedCandidature.diplome && (
                         <p>
-                          <strong>🎓 Diplôme/Niveau :</strong>{" "}
+                          <strong>Diplome/Niveau :</strong>{" "}
                           {selectedCandidature.diplome}
                         </p>
                       )}
@@ -3590,27 +3566,25 @@ const supprimerCandidature = async (candidature: Candidature) => {
                     {selectedCandidature.diplome &&
                       selectedCandidature.type === "emploi" && (
                         <p>
-                          <strong>🎓 Diplôme :</strong>{" "}
+                          <strong>Diplome :</strong>{" "}
                           {selectedCandidature.diplome}
                         </p>
                       )}
 
                     {selectedCandidature.competenceScore && (
                       <p>
-                        <strong>⭐ Score de compétences :</strong>{" "}
+                        <strong>Score de competences :</strong>{" "}
                         {selectedCandidature.competenceScore}%
                       </p>
                     )}
                     <p>
-                      <strong>📅 Date de soumission :</strong>{" "}
-                      {new Date(
-                        selectedCandidature.dateSoumission
-                      ).toLocaleDateString()}
+                      <strong>Date de soumission :</strong>{" "}
+                      {formatDateForDisplay(selectedCandidature.dateSoumission)}
                     </p>
 
                     {selectedCandidature.cvUrl && (
                       <p>
-                        <strong>📎 CV :</strong>{" "}
+                        <strong>CV :</strong>{" "}
                         <a
                           href={getFileUrl(selectedCandidature.cvUrl)}
                           target="_blank"
@@ -3618,14 +3592,14 @@ const supprimerCandidature = async (candidature: Candidature) => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger le CV (PDF)</span>
+                          <span>Telecharger le CV (PDF)</span>
                         </a>
                       </p>
                     )}
 
                     {selectedCandidature.lettreMotivationUrl && (
                       <p>
-                        <strong>📝 Lettre de motivation :</strong>{" "}
+                        <strong>Lettre de motivation :</strong>{" "}
                         <a
                           href={getFileUrl(
                             selectedCandidature.lettreMotivationUrl
@@ -3635,7 +3609,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                           className="text-blue-600 hover:underline flex items-center space-x-1"
                         >
                           <FileText className="h-4 w-4" />
-                          <span>Télécharger la lettre de motivation (PDF)</span>
+                          <span>Telecharger la lettre de motivation (PDF)</span>
                         </a>
                       </p>
                     )}
@@ -3643,7 +3617,7 @@ const supprimerCandidature = async (candidature: Candidature) => {
                     {selectedCandidature.motivation &&
                       !selectedCandidature.lettreMotivationUrl && (
                         <div className="bg-gray-50 p-3 rounded-lg border text-sm text-gray-700 max-h-40 overflow-y-auto">
-                          <strong>📝 Lettre de motivation :</strong>
+                          <strong>Lettre de motivation :</strong>
                           <p className="whitespace-pre-wrap mt-1">
                             {selectedCandidature.motivation}
                           </p>
@@ -3661,13 +3635,13 @@ const supprimerCandidature = async (candidature: Candidature) => {
                       selectedCandidature.type === "pfe") &&
                       selectedCandidature.duree && (
                         <p>
-                          <strong>⏱️ Durée :</strong>{" "}
+                          <strong>â±ï¸ Durée :</strong>{" "}
                           {selectedCandidature.duree}
                         </p>
                       )}
 
                     <p>
-                      <strong>📋 Type de candidature :</strong>
+                      <strong>Type de candidature :</strong>
                       <span
                         className={`ml-1 px-2 py-1 rounded-full text-xs ${
                           selectedCandidature.offreId
@@ -3714,10 +3688,14 @@ const supprimerCandidature = async (candidature: Candidature) => {
 
         {activeTab === "reponses-candidatures" && <ReponsesCandidaturesList />}
 
-        {activeTab === "utilisateurs" && userRole === "admin" && <GestionUtilisateurs />}
+        {activeTab === "utilisateurs" && userRole === "admin" && renderGestionUtilisateurs()}
       </div>
     </div>
   );
 };
 
 export default DashboardAdmin;
+
+
+
+

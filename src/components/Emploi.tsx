@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Briefcase, MapPin, Calendar, Search, Plus, Users, Home, Share2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { apiUrl } from '../lib/api';
+import { formatDateForDisplay } from '../lib/date';
 
 interface OffreDB {
   id: number;
@@ -36,8 +38,6 @@ const Emploi = () => {
   const offreIdFromUrl = searchParams.get('offre');
   const posteFromUrl = searchParams.get('poste');
 
-  // REMPLACEZ par votre vraie URL Render
-  const API_BASE_URL = 'https://c4e-website-back.onrender.com';
   const FRONTEND_URL = 'https://c4e-africa.com'; // Votre URL frontend
 
   // 🔥 CORRECTION : Scroll vers le haut au chargement et changement d'offre
@@ -49,9 +49,10 @@ const Emploi = () => {
     try {
       setLoading(true);
       setError('');
-      console.log('🔄 Chargement des offres depuis:', `${API_BASE_URL}/api/offres`);
+      const offresUrl = apiUrl('/api/offres');
+      console.log('🔄 Chargement des offres depuis:', offresUrl);
 
-      const response = await fetch(`${API_BASE_URL}/api/offres`, {
+      const response = await fetch(offresUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -230,13 +231,7 @@ const Emploi = () => {
   const offresAffichees = showAll ? filteredOffres : filteredOffres.slice(0, 2);
 
   // Formater la date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
+  const formatDate = (dateString: string) => formatDateForDisplay(dateString);
 
   const handleHomeClick = () => navigate('/');
   const handleLogoClick = () => navigate('/');
